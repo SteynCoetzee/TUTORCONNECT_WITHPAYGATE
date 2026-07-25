@@ -1,0 +1,260 @@
+:host { display: flex; }
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: var(--dark-bg);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.25s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 64px;
+  overflow: visible;
+}
+
+/* ── Brand ──────────────────────────────────────────────────────── */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  min-height: 68px;
+}
+
+.brand-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px;
+  flex-shrink: 0;
+  transition: opacity 0.2s, width 0.25s;
+}
+.brand-avatar.hidden {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.2s, max-width 0.25s;
+  max-width: 200px;
+}
+.brand-title { color: #fff; font-weight: 700; font-size: 15px; line-height: 1.2; }
+.brand-sub { color: rgba(255,255,255,0.55); font-size: 11px; }
+
+/* ── Collapse toggle button ─────────────────────────────────────── */
+.collapse-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer;
+  color: rgba(255,255,255,0.7);
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s, background 0.2s;
+  margin-left: auto;
+  width: 32px; height: 32px;
+}
+.collapse-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.18);
+}
+.collapse-btn .material-icons { font-size: 18px; }
+
+/* ── Role badge ─────────────────────────────────────────────────── */
+.role-badge {
+  margin: 8px 8px;
+  padding: 5px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  border: 1px solid rgba(255,255,255,0.12);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.role-badge.role-admin { background: rgba(139,92,246,0.2); color: #c4b5fd; border-color: rgba(139,92,246,0.3); }
+.role-badge.role-tutor { background: rgba(91,191,186,0.2); color: var(--primary); border-color: rgba(91,191,186,0.3); }
+.role-badge.role-student { background: rgba(34,197,94,0.15); color: #86efac; border-color: rgba(34,197,94,0.25); }
+.role-icon { font-size: 14px; flex-shrink: 0; }
+.role-label { transition: opacity 0.2s, max-width 0.25s; max-width: 120px; overflow: hidden; }
+
+/* ── Nav Sections ───────────────────────────────────────────────── */
+.nav-sections { flex: 1; overflow-y: auto; overflow-x: visible; padding: 4px 0 16px; }
+.nav-section { margin-bottom: 4px; }
+.nav-section-heading {
+  padding: 10px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s, max-height 0.25s, padding 0.25s;
+  max-height: 40px;
+}
+
+/* ── Nav List ───────────────────────────────────────────────────── */
+.nav-list { list-style: none; margin: 0; padding: 0 6px; }
+.nav-list-item { margin-bottom: 2px; position: relative; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  font-size: 13.5px;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+  position: relative;
+}
+.nav-item:hover {
+  background: rgba(91,191,186,0.15);
+  color: #fff;
+  text-decoration: none;
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+.nav-item.active {
+  background: rgba(91,191,186,0.2);
+  color: var(--primary);
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+/* ── Dock icon magnification ────────────────────────────────────── */
+.nav-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), color 0.2s, filter 0.2s;
+}
+.nav-item:hover .nav-icon {
+  transform: scale(1.35);
+  color: var(--primary);
+  filter: drop-shadow(0 0 6px rgba(91,191,186,0.6));
+}
+
+/* Adjacent items grow slightly — dock ripple effect */
+.nav-list-item:has(+ .nav-list-item:hover) .nav-icon,
+.nav-list-item:hover + .nav-list-item .nav-icon {
+  transform: scale(1.15);
+}
+.nav-list-item:has(+ .nav-list-item + .nav-list-item:hover) .nav-icon,
+.nav-list-item:hover + .nav-list-item + .nav-list-item .nav-icon {
+  transform: scale(1.07);
+}
+
+.nav-label {
+  font-weight: 500;
+  overflow: hidden;
+  max-width: 160px;
+  transition: opacity 0.2s, max-width 0.25s;
+}
+
+/* ── Collapsed state ────────────────────────────────────────────── */
+.sidebar.collapsed .nav-sections { overflow: visible; }
+
+/* Brand: stack vertically — avatar on top, toggle button below */
+.sidebar.collapsed .sidebar-brand {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 10px;
+  min-height: auto;
+}
+.sidebar.collapsed .brand-text { opacity: 0; max-width: 0; display: none; }
+.sidebar.collapsed .brand-avatar { margin: 0; }
+.sidebar.collapsed .collapse-btn { margin-left: 0; }
+
+.sidebar.collapsed .role-label { opacity: 0; max-width: 0; }
+.sidebar.collapsed .nav-section-heading { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
+.sidebar.collapsed .nav-label { opacity: 0; max-width: 0; }
+.sidebar.collapsed .nav-item { justify-content: center; gap: 0; padding: 10px 0; }
+.sidebar.collapsed .nav-item:hover { background: rgba(91,191,186,0.2); box-shadow: none; }
+.sidebar.collapsed .role-badge { justify-content: center; }
+
+/* ── Tooltip (only when collapsed) ─────────────────────────────── */
+.sidebar.collapsed .nav-list-item:hover .tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  pointer-events: none;
+  visibility: visible;
+}
+
+.tooltip {
+  display: none;
+}
+
+.sidebar.collapsed .tooltip {
+  display: block;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-8px);
+  background: rgba(15,20,30,0.95);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.34,1.56,0.64,1), visibility 0.18s;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(8px);
+}
+
+.sidebar.collapsed .tooltip::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right-color: #1a202c;
+}
+
+/* ── Mobile: sidebar is a fixed overlay drawer ───────────────────────────── */
+@media (max-width: 767px) {
+  :host {
+    position: fixed !important;
+    top: 0; left: 0;
+    height: 100vh;
+    z-index: 500;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  :host.mobile-open {
+    transform: translateX(0);
+    box-shadow: 6px 0 32px rgba(0,0,0,0.45);
+  }
+  /* Never show collapsed state on mobile — always full width */
+  .sidebar { width: var(--sidebar-width) !important; }
+}
