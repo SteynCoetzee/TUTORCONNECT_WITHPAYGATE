@@ -29,6 +29,7 @@ export class AdminFaqComponent implements OnInit {
   faqCategoryId: number | null = null;
   savingFaq = false;
   deleteFaqId: number | null = null;
+  faqErrors: Record<string, string> = {};
 
   // Category form
   showCatForm = false;
@@ -36,6 +37,7 @@ export class AdminFaqComponent implements OnInit {
   catName = '';
   savingCat = false;
   deleteCatId: number | null = null;
+  catErrors: Record<string, string> = {};
 
   activeTab: 'faqs' | 'categories' = 'faqs';
   private apiUrl = environment.apiUrl;
@@ -66,18 +68,38 @@ export class AdminFaqComponent implements OnInit {
     return this.faqs.filter(f => f.faq_Category_ID === categoryId).length;
   }
 
+  validateFaqQuestion(val: string) {
+    if (!val?.trim()) { this.faqErrors['question'] = 'Question is required.'; }
+    else if (val.trim().length < 5) { this.faqErrors['question'] = 'Question must be at least 5 characters.'; }
+    else { delete this.faqErrors['question']; }
+  }
+
+  validateFaqAnswer(val: string) {
+    if (!val?.trim()) { this.faqErrors['answer'] = 'Answer is required.'; }
+    else if (val.trim().length < 5) { this.faqErrors['answer'] = 'Answer must be at least 5 characters.'; }
+    else { delete this.faqErrors['answer']; }
+  }
+
+  validateCatName(val: string) {
+    if (!val?.trim()) { this.catErrors['name'] = 'Category name is required.'; }
+    else if (val.trim().length < 2) { this.catErrors['name'] = 'Name must be at least 2 characters.'; }
+    else { delete this.catErrors['name']; }
+  }
+
   closeFaqForm(): void {
     this.showFaqForm = false;
     this.editingFaq = null;
     this.faqQuestion = '';
     this.faqAnswer = '';
     this.faqCategoryId = null;
+    this.faqErrors = {};
   }
 
   closeCatForm(): void {
     this.showCatForm = false;
     this.editingCat = null;
     this.catName = '';
+    this.catErrors = {};
   }
 
   // ─── FAQ CRUD ───────────────────────────────────────────────────────────────
@@ -86,12 +108,17 @@ export class AdminFaqComponent implements OnInit {
     this.faqQuestion = faq?.question ?? '';
     this.faqAnswer = faq?.answer ?? '';
     this.faqCategoryId = faq?.faq_Category_ID ?? null;
+    this.faqErrors = {};
     this.showFaqForm = true;
     this.clearMessages();
   }
 
   saveFaq() {
-    if (!this.faqQuestion || !this.faqAnswer || !this.faqCategoryId) { this.errorMessage = 'Please fill in all fields.'; return; }
+    this.validateFaqQuestion(this.faqQuestion);
+    this.validateFaqAnswer(this.faqAnswer);
+    if (!this.faqCategoryId) this.faqErrors['category'] = 'Please select a category.';
+    else delete this.faqErrors['category'];
+    if (Object.keys(this.faqErrors).length > 0) return;
     this.savingFaq = true;
     const payload = { question: this.faqQuestion, answer: this.faqAnswer, FAQ_Category_ID: this.faqCategoryId };
     const obs = this.editingFaq
@@ -115,12 +142,14 @@ export class AdminFaqComponent implements OnInit {
   openCatForm(cat?: FAQCategory) {
     this.editingCat = cat ?? null;
     this.catName = cat?.category_Name ?? '';
+    this.catErrors = {};
     this.showCatForm = true;
     this.clearMessages();
   }
 
   saveCat() {
-    if (!this.catName) { this.errorMessage = 'Category name is required.'; return; }
+    this.validateCatName(this.catName);
+    if (Object.keys(this.catErrors).length > 0) return;
     this.savingCat = true;
     const payload = { category_Name: this.catName };
     const obs = this.editingCat
@@ -141,4 +170,5 @@ export class AdminFaqComponent implements OnInit {
   }
 
   clearMessages() { this.errorMessage = ''; this.successMessage = ''; }
+  clearFaqError(key: string) { delete this.faqErrors[key]; }
 }

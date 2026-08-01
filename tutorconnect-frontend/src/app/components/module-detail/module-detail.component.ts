@@ -55,6 +55,8 @@ export class ModuleDetailComponent implements OnInit {
   resourceSearch = '';
   togglingVisId: number | null = null;
   collapsedFolders = new Set<string>();
+  isDragOver = false;
+  editIsDragOver = false;
 
   // Resource editing
   editingResourceId: number | null = null;
@@ -319,6 +321,38 @@ export class ModuleDetailComponent implements OnInit {
     const err = this.validateFile(file, kind);
     if (err) { this.errorMessage = err; input.value = ''; this.resFile = null; return; }
     this.resFile = file;
+    this.clearMessages();
+  }
+
+  onDragOver(event: DragEvent, isEdit = false) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isEdit) this.editIsDragOver = true;
+    else this.isDragOver = true;
+  }
+
+  onDragLeave(isEdit = false) {
+    if (isEdit) this.editIsDragOver = false;
+    else this.isDragOver = false;
+  }
+
+  onDrop(event: DragEvent, isEdit = false) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isEdit) this.editIsDragOver = false;
+    else this.isDragOver = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    const type = isEdit ? this.editResType : this.resType;
+    if (!type || type === 'Link') {
+      this.errorMessage = 'Select a resource type (PDF, Doc, or Video) before dropping a file.';
+      return;
+    }
+    const kind = type === 'Video' ? 'video' : type === 'PDF' ? 'pdf' : 'doc';
+    const err = this.validateFile(file, kind);
+    if (err) { this.errorMessage = err; return; }
+    if (isEdit) this.editResFile = file;
+    else this.resFile = file;
     this.clearMessages();
   }
 

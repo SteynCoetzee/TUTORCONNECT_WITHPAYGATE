@@ -46,20 +46,28 @@
           }
           <div class="form-group">
             <label>Category *</label>
-            <select class="form-control" [(ngModel)]="faqCategoryId" name="faqCategory">
+            <select class="form-control" [class.input-error]="faqErrors['category']" [(ngModel)]="faqCategoryId" name="faqCategory"
+                    (ngModelChange)="faqCategoryId && clearFaqError('category')">
               <option [ngValue]="null" disabled>Select a category</option>
               @for (cat of categories; track cat.faq_Category_ID) {
                 <option [ngValue]="cat.faq_Category_ID">{{ cat.category_Name }}</option>
               }
             </select>
+            @if (faqErrors['category']) { <span class="field-error">{{ faqErrors['category'] }}</span> }
           </div>
           <div class="form-group">
             <label>Question *</label>
-            <input type="text" class="form-control" [(ngModel)]="faqQuestion" name="faqQuestion" placeholder="Enter the question" />
+            <input type="text" class="form-control" [class.input-error]="faqErrors['question']"
+                   [(ngModel)]="faqQuestion" name="faqQuestion" placeholder="Enter the question"
+                   (ngModelChange)="validateFaqQuestion($event)" />
+            @if (faqErrors['question']) { <span class="field-error">{{ faqErrors['question'] }}</span> }
           </div>
           <div class="form-group">
             <label>Answer *</label>
-            <textarea class="form-control" [(ngModel)]="faqAnswer" name="faqAnswer" rows="4" placeholder="Enter the answer"></textarea>
+            <textarea class="form-control" [class.input-error]="faqErrors['answer']"
+                      [(ngModel)]="faqAnswer" name="faqAnswer" rows="4" placeholder="Enter the answer"
+                      (ngModelChange)="validateFaqAnswer($event)"></textarea>
+            @if (faqErrors['answer']) { <span class="field-error">{{ faqErrors['answer'] }}</span> }
           </div>
           <div class="form-actions">
             <button class="btn btn-secondary" (click)="closeFaqForm()">Cancel</button>
@@ -133,7 +141,10 @@
           }
           <div class="form-group">
             <label>Category Name *</label>
-            <input type="text" class="form-control" [(ngModel)]="catName" name="catName" placeholder="e.g. Account, Technical..." />
+            <input type="text" class="form-control" [class.input-error]="catErrors['name']"
+                   [(ngModel)]="catName" name="catName" placeholder="e.g. Account, Technical..."
+                   (ngModelChange)="validateCatName($event)" />
+            @if (catErrors['name']) { <span class="field-error">{{ catErrors['name'] }}</span> }
           </div>
           <div class="form-actions">
             <button class="btn btn-secondary" (click)="closeCatForm()">Cancel</button>

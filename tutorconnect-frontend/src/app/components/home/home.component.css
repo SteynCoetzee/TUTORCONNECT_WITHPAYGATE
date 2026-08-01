@@ -114,7 +114,50 @@
 .wishlist-code { font-weight: 700; color: var(--primary); }
 .wishlist-name { color: var(--text-muted); }
 
+/* Admin charts */
+.charts-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.chart-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.chart-card-full {
+  grid-column: 1 / -1;
+}
+.chart-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.chart-icon { font-size: 22px; }
+.chart-icon.teal   { color: var(--primary); }
+.chart-icon.purple { color: #8b5cf6; }
+.chart-icon.blue   { color: var(--info, #3b82f6); }
+.chart-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.chart-wrap {
+  position: relative;
+  height: 240px;
+}
+.chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 @media (max-width: 768px) {
   .stats-row { grid-template-columns: 1fr; }
   .welcome-banner { padding: 16px 18px; }
+  .charts-section { grid-template-columns: 1fr; }
+  .chart-card-full { grid-column: unset; }
 }

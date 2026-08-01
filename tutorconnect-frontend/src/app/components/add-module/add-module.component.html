@@ -49,15 +49,22 @@
             <div class="grid-2">
               <div class="form-group">
                 <label for="code" class="form-label required">Module Code</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   id="code"
-                  class="form-control" 
-                  [(ngModel)]="formCode" 
+                  class="form-control"
+                  [class.input-error]="fieldErrors['code']"
+                  [(ngModel)]="formCode"
                   placeholder="e.g., CS101, MATH201"
                   [disabled]="isEditMode"
+                  (ngModelChange)="!isEditMode && validateCode($event)"
+                  (blur)="!isEditMode && validateCode(formCode)"
                 />
-                <small class="form-hint">{{ isEditMode ? 'Module code cannot be changed' : 'Unique identifier for this module' }}</small>
+                @if (fieldErrors['code']) {
+                  <span class="field-error">{{ fieldErrors['code'] }}</span>
+                } @else {
+                  <small class="form-hint">{{ isEditMode ? 'Module code cannot be changed' : 'Unique identifier for this module' }}</small>
+                }
               </div>
 
               <div class="form-group">
@@ -66,12 +73,18 @@
                   type="number"
                   id="priceOneOnOne"
                   class="form-control"
+                  [class.input-error]="fieldErrors['price1on1']"
                   [(ngModel)]="formPriceOneOnOne"
                   placeholder="e.g., 350"
                   min="0"
                   step="50"
+                  (ngModelChange)="validatePrice($event, 'price1on1', 'One-on-One price')"
                 />
-                <small class="form-hint">Price per private 1-on-1 session</small>
+                @if (fieldErrors['price1on1']) {
+                  <span class="field-error">{{ fieldErrors['price1on1'] }}</span>
+                } @else {
+                  <small class="form-hint">Price per private 1-on-1 session</small>
+                }
               </div>
               <div class="form-group">
                 <label for="priceGroup" class="form-label required">Group Session Price (R)</label>
@@ -79,12 +92,18 @@
                   type="number"
                   id="priceGroup"
                   class="form-control"
+                  [class.input-error]="fieldErrors['priceGroup']"
                   [(ngModel)]="formPriceGroup"
                   placeholder="e.g., 150"
                   min="0"
                   step="50"
+                  (ngModelChange)="validatePrice($event, 'priceGroup', 'Group price')"
                 />
-                <small class="form-hint">Price per group session</small>
+                @if (fieldErrors['priceGroup']) {
+                  <span class="field-error">{{ fieldErrors['priceGroup'] }}</span>
+                } @else {
+                  <small class="form-hint">Price per group session</small>
+                }
               </div>
             </div>
           </div>
@@ -94,26 +113,38 @@
             
             <div class="form-group">
               <label for="name" class="form-label required">Module Name</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 id="name"
-                class="form-control" 
-                [(ngModel)]="formName" 
+                class="form-control"
+                [class.input-error]="fieldErrors['name']"
+                [(ngModel)]="formName"
                 placeholder="e.g., Introduction to Computer Science"
+                (ngModelChange)="validateName($event)"
               />
-              <small class="form-hint">Display name of the module</small>
+              @if (fieldErrors['name']) {
+                <span class="field-error">{{ fieldErrors['name'] }}</span>
+              } @else {
+                <small class="form-hint">Display name of the module</small>
+              }
             </div>
 
             <div class="form-group">
               <label for="description" class="form-label required">Description</label>
-              <textarea 
+              <textarea
                 id="description"
-                class="form-control" 
-                [(ngModel)]="formDescription" 
+                class="form-control"
+                [class.input-error]="fieldErrors['desc']"
+                [(ngModel)]="formDescription"
                 rows="5"
                 placeholder="Provide a comprehensive description of what this module covers..."
+                (ngModelChange)="validateDescription($event)"
               ></textarea>
-              <small class="form-hint">Brief overview and learning objectives</small>
+              @if (fieldErrors['desc']) {
+                <span class="field-error">{{ fieldErrors['desc'] }}</span>
+              } @else {
+                <small class="form-hint">Brief overview and learning objectives</small>
+              }
             </div>
           </div>
         </div>

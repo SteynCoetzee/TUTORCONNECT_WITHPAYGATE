@@ -40,6 +40,7 @@ export class AdminReviewsComponent implements OnInit {
   sessionReviews: AdminSessionReview[] = [];
   loading = false;
   searchQuery = '';
+  errorMessage = '';
 
   private apiUrl = environment.apiUrl;
 
@@ -59,14 +60,14 @@ export class AdminReviewsComponent implements OnInit {
     this.loading = true;
     this.http.get<AdminTutorReview[]>(`${this.apiUrl}/Reviews/admin/tutor`).subscribe({
       next: (data) => { this.tutorReviews = data; this.loading = false; },
-      error: () => { this.loading = false; }
+      error: () => { this.loading = false; this.errorMessage = 'Could not load tutor reviews. Please refresh.'; }
     });
   }
 
   loadSessionReviews() {
     this.http.get<AdminSessionReview[]>(`${this.apiUrl}/Reviews/admin/session`).subscribe({
       next: (data) => { this.sessionReviews = data; },
-      error: () => {}
+      error: () => { this.errorMessage = 'Could not load session reviews. Please refresh.'; }
     });
   }
 

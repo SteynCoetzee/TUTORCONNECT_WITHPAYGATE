@@ -6,6 +6,10 @@
     </div>
   </div>
 
+  @if (errorMessage) {
+    <div class="alert alert-error" style="margin-bottom:1rem">{{ errorMessage }}</div>
+  }
+
   <!-- Stats row -->
   <div class="stats-row">
     <div class="stat-card">

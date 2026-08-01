@@ -155,3 +155,4 @@ C:\Users\Steyn\OneDrive\Desktop\Tutor Connect\TutorConnect_Workspace\TutorConnec
 C:\Users\Steyn\OneDrive\Desktop\Tutor Connect\TutorConnect_Workspace\TutorConnect.API\bin\Debug\net8.0\CloudinaryDotNet.dll
 C:\Users\Steyn\OneDrive\Desktop\Tutor Connect\TutorConnect_Workspace\TutorConnect.API\bin\Debug\net8.0\Google.Apis.Calendar.v3.dll
 C:\Users\Steyn\OneDrive\Desktop\Tutor Connect\TutorConnect_Workspace\TutorConnect.API\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
+C:\Users\Steyn\OneDrive\Desktop\Tutor Connect\TutorConnect_Workspace\TutorConnect.API\bin\Debug\net8.0\appsettings.Development.json

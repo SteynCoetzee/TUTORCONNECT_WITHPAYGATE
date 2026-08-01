@@ -31,6 +31,8 @@
 
 .btn-icon { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; transition: all 0.2s; }
 .btn-icon.danger:hover { background: #fef2f2; color: #ef4444; border-color: #fca5a5; }
+.btn-icon.warning:hover { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.btn-icon.info:hover { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
 .btn-icon .material-icons { font-size: 1rem; }
 
 .table-footer { padding: 0.75rem 1.5rem; font-size: 0.82rem; color: var(--text-muted); border-top: 1px solid var(--border); }
@@ -305,6 +307,8 @@
 .sd-type-option:hover { border-color: var(--primary); }
 .sd-type-selected { border-color: var(--primary) !important; background: var(--primary-light, #eff6ff) !important; }
 .sd-type-selected .material-icons { color: var(--primary); }
+.sd-type-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; background: #f3f4f6 !important; }
+.sd-type-disabled .material-icons { color: var(--text-muted); }
 
 .sd-enroll-btn { display: flex; align-items: center; gap: 6px; justify-content: center; }
 .sd-enroll-btn .material-icons { font-size: 18px; }

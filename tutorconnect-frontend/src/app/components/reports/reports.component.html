@@ -1,218 +1,396 @@
 <div class="page-container">
   <div class="page-header">
-    <h1 class="page-title"><span class="material-icons">description</span> Reports</h1>
-    <p class="page-subtitle">Click a report to preview and chart the data, or build a custom query on the left.</p>
+    <div>
+      <h1 class="page-title"><span class="material-icons">description</span> Reports</h1>
+      <p class="page-subtitle">Generate and download professional PDF reports for business decisions.</p>
+    </div>
   </div>
 
   @if (errorMessage) {
-    <div class="alert alert-error mb-16">
-      <span class="material-icons" style="font-size:18px">error_outline</span> {{ errorMessage }}
-    </div>
+    <div class="alert alert-error"><span class="material-icons">error_outline</span> {{ errorMessage }}</div>
+  }
+  @if (successMessage) {
+    <div class="alert alert-success"><span class="material-icons">check_circle</span> {{ successMessage }}</div>
   }
 
-  <div class="reports-layout">
-
-    <!-- ── LEFT: Custom Query Builder ──────────────────────────────────────── -->
-    <div class="card custom-card">
-      <div class="custom-header">
-        <span class="material-icons" style="color:var(--primary)">tune</span>
-        <h3 class="section-title">Custom Query</h3>
-      </div>
-      <p class="custom-sub">Build an ad-hoc report from any data source.</p>
-
-      <div class="form-group">
-        <label>Data Source</label>
-        <select class="form-control" [(ngModel)]="customEntity" (ngModelChange)="onEntityChange()">
-          @for (e of customEntities; track e.id) {
-            <option [value]="e.id">{{ e.label }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Group By</label>
-        <select class="form-control" [(ngModel)]="customGroupBy">
-          @for (g of currentEntityGroupBys; track g.id) {
-            <option [value]="g.id">{{ g.label }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="grid-2">
-        <div class="form-group">
-          <label>From Date</label>
-          <input type="date" class="form-control" [(ngModel)]="customFrom" />
-        </div>
-        <div class="form-group">
-          <label>To Date</label>
-          <input type="date" class="form-control" [(ngModel)]="customTo" />
-        </div>
-      </div>
-
-      <button class="btn btn-primary btn-full" (click)="runCustomQuery()" [disabled]="customLoading">
-        @if (customLoading) { <span class="spinner-sm light"></span> }
-        <span class="material-icons">analytics</span>
-        {{ customLoading ? 'Running...' : 'Run Query' }}
-      </button>
-
-      <!-- Custom result -->
-      @if (customLoading) {
-        <div class="mini-loading mt-16"><span class="spinner-sm dark"></span> Loading...</div>
-      }
-      @if (customData !== null && !customLoading) {
-        <div class="custom-result mt-16">
-          <div class="custom-result-header">
-            <span class="badge badge-info">{{ customData.length }} rows</span>
-            <button class="btn btn-secondary btn-sm" (click)="downloadCustom()"
-                    [disabled]="!customData.length">
-              <span class="material-icons" style="font-size:14px">download</span> CSV
-            </button>
-          </div>
-          @if (customData.length > 0) {
-            <div class="custom-chart-wrap mt-12">
-              <canvas id="customChart"></canvas>
-            </div>
-            <div class="mini-table-wrap mt-12">
-              <table class="mini-table">
-                <thead><tr>@for (col of customColumns; track col) { <th>{{ col }}</th> }</tr></thead>
-                <tbody>
-                  @for (row of customData; track $index) {
-                    <tr>@for (col of customColumns; track col) { <td>{{ formatVal(row[col]) }}</td> }</tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else {
-            <p class="no-data-sm mt-12">No data for this query.</p>
-          }
-        </div>
-      }
-    </div>
-
-    <!-- ── RIGHT: Standard Reports ──────────────────────────────────────────── -->
-    <div class="right-panel">
-      <div class="card">
-        <h3 class="section-title">Standard Reports</h3>
-
-        <!-- Date range filter -->
-        <div class="date-range-row mt-12">
-          <div class="date-range-inputs">
-            <div class="form-group mb-0">
-              <label class="small-label">From</label>
-              <input type="date" class="form-control form-control-sm" [(ngModel)]="dateFrom" />
-            </div>
-            <div class="form-group mb-0">
-              <label class="small-label">To</label>
-              <input type="date" class="form-control form-control-sm" [(ngModel)]="dateTo" />
-            </div>
-          </div>
-          <button class="btn btn-secondary btn-sm" (click)="applyDateRange()"
-                  [disabled]="previewLoading" title="Apply date range">
-            <span class="material-icons" style="font-size:16px">filter_list</span>
-            Apply
-          </button>
-        </div>
-
-        <div class="report-list mt-12">
-          @for (rt of reportTypes; track rt.id) {
-            <div class="report-item" [class.active]="selectedReportType === rt.id"
-                 (click)="selectReport(rt)">
-              <div class="report-item-left">
-                <span class="material-icons report-icon"
-                      [style.color]="selectedReportType === rt.id ? 'var(--primary)' : ''">
-                  {{ rt.icon }}
-                </span>
-                <div>
-                  <div class="report-item-name">{{ rt.name }}</div>
-                  <div class="report-item-desc">{{ rt.description }}</div>
-                </div>
-              </div>
-              @if (selectedReportType === rt.id && previewLoading) {
-                <span class="spinner-sm dark"></span>
-              } @else {
-                <span class="badge"
-                      [class.badge-teal]="selectedReportType === rt.id"
-                      [class.badge-info]="selectedReportType !== rt.id">
-                  {{ selectedReportType === rt.id ? 'Selected' : 'Available' }}
-                </span>
-              }
-            </div>
-          }
-        </div>
-      </div>
-    </div>
+  <!-- ── Main Tabs ─────────────────────────────────────────────────────────── -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.active]="activeTab === 'simple'" (click)="setTab('simple')">
+      <span class="material-icons">list_alt</span> Simple List Reports
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'transactional'" (click)="setTab('transactional')">
+      <span class="material-icons">account_tree</span> Transactional Reports
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'criteria'" (click)="setTab('criteria')">
+      <span class="material-icons">tune</span> Adjustable Criteria
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'management'" (click)="setTab('management')">
+      <span class="material-icons">bar_chart</span> Management Report
+    </button>
   </div>
 
-  <!-- ── Preview section ──────────────────────────────────────────────────── -->
-  @if (previewData !== null || previewLoading) {
-    <div class="card preview-card mt-20">
-      <div class="preview-header-row">
-        <div class="preview-title-group">
-          <span class="material-icons" style="color:var(--primary);font-size:22px">{{ previewIcon }}</span>
-          <h3 class="section-title">{{ previewTitle }}</h3>
-          @if (!previewLoading && previewData?.length) {
-            <span class="badge badge-success">{{ previewData!.length }} rows</span>
-          }
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 1 — SIMPLE LIST REPORTS                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  @if (activeTab === 'simple') {
+    <!-- Sub-report selector -->
+    <div class="sub-report-bar">
+      <button class="sub-btn" [class.active]="activeSimple === 'tutor-summary'" (click)="setSimple('tutor-summary')">
+        <span class="material-icons">star</span> Tutor Rating Summary
+      </button>
+      <button class="sub-btn" [class.active]="activeSimple === 'module-catalogue'" (click)="setSimple('module-catalogue')">
+        <span class="material-icons">menu_book</span> Module Catalogue
+      </button>
+      <button class="sub-btn" [class.active]="activeSimple === 'monthly-enrollments'" (click)="setSimple('monthly-enrollments')">
+        <span class="material-icons">people</span> Monthly Student Enrollments
+      </button>
+    </div>
+
+    <!-- Filter bar -->
+    @if (simpleData?.length) {
+      <div class="simple-filter-bar">
+        <div class="simple-filter-search">
+          <span class="material-icons simple-filter-icon">search</span>
+          <input type="text" class="form-control-sm" placeholder="Search…"
+                 [(ngModel)]="simpleSearch" />
         </div>
-        <button class="btn btn-primary btn-sm"
-                (click)="downloadPreview()"
-                [disabled]="previewLoading || !previewData?.length">
-          <span class="material-icons">download</span> Download CSV
+
+        @if (activeSimple === 'tutor-summary') {
+          <select class="form-control-sm" [(ngModel)]="simpleMinRating">
+            <option value="">Any rating</option>
+            <option value="4">≥ 4 stars</option>
+            <option value="3">≥ 3 stars</option>
+            <option value="2">≥ 2 stars</option>
+          </select>
+        }
+
+@if (simpleFilterActive) {
+          <button class="btn btn-outline-secondary btn-sm simple-reset-btn"
+                  (click)="resetSimpleFilters()">
+            <span class="material-icons">close</span> Reset
+          </button>
+        }
+      </div>
+    }
+
+    <div class="card report-card">
+      <div class="report-card-header">
+        <h3 class="section-title">{{ simpleLabel() }}</h3>
+        <button class="btn btn-primary btn-sm" (click)="generateSimplePdf()"
+                [disabled]="!filteredSimpleData?.length || loading">
+          <span class="material-icons">picture_as_pdf</span> Generate PDF
         </button>
       </div>
 
-      @if (previewLoading) {
-        <div class="preview-loading">
-          <span class="spinner"></span>
-          <span>Loading report data...</span>
-        </div>
-      } @else if (previewData?.length) {
-        <!-- Chart -->
-        <div class="chart-section">
-          <canvas id="reportChart"></canvas>
-        </div>
-
-        <!-- Table -->
-        <div class="preview-table-wrap">
-          <table class="preview-table">
-            <thead>
-              <tr>@for (col of previewColumns; track col) { <th>{{ col }}</th> }</tr>
-            </thead>
+      @if (loading) {
+        <div class="loading-state"><div class="spinner"></div><p>Loading report...</p></div>
+      } @else if (filteredSimpleData?.length) {
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr>@for (col of simpleColumns; track col) { <th>{{ humanKey(col) }}</th> }</tr></thead>
             <tbody>
-              @for (row of previewData!; track $index) {
-                <tr>@for (col of previewColumns; track col) { <td>{{ formatVal(row[col]) }}</td> }</tr>
+              @for (row of filteredSimpleData!; track $index) {
+                <tr>@for (col of simpleColumns; track col) { <td>{{ fmt(row[col]) }}</td> }</tr>
               }
             </tbody>
           </table>
         </div>
-      } @else {
-        <div class="preview-empty">
-          <span class="material-icons">inbox</span>
-          <p>No data available for this report.</p>
+        <div class="table-footer">
+          @if (simpleFilterActive) {
+            {{ filteredSimpleData!.length }} of {{ simpleData!.length }} records
+          } @else {
+            {{ simpleData!.length }} records
+          }
         </div>
+      } @else if (simpleData !== null && simpleFilterActive) {
+        <div class="empty-state"><span class="material-icons">search_off</span><p>No records match your filter.</p></div>
+      } @else if (simpleData !== null) {
+        <div class="empty-state"><span class="material-icons">inbox</span><p>No data available.</p></div>
       }
     </div>
   }
 
-  <!-- ── Recent Downloads ──────────────────────────────────────────────────── -->
-  <div class="card mt-20">
-    <h3 class="section-title mb-16">Recent Downloads</h3>
-    @if (!recentReports.length) {
-      <p style="color:var(--text-muted);font-size:13px">No reports downloaded yet.</p>
-    }
-    @for (r of recentReports; track r.name) {
-      <div class="recent-row">
-        <div class="recent-left">
-          <span class="material-icons recent-icon">{{ r.icon }}</span>
-          <div>
-            <div class="recent-name">{{ r.name }}</div>
-            <div class="recent-date">Downloaded on {{ r.generatedOn }}</div>
-          </div>
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 2 — TRANSACTIONAL REPORTS                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  @if (activeTab === 'transactional') {
+    <!-- Sub-report selector -->
+    <div class="sub-report-bar">
+      <button class="sub-btn" [class.active]="activeTx === 'revenue-detail'" (click)="setTx('revenue-detail')">
+        <span class="material-icons">payments</span> Monthly Revenue
+      </button>
+      <button class="sub-btn" [class.active]="activeTx === 'tutor-hours-detail'" (click)="setTx('tutor-hours-detail')">
+        <span class="material-icons">timer</span> Tutor Hours
+      </button>
+    </div>
+
+    <!-- Report Criteria card — mirrors Adjustable Criteria layout -->
+    <div class="card criteria-card">
+      <h3 class="section-title mb-16">
+        <span class="material-icons">tune</span> Report Criteria
+      </h3>
+      <div class="criteria-form" style="grid-template-columns: 1fr 1fr auto">
+        <div class="form-group">
+          <label class="form-label">Date From</label>
+          <input type="date" class="form-control" [(ngModel)]="txFrom" [max]="txTo || null" />
         </div>
-        <button class="btn btn-secondary btn-sm" (click)="downloadRecent(r)">
-          <span class="material-icons" style="font-size:14px">download</span> Download
+        <div class="form-group">
+          <label class="form-label">Date To</label>
+          <input type="date" class="form-control" [(ngModel)]="txTo" [min]="txFrom || null" />
+          @if (txFrom && txTo && txTo < txFrom) {
+            <span class="field-error">End date must be after start date.</span>
+          }
+        </div>
+        <div class="form-group form-group-btn" style="align-self:flex-end">
+          <button class="btn btn-primary" (click)="loadTx()" [disabled]="loading || txDatesInvalid">
+            <span class="material-icons">search</span> Run Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card report-card">
+      <div class="report-card-header">
+        <h3 class="section-title">{{ txLabel() }}</h3>
+        <button class="btn btn-primary btn-sm" (click)="generateTransactionalPdf()"
+                [disabled]="!txGroups.length || loading">
+          <span class="material-icons">picture_as_pdf</span> Generate PDF
         </button>
       </div>
+
+      <!-- Active criteria display -->
+      <div class="criteria-active">
+        @if (txFrom) { <span class="badge badge-info">From: {{ txFrom }}</span> }
+        @if (txTo)   { <span class="badge badge-info">To: {{ txTo }}</span> }
+        @if (!txFrom && !txTo) { <span class="badge badge-gray">All dates</span> }
+      </div>
+
+      @if (loading) {
+        <div class="loading-state"><div class="spinner"></div><p>Loading report...</p></div>
+      } @else if (txGroups.length) {
+
+        <!-- Control break groups -->
+        @for (group of txGroups; track group.key) {
+          <!-- Group heading (control break) -->
+          <div class="cb-heading">
+            <span class="material-icons">{{ activeTx === 'revenue-detail' ? 'date_range' : 'person' }}</span>
+            {{ group.key }}
+          </div>
+
+          <!-- Detail rows for this group -->
+          <div class="table-scroll cb-table">
+            <table class="data-table">
+              <thead>
+                <tr>@for (col of txRowKeys; track col) { <th>{{ humanKey(col) }}</th> }</tr>
+              </thead>
+              <tbody>
+                @for (row of group.rows; track $index) {
+                  <tr>
+                    @for (col of txRowKeys; track col) {
+                      <td>
+                        @if (col === 'amount') { {{ formatCurrency(row[col]) }}
+                        } @else { {{ fmt(row[col]) }} }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Sub-total row -->
+          <div class="subtotal-row">
+            <span>{{ txSubtotalLabel() }}</span>
+            <strong>{{ formatTxSubtotal(group.subtotal) }}</strong>
+          </div>
+        }
+
+        <!-- Grand total -->
+        <div class="grand-total-row">
+          <span>GRAND TOTAL</span>
+          <strong>{{ formatTxSubtotal(txGrandTotal) }}</strong>
+        </div>
+
+      } @else if (txData !== null) {
+        <div class="empty-state"><span class="material-icons">inbox</span><p>No data for selected period.</p></div>
+      }
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 3 — ADJUSTABLE CRITERIA                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  @if (activeTab === 'criteria') {
+    <div class="card criteria-card">
+      <h3 class="section-title mb-16">
+        <span class="material-icons">tune</span> Report Criteria
+      </h3>
+      <div class="criteria-form">
+        <div class="form-group">
+          <label class="form-label">Date From</label>
+          <input type="date" class="form-control" [(ngModel)]="criteriaFrom" [max]="criteriaTo || null" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date To</label>
+          <input type="date" class="form-control" [(ngModel)]="criteriaTo" [min]="criteriaFrom || null" />
+          @if (criteriaFrom && criteriaTo && criteriaTo < criteriaFrom) {
+            <span class="field-error">End date must be after start date.</span>
+          }
+        </div>
+        <div class="form-group">
+          <label class="form-label">Session Type</label>
+          <select class="form-control" [(ngModel)]="criteriaType">
+            <option value="All">All Types</option>
+            <option value="One-on-One">One-on-One</option>
+            <option value="Group">Group</option>
+          </select>
+        </div>
+        <div class="form-group form-group-btn" style="align-self:flex-end">
+          <button class="btn btn-primary" (click)="loadCriteria()" [disabled]="loading || criteriaDatesInvalid">
+            <span class="material-icons">search</span> Run Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if (criteriaData !== null || loading) {
+      <div class="card report-card">
+        <div class="report-card-header">
+          <h3 class="section-title">Session Bookings — Filtered Results</h3>
+          <button class="btn btn-primary btn-sm" (click)="generateCriteriaPdf()"
+                  [disabled]="!criteriaData?.length || loading">
+            <span class="material-icons">picture_as_pdf</span> Generate PDF
+          </button>
+        </div>
+
+        <!-- Active criteria display -->
+        <div class="criteria-active">
+          <span class="badge badge-teal">Type: {{ criteriaType }}</span>
+          @if (criteriaFrom) { <span class="badge badge-info">From: {{ criteriaFrom }}</span> }
+          @if (criteriaTo)   { <span class="badge badge-info">To: {{ criteriaTo }}</span> }
+          @if (!criteriaFrom && !criteriaTo) { <span class="badge badge-gray">All dates</span> }
+        </div>
+
+        @if (loading) {
+          <div class="loading-state"><div class="spinner"></div><p>Loading report...</p></div>
+        } @else if (criteriaData?.length) {
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr>@for (col of criteriaColumns; track col) { <th>{{ humanKey(col) }}</th> }</tr></thead>
+              <tbody>
+                @for (row of criteriaData!; track $index) {
+                  <tr>@for (col of criteriaColumns; track col) { <td>{{ fmt(row[col]) }}</td> }</tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">{{ criteriaData!.length }} sessions match your criteria</div>
+        } @else {
+          <div class="empty-state"><span class="material-icons">search_off</span><p>No sessions match the selected criteria.</p></div>
+        }
+      </div>
     }
-  </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 4 — MANAGEMENT REPORT (GRAPH)                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  @if (activeTab === 'management') {
+    <!-- Report Criteria card -->
+    <div class="card criteria-card">
+      <h3 class="section-title mb-16">
+        <span class="material-icons">tune</span> Report Criteria
+      </h3>
+      <div class="criteria-form" style="grid-template-columns: 1fr 1fr auto">
+        <div class="form-group">
+          <label class="form-label">Enrollment Date From</label>
+          <input type="date" class="form-control" [(ngModel)]="mgmtFrom" [max]="mgmtTo || null" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Enrollment Date To</label>
+          <input type="date" class="form-control" [(ngModel)]="mgmtTo" [min]="mgmtFrom || null" />
+          @if (mgmtDatesInvalid) {
+            <span class="field-error">End date must be after start date.</span>
+          }
+        </div>
+        <div class="form-group form-group-btn" style="align-self:flex-end">
+          <button class="btn btn-primary" (click)="loadManagement()" [disabled]="loading || mgmtDatesInvalid">
+            <span class="material-icons">search</span> Run Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card report-card">
+      <div class="report-card-header">
+        <h3 class="section-title">Module Enrollment — Management Report</h3>
+        <button class="btn btn-primary btn-sm" (click)="generateManagementPdf()"
+                [disabled]="!mgmtReady || loading">
+          <span class="material-icons">picture_as_pdf</span> Generate PDF
+        </button>
+      </div>
+
+      <!-- Active criteria display -->
+      <div class="criteria-active">
+        @if (mgmtFrom) { <span class="badge badge-info">From: {{ mgmtFrom }}</span> }
+        @if (mgmtTo)   { <span class="badge badge-info">To: {{ mgmtTo }}</span> }
+        @if (!mgmtFrom && !mgmtTo) { <span class="badge badge-gray">All enrollment dates</span> }
+      </div>
+
+      @if (loading) {
+        <div class="loading-state"><div class="spinner"></div><p>Loading management report...</p></div>
+      } @else if (mgmtData?.length) {
+        <!-- Chart type toggle -->
+        <div class="chart-type-bar">
+          <span class="chart-type-label">Chart type:</span>
+          <button class="chart-type-btn" [class.active]="mgmtChartType === 'bar'"      (click)="setChartType('bar')">
+            <span class="material-icons">bar_chart</span> Bar
+          </button>
+          <button class="chart-type-btn" [class.active]="mgmtChartType === 'pie'"      (click)="setChartType('pie')">
+            <span class="material-icons">pie_chart</span> Pie
+          </button>
+          <button class="chart-type-btn" [class.active]="mgmtChartType === 'doughnut'" (click)="setChartType('doughnut')">
+            <span class="material-icons">donut_large</span> Doughnut
+          </button>
+        </div>
+
+        <!-- Chart -->
+        <div class="mgmt-chart-wrap">
+          <canvas #mgmtCanvas></canvas>
+        </div>
+
+        <!-- Table below chart -->
+        <div class="table-scroll" style="margin-top:20px">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Module Code</th>
+                <th>Module Name</th>
+                <th>Enrolled Students</th>
+                <th>First Enrollment</th>
+                <th>Last Enrollment</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of mgmtData!; track $index) {
+                <tr>
+                  <td><span class="badge badge-teal">{{ row['moduleCode'] }}</span></td>
+                  <td>{{ row['moduleName'] }}</td>
+                  <td><strong>{{ row['enrolledStudents'] }}</strong></td>
+                  <td>{{ row['earliestEnrollment'] }}</td>
+                  <td>{{ row['latestEnrollment'] }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          Total enrolled: {{ totalEnrolled }} (across all modules)
+        </div>
+      } @else if (mgmtData !== null) {
+        <div class="empty-state"><span class="material-icons">bar_chart</span><p>No enrollment data available.</p></div>
+      }
+    </div>
+  }
+
 </div>

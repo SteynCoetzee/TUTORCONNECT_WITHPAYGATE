@@ -56,6 +56,8 @@ export class BookingSlotsComponent implements OnInit {
   editLocation = '';
   editCapacity: number | null = null;
   today = new Date().toISOString().split('T')[0];
+  formErrors: Record<string, string> = {};
+  editErrors: Record<string, string> = {};
 
   private apiUrl = environment.apiUrl;
   private tutorId = 0;
@@ -76,7 +78,7 @@ export class BookingSlotsComponent implements OnInit {
           module_Name: m.module_Name
         }));
       },
-      error: () => {}
+      error: () => { this.errorMessage = 'Could not load your assigned modules. Module selection may be unavailable.'; }
     });
   }
 
@@ -96,24 +98,52 @@ export class BookingSlotsComponent implements OnInit {
     this.formSessionMode = '';
     this.formLocation = '';
     this.formCapacity = null;
+    this.formErrors = {};
     this.showForm = true;
     this.clearMessages();
   }
 
   cancelCreate() {
     this.showForm = false;
+    this.formErrors = {};
     this.clearMessages();
   }
 
+  validateFormCapacity(value: number | null) {
+    if (this.formSessionFormat === 'Group') {
+      if (!value || value < 2) {
+        this.formErrors['capacity'] = 'Group capacity must be at least 2 students.';
+      } else if (value > 100) {
+        this.formErrors['capacity'] = 'Group capacity cannot exceed 100 students.';
+      } else {
+        delete this.formErrors['capacity'];
+      }
+    }
+  }
+
+  validateEditCapacity(value: number | null) {
+    if (this.editSessionFormat === 'Group') {
+      if (!value || value < 2) {
+        this.editErrors['capacity'] = 'Group capacity must be at least 2 students.';
+      } else if (value > 100) {
+        this.editErrors['capacity'] = 'Group capacity cannot exceed 100 students.';
+      } else {
+        delete this.editErrors['capacity'];
+      }
+    }
+  }
+
   saveSlot() {
-    if (!this.formModuleCode || !this.formDate || !this.formTime || !this.formSessionFormat || !this.formSessionMode) {
-      this.errorMessage = 'Please complete all steps before saving.';
-      return;
-    }
+    this.formErrors = {};
+    if (!this.formModuleCode) this.formErrors['module'] = 'Please select a module.';
+    if (!this.formDate) this.formErrors['date'] = 'Please select a date.';
+    if (!this.formTime) this.formErrors['time'] = 'Please select a time.';
+    if (!this.formSessionFormat) this.formErrors['format'] = 'Please choose a session format.';
+    if (!this.formSessionMode) this.formErrors['mode'] = 'Please choose a session mode.';
     if (this.formSessionFormat === 'Group' && (!this.formCapacity || this.formCapacity < 2)) {
-      this.errorMessage = 'Please enter a group capacity of at least 2.';
-      return;
+      this.formErrors['capacity'] = 'Group capacity must be at least 2 students.';
     }
+    if (Object.keys(this.formErrors).length > 0) return;
     this.saving = true;
     this.clearMessages();
     this.http.post(`${this.apiUrl}/BookingSlots`, {
@@ -131,7 +161,7 @@ export class BookingSlotsComponent implements OnInit {
         this.showForm = false;
         this.loadSlots();
       },
-      error: () => { this.saving = false; this.errorMessage = 'Failed to create slot.'; }
+      error: (err) => { this.saving = false; this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to create slot. Please try again.'; }
     });
   }
 
@@ -150,15 +180,19 @@ export class BookingSlotsComponent implements OnInit {
     this.clearMessages();
   }
 
-  cancelEdit() { this.editTargetId = null; this.clearMessages(); }
+  cancelEdit() { this.editTargetId = null; this.editErrors = {}; this.clearMessages(); }
 
   saveEdit() {
-    if (!this.editDate || !this.editTime || !this.editSessionFormat || !this.editSessionMode) {
-      this.errorMessage = 'Please complete all fields before saving.'; return;
-    }
+    this.editErrors = {};
+    if (!this.editModuleCode) this.editErrors['module'] = 'Please select a module.';
+    if (!this.editDate) this.editErrors['date'] = 'Please select a date.';
+    if (!this.editTime) this.editErrors['time'] = 'Please select a time.';
+    if (!this.editSessionFormat) this.editErrors['format'] = 'Please choose a session format.';
+    if (!this.editSessionMode) this.editErrors['mode'] = 'Please choose a session mode.';
     if (this.editSessionFormat === 'Group' && (!this.editCapacity || this.editCapacity < 2)) {
-      this.errorMessage = 'Group capacity must be at least 2.'; return;
+      this.editErrors['capacity'] = 'Group capacity must be at least 2 students.';
     }
+    if (Object.keys(this.editErrors).length > 0) return;
     this.saving = true;
     this.clearMessages();
     this.http.put(`${this.apiUrl}/BookingSlots/${this.editTargetId}`, {
@@ -176,7 +210,7 @@ export class BookingSlotsComponent implements OnInit {
         this.editTargetId = null;
         this.loadSlots();
       },
-      error: (err) => { this.saving = false; this.errorMessage = err?.error || 'Failed to update slot.'; }
+      error: (err) => { this.saving = false; this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to update slot. Please try again.'; }
     });
   }
 
@@ -192,7 +226,7 @@ export class BookingSlotsComponent implements OnInit {
         this.loadSlots();
       },
       error: (err) => {
-        this.errorMessage = err.error || 'Cannot delete a booked slot.';
+        this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Cannot delete a booked slot. It may already have bookings.';
         this.deleteTargetId = null;
       }
     });
@@ -215,4 +249,10 @@ export class BookingSlotsComponent implements OnInit {
   }
 
   clearMessages() { this.errorMessage = ''; this.successMessage = ''; }
+  clearFormError(key: string) { delete this.formErrors[key]; }
+  clearEditError(key: string) { delete this.editErrors[key]; }
+  setFormFormat(val: string) { this.formSessionFormat = val; delete this.formErrors['format']; }
+  setFormMode(val: string)   { this.formSessionMode   = val; delete this.formErrors['mode'];   }
+  setEditFormat(val: string) { this.editSessionFormat = val; delete this.editErrors['format']; }
+  setEditMode(val: string)   { this.editSessionMode   = val; delete this.editErrors['mode'];   }
 }

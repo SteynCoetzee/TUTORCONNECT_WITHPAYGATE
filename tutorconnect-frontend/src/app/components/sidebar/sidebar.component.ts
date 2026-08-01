@@ -139,6 +139,12 @@ export class SidebarComponent implements OnInit {
       ]
     },
     {
+      heading: 'Payments',
+      items: [
+        { label: 'Payments', icon: 'payment', route: '/dashboard/admin-payments' },
+      ]
+    },
+    {
       heading: 'System',
       items: [
         { label: 'Audit Log', icon: 'manage_search', route: '/dashboard/audit-log' },

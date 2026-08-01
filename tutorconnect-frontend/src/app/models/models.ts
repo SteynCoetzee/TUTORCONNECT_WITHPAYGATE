@@ -9,6 +9,9 @@ export interface UserProfile {
   bio?: string;
   user_Role_ID: number;
   roleName?: string;
+  is_Archived?: boolean;
+  is_Deleted?: boolean;
+  profile_Picture_Url?: string;
 }
 
 export interface UserProfileUpdate {

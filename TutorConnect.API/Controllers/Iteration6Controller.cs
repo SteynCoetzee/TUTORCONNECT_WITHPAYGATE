@@ -113,22 +113,128 @@ namespace TutorConnect.API.Controllers
         // ── Sessions (6.7 & 6.8) ─────────────────────────────────────────────
         [HttpGet("sessions")]
         public async Task<ActionResult> GetSessionsReport(
-            [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+            [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+            [FromQuery] string? sessionType = null)
         {
             var query = _context.Bookings.Include(b => b.Booking_Slot).AsQueryable();
             if (from.HasValue) query = query.Where(b => b.Booking_Slot!.Slot_Date >= DateOnly.FromDateTime(from.Value));
             if (to.HasValue)   query = query.Where(b => b.Booking_Slot!.Slot_Date <= DateOnly.FromDateTime(to.Value));
+            if (!string.IsNullOrEmpty(sessionType) && sessionType != "All")
+                query = query.Where(b => b.Booking_Slot!.Session_Type!.StartsWith(sessionType));
 
-            var raw = await query.ToListAsync();  // load into memory for TimeOnly formatting
+            var raw = await query.ToListAsync();
+
+            var studentIds = raw.Select(b => b.Student_ID).Distinct().ToList();
+            var students   = await _context.Users
+                .Where(u => studentIds.Contains(u.User_ID))
+                .ToDictionaryAsync(u => u.User_ID, u => u.FirstName + " " + u.LastName);
 
             return Ok(raw.Select(b => new {
                 BookingId   = b.Booking_ID,
-                StudentId   = b.Student_ID,
+                StudentName = students.GetValueOrDefault(b.Student_ID, $"Student {b.Student_ID}"),
                 SlotDate    = b.Booking_Slot?.Slot_Date.ToString("yyyy-MM-dd") ?? "",
                 SlotTime    = b.Booking_Slot?.Slot_Time.ToString("HH:mm") ?? "",
                 SessionType = b.Booking_Slot?.Session_Type ?? "",
                 Location    = b.Booking_Slot?.Location ?? ""
-            }));
+            }).OrderBy(x => x.SlotDate).ThenBy(x => x.SlotTime));
+        }
+
+        // ── Tutor Hours Detail (transactional — control break by tutor) ───────
+        [HttpGet("tutor-hours-detail")]
+        public async Task<ActionResult> GetTutorHoursDetail(
+            [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        {
+            var query = _context.Log_Hours.AsQueryable();
+            if (from.HasValue) query = query.Where(l => l.Log_Hours_Date >= DateOnly.FromDateTime(from.Value));
+            if (to.HasValue)   query = query.Where(l => l.Log_Hours_Date <= DateOnly.FromDateTime(to.Value));
+
+            var logs = await query.ToListAsync();
+            var ids  = logs.Select(l => l.Tutor_ID).Distinct().ToList();
+            var names = await _context.Users
+                .Where(u => ids.Contains(u.User_ID))
+                .ToDictionaryAsync(u => u.User_ID, u => u.FirstName + " " + u.LastName);
+
+            return Ok(logs.Select(l => new {
+                TutorName  = names.GetValueOrDefault(l.Tutor_ID, $"Tutor {l.Tutor_ID}"),
+                LogDate    = l.Log_Hours_Date.ToString("yyyy-MM-dd"),
+                Hours      = l.Log_Hours_Amount,
+                Status     = l.IsApproved ? "Approved" : "Pending"
+            }).OrderBy(x => x.TutorName).ThenBy(x => x.LogDate));
+        }
+
+        // ── Revenue Detail (transactional — control break by month) ──────────
+        [HttpGet("revenue-detail")]
+        public async Task<ActionResult> GetRevenueDetail(
+            [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        {
+            var query = _context.Payments.Where(p => p.Payment_Status == "Paid");
+            if (from.HasValue) query = query.Where(p => p.Payment_Date >= from.Value);
+            if (to.HasValue)   query = query.Where(p => p.Payment_Date <= to.Value);
+
+            var payments = await query.ToListAsync();
+            var studentIds = payments.Select(p => p.Student_ID).Distinct().ToList();
+            var students   = await _context.Users
+                .Where(u => studentIds.Contains(u.User_ID))
+                .ToDictionaryAsync(u => u.User_ID, u => u.FirstName + " " + u.LastName);
+
+            return Ok(payments.Select(p => new {
+                Period      = $"{MonthName(p.Payment_Date.Month)} {p.Payment_Date.Year}",
+                PaymentDate = p.Payment_Date.ToString("yyyy-MM-dd"),
+                StudentName = students.GetValueOrDefault(p.Student_ID, $"Student {p.Student_ID}"),
+                ModuleCode  = p.Module_Code ?? "—",
+                Amount      = p.Amount,
+                Reference   = p.Payment_Reference ?? "—"
+            }).OrderBy(x => x.PaymentDate));
+        }
+
+        // ── Monthly Student Enrollments (simple list) ────────────────────────
+        [HttpGet("monthly-student-enrollments")]
+        public async Task<ActionResult> GetMonthlyStudentEnrollments()
+        {
+            var all = await _context.Student_Modules
+                .Select(sm => new { sm.Enrollment_Date })
+                .ToListAsync();
+
+            var months = all
+                .GroupBy(sm => new { sm.Enrollment_Date.Year, sm.Enrollment_Date.Month })
+                .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+                .ToList();
+
+            var result = months.Select(g =>
+            {
+                var cutoff = new DateTime(g.Key.Year, g.Key.Month,
+                    DateTime.DaysInMonth(g.Key.Year, g.Key.Month), 23, 59, 59);
+
+                var cumulativeTotal = all.Count(sm => sm.Enrollment_Date <= cutoff);
+
+                return new {
+                    Month            = $"{MonthName(g.Key.Month)} {g.Key.Year}",
+                    StudentsEnrolled = cumulativeTotal,
+                    NewEnrollments   = g.Count()
+                };
+            });
+
+            return Ok(result);
+        }
+
+        // ── Module Catalogue (simple list) ────────────────────────────────────
+        [HttpGet("module-catalogue")]
+        public async Task<ActionResult> GetModuleCatalogue()
+        {
+            var modules = await _context.Modules.ToListAsync();
+            var enrolled = await _context.Student_Modules
+                .Where(sm => sm.IsActive)
+                .GroupBy(sm => sm.Module_Code)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            return Ok(modules.Select(m => new {
+                ModuleCode      = m.Module_Code,
+                ModuleName      = m.Module_Name,
+                Price1On1       = m.Module_Price_OneOnOne,
+                PriceGroup      = m.Module_Price_Group,
+                EnrolledStudents = enrolled.GetValueOrDefault(m.Module_Code, 0)
+            }).OrderBy(m => m.ModuleCode));
         }
 
         // ── Popular Modules (6.11 & 6.12) ────────────────────────────────────
@@ -155,6 +261,41 @@ namespace TutorConnect.API.Controllers
                 ModuleCode = g.ModuleCode,
                 ModuleName = modules.GetValueOrDefault(g.ModuleCode, g.ModuleCode),
                 g.AnnouncementCount
+            }));
+        }
+
+        // ── Module Enrollments ────────────────────────────────────────────────
+        [HttpGet("module-enrollments")]
+        public async Task<ActionResult> GetModuleEnrollments(
+            [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null)
+        {
+            var query = _context.Student_Modules.Where(sm => sm.IsActive).AsQueryable();
+            if (from.HasValue) query = query.Where(sm => sm.Enrollment_Date >= from.Value);
+            if (to.HasValue)   query = query.Where(sm => sm.Enrollment_Date < to.Value.AddDays(1));
+
+            var grouped = await query
+                .GroupBy(sm => sm.Module_Code)
+                .Select(g => new {
+                    ModuleCode = g.Key,
+                    EnrolledStudents = g.Count(),
+                    EarliestEnrollment = g.Min(sm => sm.Enrollment_Date),
+                    LatestEnrollment   = g.Max(sm => sm.Enrollment_Date)
+                })
+                .OrderByDescending(r => r.EnrolledStudents)
+                .Take(8)
+                .ToListAsync();
+
+            var codes = grouped.Select(g => g.ModuleCode).ToList();
+            var names = await _context.Modules
+                .Where(m => codes.Contains(m.Module_Code))
+                .ToDictionaryAsync(m => m.Module_Code, m => m.Module_Name);
+
+            return Ok(grouped.Select(g => new {
+                g.ModuleCode,
+                ModuleName = names.GetValueOrDefault(g.ModuleCode, g.ModuleCode),
+                g.EnrolledStudents,
+                EarliestEnrollment = g.EarliestEnrollment.ToString("yyyy-MM-dd"),
+                LatestEnrollment   = g.LatestEnrollment.ToString("yyyy-MM-dd")
             }));
         }
 

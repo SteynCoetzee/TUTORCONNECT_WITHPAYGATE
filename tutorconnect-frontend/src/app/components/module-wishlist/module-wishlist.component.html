@@ -23,20 +23,28 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label required">Module Code</label>
-        <input type="text" class="form-control" [(ngModel)]="formCode"
-               placeholder="e.g. CS301, MATH202"
-               (keyup.enter)="submit()" />
-        <small class="form-hint">Short code for the module</small>
+        <input type="text" class="form-control" [class.input-error]="fieldErrors['code']"
+               [(ngModel)]="formCode" placeholder="e.g. CS301, MATH202"
+               (ngModelChange)="validateCode($event)" (keyup.enter)="submit()" />
+        @if (fieldErrors['code']) {
+          <span class="field-error">{{ fieldErrors['code'] }}</span>
+        } @else {
+          <small class="form-hint">Short code for the module</small>
+        }
       </div>
       <div class="form-group">
         <label class="form-label required">Module Name</label>
-        <input type="text" class="form-control" [(ngModel)]="formName"
-               placeholder="e.g. Advanced Algorithms"
-               (keyup.enter)="submit()" />
-        <small class="form-hint">Full name of the module you'd like to see</small>
+        <input type="text" class="form-control" [class.input-error]="fieldErrors['name']"
+               [(ngModel)]="formName" placeholder="e.g. Advanced Algorithms"
+               (ngModelChange)="validateName($event)" (keyup.enter)="submit()" />
+        @if (fieldErrors['name']) {
+          <span class="field-error">{{ fieldErrors['name'] }}</span>
+        } @else {
+          <small class="form-hint">Full name of the module you'd like to see</small>
+        }
       </div>
       <div class="form-group form-group-btn">
-        <button class="btn btn-primary" (click)="submit()" [disabled]="saving || !formCode.trim() || !formName.trim()">
+        <button class="btn btn-primary" (click)="submit()" [disabled]="saving">
           @if (saving) { <span class="spinner-sm"></span> }
           <span class="material-icons">send</span> Submit
         </button>

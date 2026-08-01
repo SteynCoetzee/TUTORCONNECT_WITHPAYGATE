@@ -113,14 +113,18 @@
               @if (resType === 'PDF') {
                 <div class="res-form-group full-width">
                   <label class="res-label">Upload PDF or paste URL *</label>
-                  <div class="res-upload-row">
-                    <label class="res-file-btn">
-                      <span class="material-icons">upload_file</span>
-                      {{ resFile ? resFile.name : 'Choose PDF' }}
-                      <input type="file" accept=".pdf" hidden (change)="onFileSelected($event)" />
-                    </label>
-                    <span class="res-or">or</span>
-                    <input class="form-control" [(ngModel)]="resUrl" placeholder="Paste a URL..." [disabled]="!!resFile" />
+                  <div class="res-dropzone" [class.drag-over]="isDragOver"
+                       (dragover)="onDragOver($event)" (dragleave)="onDragLeave()" (drop)="onDrop($event)">
+                    <div class="res-upload-row">
+                      <label class="res-file-btn">
+                        <span class="material-icons">upload_file</span>
+                        {{ resFile ? resFile.name : 'Choose PDF' }}
+                        <input type="file" accept=".pdf" hidden (change)="onFileSelected($event)" />
+                      </label>
+                      <span class="res-or">or</span>
+                      <input class="form-control" [(ngModel)]="resUrl" placeholder="Paste a URL..." [disabled]="!!resFile" />
+                    </div>
+                    <span class="res-drop-hint"><span class="material-icons">file_download</span> Drop file here</span>
                   </div>
                   @if (resFile) {
                     <button class="res-clear-file" (click)="resFile = null">
@@ -132,12 +136,16 @@
               @if (resType === 'Doc') {
                 <div class="res-form-group full-width">
                   <label class="res-label">Upload Document * <span class="res-optional">(.doc, .docx, .xls, .xlsx, .ppt, .pptx)</span></label>
-                  <div class="res-upload-row">
-                    <label class="res-file-btn">
-                      <span class="material-icons">upload_file</span>
-                      {{ resFile ? resFile.name : 'Choose document' }}
-                      <input type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx" hidden (change)="onFileSelected($event)" />
-                    </label>
+                  <div class="res-dropzone" [class.drag-over]="isDragOver"
+                       (dragover)="onDragOver($event)" (dragleave)="onDragLeave()" (drop)="onDrop($event)">
+                    <div class="res-upload-row">
+                      <label class="res-file-btn">
+                        <span class="material-icons">upload_file</span>
+                        {{ resFile ? resFile.name : 'Choose document' }}
+                        <input type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx" hidden (change)="onFileSelected($event)" />
+                      </label>
+                    </div>
+                    <span class="res-drop-hint"><span class="material-icons">file_download</span> Drop file here</span>
                   </div>
                   @if (resFile) {
                     <button class="res-clear-file" (click)="resFile = null">
@@ -155,12 +163,16 @@
               @if (resType === 'Video') {
                 <div class="res-form-group full-width">
                   <label class="res-label">Upload Video * <span class="res-optional">(.mp4, .webm — session recordings)</span></label>
-                  <div class="res-upload-row">
-                    <label class="res-file-btn">
-                      <span class="material-icons">upload_file</span>
-                      {{ resFile ? resFile.name : 'Choose video file' }}
-                      <input type="file" accept=".mp4,.webm,.mov" hidden (change)="onFileSelected($event)" />
-                    </label>
+                  <div class="res-dropzone" [class.drag-over]="isDragOver"
+                       (dragover)="onDragOver($event)" (dragleave)="onDragLeave()" (drop)="onDrop($event)">
+                    <div class="res-upload-row">
+                      <label class="res-file-btn">
+                        <span class="material-icons">upload_file</span>
+                        {{ resFile ? resFile.name : 'Choose video file' }}
+                        <input type="file" accept=".mp4,.webm,.mov" hidden (change)="onFileSelected($event)" />
+                      </label>
+                    </div>
+                    <span class="res-drop-hint"><span class="material-icons">file_download</span> Drop file here</span>
                   </div>
                   @if (resFile) {
                     <button class="res-clear-file" (click)="resFile = null">
@@ -277,14 +289,18 @@
                       @if (editResType === 'PDF') {
                         <div class="res-form-group full-width">
                           <label class="res-label">Upload new PDF <span class="res-optional">(leave blank to keep current)</span></label>
-                          <div class="res-upload-row">
-                            <label class="res-file-btn">
-                              <span class="material-icons">upload_file</span>
-                              {{ editResFile ? editResFile.name : 'Choose PDF' }}
-                              <input type="file" accept=".pdf" hidden (change)="onEditFileSelected($event)" />
-                            </label>
-                            <span class="res-or">or URL</span>
-                            <input class="form-control" [(ngModel)]="editResUrl" placeholder="Paste URL..." [disabled]="!!editResFile" />
+                          <div class="res-dropzone" [class.drag-over]="editIsDragOver"
+                               (dragover)="onDragOver($event, true)" (dragleave)="onDragLeave(true)" (drop)="onDrop($event, true)">
+                            <div class="res-upload-row">
+                              <label class="res-file-btn">
+                                <span class="material-icons">upload_file</span>
+                                {{ editResFile ? editResFile.name : 'Choose PDF' }}
+                                <input type="file" accept=".pdf" hidden (change)="onEditFileSelected($event)" />
+                              </label>
+                              <span class="res-or">or URL</span>
+                              <input class="form-control" [(ngModel)]="editResUrl" placeholder="Paste URL..." [disabled]="!!editResFile" />
+                            </div>
+                            <span class="res-drop-hint"><span class="material-icons">file_download</span> Drop file here</span>
                           </div>
                           @if (editResFile) {
                             <button class="res-clear-file" (click)="editResFile = null">
@@ -296,12 +312,16 @@
                       @if (editResType === 'Doc') {
                         <div class="res-form-group full-width">
                           <label class="res-label">Upload new document <span class="res-optional">(leave blank to keep current — .doc, .docx, .xls, .xlsx, .ppt, .pptx)</span></label>
-                          <div class="res-upload-row">
-                            <label class="res-file-btn">
-                              <span class="material-icons">upload_file</span>
-                              {{ editResFile ? editResFile.name : 'Choose document' }}
-                              <input type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx" hidden (change)="onEditFileSelected($event)" />
-                            </label>
+                          <div class="res-dropzone" [class.drag-over]="editIsDragOver"
+                               (dragover)="onDragOver($event, true)" (dragleave)="onDragLeave(true)" (drop)="onDrop($event, true)">
+                            <div class="res-upload-row">
+                              <label class="res-file-btn">
+                                <span class="material-icons">upload_file</span>
+                                {{ editResFile ? editResFile.name : 'Choose document' }}
+                                <input type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx" hidden (change)="onEditFileSelected($event)" />
+                              </label>
+                            </div>
+                            <span class="res-drop-hint"><span class="material-icons">file_download</span> Drop file here</span>
                           </div>
                           @if (editResFile) {
                             <button class="res-clear-file" (click)="editResFile = null">
@@ -319,12 +339,16 @@
                       @if (editResType === 'Video') {
                         <div class="res-form-group full-width">
                           <label class="res-label">Upload new video <span class="res-optional">(leave blank to keep current)</span></label>
-                          <div class="res-upload-row">
-                            <label class="res-file-btn">
-                              <span class="material-icons">upload_file</span>
-                              {{ editResFile ? editResFile.name : 'Choose video file' }}
-                              <input type="file" accept=".mp4,.webm,.mov" hidden (change)="onEditFileSelected($event)" />
-                            </label>
+                          <div class="res-dropzone" [class.drag-over]="editIsDragOver"
+                               (dragover)="onDragOver($event, true)" (dragleave)="onDragLeave(true)" (drop)="onDrop($event, true)">
+                            <div class="res-upload-row">
+                              <label class="res-file-btn">
+                                <span class="material-icons">upload_file</span>
+                                {{ editResFile ? editResFile.name : 'Choose video file' }}
+                                <input type="file" accept=".mp4,.webm,.mov" hidden (change)="onEditFileSelected($event)" />
+                              </label>
+                            </div>
+                            <span class="res-drop-hint"><span class="material-icons">file_download</span> Drop file here</span>
                           </div>
                           @if (editResFile) {
                             <button class="res-clear-file" (click)="editResFile = null">

@@ -1,8 +1,10 @@
-import { Component, OnInit, HostListener, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, Output, EventEmitter } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+import { UserService } from '../../services/user.service';
 import { NotificationService } from '../../services/notification.service';
 import { Notification } from '../../models/models';
 import { environment } from '../../../environments/environment';
@@ -22,10 +24,11 @@ interface AnnouncementNotif {
   templateUrl: './topnav.component.html',
   styleUrl: './topnav.component.css'
 })
-export class TopnavComponent implements OnInit {
+export class TopnavComponent implements OnInit, OnDestroy {
   @Output() hamburgerClick = new EventEmitter<void>();
 
   userName = '';
+  profilePictureUrl: string | null = null;
   role = '';
   notifications: Notification[] = [];
   announcements: AnnouncementNotif[] = [];
@@ -34,13 +37,29 @@ export class TopnavComponent implements OnInit {
 
   private apiUrl = environment.apiUrl;
   private seenKey = '';
+  private profileSub?: Subscription;
 
   constructor(
     private authService: AuthService,
+    private userService: UserService,
     private notificationService: NotificationService,
     private http: HttpClient,
     private router: Router
   ) {}
+
+  ngOnDestroy() { this.profileSub?.unsubscribe(); }
+
+  private loadProfile(userId: number) {
+    this.userService.getUser(userId).subscribe({
+      next: (u) => {
+        const first = u.firstName?.trim() ?? '';
+        const last  = u.lastName?.trim()  ?? '';
+        this.userName = first && last ? `${first} ${last}` : (first || last || this.authService.getCurrentUserName());
+        this.profilePictureUrl = u.profile_Picture_Url ?? null;
+      },
+      error: () => {}
+    });
+  }
 
   ngOnInit() {
     this.userName = this.authService.getCurrentUserName();
@@ -49,6 +68,9 @@ export class TopnavComponent implements OnInit {
     this.seenKey = `seen_announcements_${userId}`;
 
     if (userId) {
+      this.loadProfile(userId);
+      this.profileSub = this.userService.profileChanged$.subscribe(() => this.loadProfile(userId));
+
       this.notificationService.getUserNotifications(userId).subscribe({
         next: (data) => { this.notifications = data; this.updateBadge(); },
         error: () => {}
@@ -121,6 +143,12 @@ export class TopnavComponent implements OnInit {
   }
 
   getInitials(): string {
-    return this.userName ? this.userName.charAt(0).toUpperCase() : 'U';
+    const parts = this.userName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0]?.[0]?.toUpperCase() ?? 'U';
+  }
+
+  getDisplayName(): string {
+    return this.userName.trim().split(/\s+/)[0] ?? this.userName;
   }
 }

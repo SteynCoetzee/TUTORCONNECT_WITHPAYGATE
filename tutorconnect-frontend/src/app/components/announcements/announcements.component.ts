@@ -28,11 +28,13 @@ export class AnnouncementsComponent implements OnInit {
   showCreateForm = false;
   createData: AnnouncementCreate = { announcement_Name: '', announcement_Details: '', announcement_Type: 'Update', module_Code: '' };
   creating = false;
+  createErrors: Record<string, string> = {};
 
   // Edit (inline)
   editingAnnouncement: Announcement | null = null;
   editData: AnnouncementUpdate = { announcement_Name: '', announcement_Details: '', announcement_Type: 'Update', module_Code: '' };
   updating = false;
+  editErrors: Record<string, string> = {};
 
   // Delete (inline)
   deletingId: number | null = null;
@@ -63,26 +65,55 @@ export class AnnouncementsComponent implements OnInit {
   loadModule() {
     this.announcementService.getAnnouncements().subscribe({
       next: (data) => { this.moduleAnnouncements = data.filter(a => a.module_Code && a.module_Code.trim() !== ''); },
-      error: () => {}
+      error: () => {
+        this.errorModalMessage = 'Could not load module announcements. Please refresh the page.';
+        this.showErrorModal = true;
+      }
     });
+  }
+
+  validateCreateTitle(val: string) {
+    if (!val?.trim()) {
+      this.createErrors['title'] = 'Title is required.';
+    } else if (val.trim().length < 3) {
+      this.createErrors['title'] = 'Title must be at least 3 characters.';
+    } else if (val.trim().length > 150) {
+      this.createErrors['title'] = 'Title cannot exceed 150 characters.';
+    } else {
+      delete this.createErrors['title'];
+    }
+  }
+
+  validateEditTitle(val: string) {
+    if (!val?.trim()) {
+      this.editErrors['title'] = 'Title is required.';
+    } else if (val.trim().length < 3) {
+      this.editErrors['title'] = 'Title must be at least 3 characters.';
+    } else if (val.trim().length > 150) {
+      this.editErrors['title'] = 'Title cannot exceed 150 characters.';
+    } else {
+      delete this.editErrors['title'];
+    }
   }
 
   // ── Create ────────────────────────────────────────────────────────
   openCreate() {
     this.createData = { announcement_Name: '', announcement_Details: '', announcement_Type: 'Update', module_Code: '' };
+    this.createErrors = {};
     this.showCreateForm = true;
     this.editingAnnouncement = null;
   }
 
   submitCreate() {
-    if (!this.createData.announcement_Name) { this.showError('Title is required.'); return; }
+    this.validateCreateTitle(this.createData.announcement_Name);
+    if (Object.keys(this.createErrors).length > 0) return;
     const userId = this.authService.getCurrentUserId();
     this.createData.admin_ID = userId ?? undefined;
     this.createData.module_Code = '';
     this.creating = true;
     this.announcementService.createAnnouncement(this.createData).subscribe({
       next: () => { this.creating = false; this.showCreateForm = false; this.loadWebsite(); },
-      error: () => { this.creating = false; this.showError('Failed to create announcement.'); }
+      error: () => { this.creating = false; this.showError('Failed to post announcement. Please try again.'); }
     });
   }
 
@@ -90,6 +121,7 @@ export class AnnouncementsComponent implements OnInit {
   openEdit(a: Announcement) {
     this.showCreateForm = false;
     this.editingAnnouncement = a;
+    this.editErrors = {};
     this.editData = {
       announcement_Name: a.announcement_Name,
       announcement_Details: a.announcement_Details,
@@ -98,14 +130,16 @@ export class AnnouncementsComponent implements OnInit {
     };
   }
 
-  cancelEdit() { this.editingAnnouncement = null; }
+  cancelEdit() { this.editingAnnouncement = null; this.editErrors = {}; }
 
   submitEdit() {
     if (!this.editingAnnouncement) return;
+    this.validateEditTitle(this.editData.announcement_Name);
+    if (Object.keys(this.editErrors).length > 0) return;
     this.updating = true;
     this.announcementService.updateAnnouncement(this.editingAnnouncement.announcement_ID, this.editData).subscribe({
       next: () => { this.updating = false; this.editingAnnouncement = null; this.loadWebsite(); },
-      error: () => { this.updating = false; this.showError('Failed to update announcement.'); }
+      error: () => { this.updating = false; this.showError('Failed to update announcement. Please try again.'); }
     });
   }
 

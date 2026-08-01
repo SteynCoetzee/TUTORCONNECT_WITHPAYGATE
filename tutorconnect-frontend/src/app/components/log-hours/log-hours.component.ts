@@ -38,6 +38,7 @@ export class LogHoursComponent implements OnInit {
 
   // Delete confirmation
   deleteTargetId: number | null = null;
+  formErrors: Record<string, string> = {};
 
   private apiUrl = environment.apiUrl;
   private tutorId = 0;
@@ -57,11 +58,37 @@ export class LogHoursComponent implements OnInit {
     });
   }
 
+  validateDate(val: string) {
+    if (!val) {
+      this.formErrors['date'] = 'Date is required.';
+    } else {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (new Date(val) > today) {
+        this.formErrors['date'] = 'Log date cannot be in the future.';
+      } else {
+        delete this.formErrors['date'];
+      }
+    }
+  }
+
+  validateHours(val: number | null) {
+    if (val === null || val === undefined || (val as any) === '') {
+      this.formErrors['hours'] = 'Hours worked is required.';
+    } else if (val <= 0) {
+      this.formErrors['hours'] = 'Hours must be greater than zero.';
+    } else if (val > 12) {
+      this.formErrors['hours'] = 'Cannot log more than 12 hours in a single entry.';
+    } else {
+      delete this.formErrors['hours'];
+    }
+  }
+
   openCreateForm() {
     this.editingLog = null;
     this.formDate = new Date().toISOString().split('T')[0];
     this.formTime = '09:00:00';
     this.formAmount = null;
+    this.formErrors = {};
     this.showForm = true;
     this.clearMessages();
   }
@@ -71,19 +98,22 @@ export class LogHoursComponent implements OnInit {
     this.formDate = log.log_Hours_Date;
     this.formTime = log.log_Hours_Time;
     this.formAmount = log.log_Hours_Amount;
+    this.formErrors = {};
     this.clearMessages();
   }
 
   closeForm() {
     this.showForm = false;
     this.editingLog = null;
+    this.formErrors = {};
   }
 
   saveLog() {
-    if (!this.formDate || !this.formTime || !this.formAmount) {
-      this.errorMessage = 'Please fill in all fields.';
-      return;
-    }
+    this.validateDate(this.formDate);
+    if (!this.formTime) this.formErrors['time'] = 'Start time is required.';
+    else delete this.formErrors['time'];
+    this.validateHours(this.formAmount);
+    if (Object.keys(this.formErrors).length > 0) return;
 
     this.saving = true;
     const payload = {
@@ -143,6 +173,8 @@ export class LogHoursComponent implements OnInit {
     this.errorMessage = '';
     this.successMessage = '';
   }
+
+  clearFormError(key: string) { delete this.formErrors[key]; }
 
   formatDate(dateStr: string): string {
     try { return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }

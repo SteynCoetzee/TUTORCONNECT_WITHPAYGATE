@@ -34,15 +34,27 @@
   }
 
   <!-- Tabs -->
-  <div class="tabs">
+  <div class="tab-bar">
     <button class="tab-btn" [class.active]="activeTab === 'users'" (click)="activeTab = 'users'">
       <span class="material-icons">group</span> All Users
-      <span class="badge badge-teal ml-4">{{ users.length }}</span>
+      <span class="badge badge-teal ml-4">{{ filteredUsers.length }}</span>
     </button>
     <button class="tab-btn" [class.active]="activeTab === 'pending'" (click)="activeTab = 'pending'">
       <span class="material-icons">pending_actions</span> Awaiting Approval
       @if (awTutorCount > 0) {
         <span class="badge badge-orange ml-4">{{ awTutorCount }}</span>
+      }
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'archive'" (click)="activeTab = 'archive'">
+      <span class="material-icons">inventory_2</span> Archive
+      @if (archivedUsers.length > 0) {
+        <span class="badge badge-gray ml-4">{{ archivedUsers.length }}</span>
+      }
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'deleted'" (click)="activeTab = 'deleted'">
+      <span class="material-icons">delete_outline</span> Deleted
+      @if (deletedUsers.length > 0) {
+        <span class="badge badge-danger ml-4">{{ deletedUsers.length }}</span>
       }
     </button>
   </div>
@@ -141,15 +153,24 @@
                     <div class="edit-form-row">
                       <div class="form-group">
                         <label>First Name</label>
-                        <input class="form-control" [(ngModel)]="editFirstName" name="editFN" placeholder="First name" />
+                        <input class="form-control" [class.input-error]="editFieldErrors['firstName']"
+                               [(ngModel)]="editFirstName" name="editFN" placeholder="First name"
+                               (ngModelChange)="validateEditName($event, 'firstName')" />
+                        @if (editFieldErrors['firstName']) { <span class="field-error">{{ editFieldErrors['firstName'] }}</span> }
                       </div>
                       <div class="form-group">
                         <label>Last Name</label>
-                        <input class="form-control" [(ngModel)]="editLastName" name="editLN" placeholder="Last name" />
+                        <input class="form-control" [class.input-error]="editFieldErrors['lastName']"
+                               [(ngModel)]="editLastName" name="editLN" placeholder="Last name"
+                               (ngModelChange)="validateEditName($event, 'lastName')" />
+                        @if (editFieldErrors['lastName']) { <span class="field-error">{{ editFieldErrors['lastName'] }}</span> }
                       </div>
                       <div class="form-group">
                         <label>Phone</label>
-                        <input class="form-control" [(ngModel)]="editPhone" name="editPhone" placeholder="Phone number" />
+                        <input class="form-control" [class.input-error]="editFieldErrors['phone']"
+                               [(ngModel)]="editPhone" name="editPhone" placeholder="Phone number"
+                               (ngModelChange)="validateEditPhone($event)" />
+                        @if (editFieldErrors['phone']) { <span class="field-error">{{ editFieldErrors['phone'] }}</span> }
                       </div>
                     </div>
                     <div class="edit-form-row">
@@ -213,7 +234,8 @@
                       <span class="material-icons">edit</span>
                     </button>
                     @if (user.user_ID !== currentUserId) {
-                      <button class="btn-icon danger" title="Delete user" (click)="confirmDelete(user.user_ID)">
+                      <button class="btn-icon danger" title="Move to Archive"
+                              (click)="archiveUser(user)" [disabled]="archivingId === user.user_ID">
                         <span class="material-icons">delete</span>
                       </button>
                     } @else {
@@ -230,11 +252,140 @@
         </tbody>
       </table>
       </div>
-      <div class="table-footer">Showing {{ filteredUsers.length }} of {{ users.length }} users</div>
+      <div class="table-footer">Showing {{ filteredUsers.length }} active users</div>
     }
   </div>
 
   } <!-- end activeTab === 'users' -->
+
+  <!-- ── ARCHIVE TAB ──────────────────────────────────────────────────────── -->
+  @if (activeTab === 'archive') {
+    @if (archivedUsers.length === 0) {
+      <div class="empty-state">
+        <span class="material-icons">inventory_2</span>
+        <p>No archived users. Archived users appear here and can be restored or permanently deleted.</p>
+      </div>
+    } @else {
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of archivedUsers; track user.user_ID) {
+              <tr style="opacity:0.75">
+                <td>
+                  <div class="user-cell">
+                    <div class="user-avatar" style="background:#9ca3af">{{ getInitials(user) }}</div>
+                    <div>
+                      <div class="user-name">{{ user.firstName }} {{ user.lastName }}</div>
+                      <div class="user-id">ID: {{ user.user_ID }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>{{ user.email }}</td>
+                <td><span class="badge badge-gray">{{ user.roleName }}</span></td>
+                <td>
+                  <div class="action-btns">
+                    <button class="btn btn-secondary btn-sm" title="Restore to active users"
+                            (click)="unarchiveUser(user)" [disabled]="unarchivingId === user.user_ID">
+                      <span class="material-icons">restore</span>
+                      {{ unarchivingId === user.user_ID ? 'Restoring...' : 'Restore' }}
+                    </button>
+                    <button class="btn-icon danger" title="Move to Deleted tab (restorable)" (click)="confirmDelete(user.user_ID)">
+                      <span class="material-icons">delete_outline</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  } <!-- end activeTab === 'archive' -->
+
+  <!-- ── DELETED TAB ─────────────────────────────────────────────────────── -->
+  @if (activeTab === 'deleted') {
+    @if (deletedUsers.length === 0) {
+      <div class="empty-state">
+        <span class="material-icons">delete_outline</span>
+        <p>No deleted users. Deleted users are kept here and can be fully restored or permanently removed.</p>
+      </div>
+    } @else {
+      <div class="card">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;padding:0 4px">
+          <span class="material-icons" style="font-size:15px;vertical-align:middle;color:#f59e0b">info</span>
+          Deleted users cannot log in but all their data is preserved. Restore them to reactivate the account, or permanently delete to remove all data.
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of deletedUsers; track user.user_ID) {
+              @if (permDeletingId === user.user_ID && permDeleteTargetUser) {
+                <tr style="background:#fff5f5">
+                  <td colspan="4">
+                    <div class="tr-confirm-inner">
+                      <span class="material-icons" style="color:#dc2626">delete_forever</span>
+                      <div class="tr-confirm-text">
+                        <strong>Permanently delete "{{ permDeleteTargetUser.firstName }} {{ permDeleteTargetUser.lastName }}"?</strong>
+                        <span style="color:#dc2626">This removes all their data — bookings, payments, submissions, reviews — and CANNOT be undone.</span>
+                      </div>
+                      <div class="tr-confirm-btns">
+                        <button class="btn btn-secondary btn-sm" (click)="cancelPermDelete()">Cancel</button>
+                        <button class="btn btn-danger btn-sm" (click)="permanentDelete()">
+                          <span class="material-icons">delete_forever</span> Delete Forever
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                <tr style="opacity:0.8">
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar" style="background:#dc2626">{{ getInitials(user) }}</div>
+                      <div>
+                        <div class="user-name">{{ user.firstName }} {{ user.lastName }}</div>
+                        <div class="user-id">ID: {{ user.user_ID }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{{ user.email }}</td>
+                  <td><span class="badge badge-gray">{{ user.roleName }}</span></td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="btn btn-secondary btn-sm" title="Restore to active users"
+                              (click)="restoreDeleted(user)" [disabled]="restoringDeletedId === user.user_ID">
+                        <span class="material-icons">restore</span>
+                        {{ restoringDeletedId === user.user_ID ? 'Restoring...' : 'Restore' }}
+                      </button>
+                      <button class="btn-icon danger" title="Permanently delete — cannot be undone"
+                              (click)="confirmPermDelete(user)">
+                        <span class="material-icons">delete_forever</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  } <!-- end activeTab === 'deleted' -->
 
 </div>
 
@@ -247,7 +398,7 @@
         <span class="material-icons del-icon">delete_forever</span>
       </div>
 
-      <h2 class="del-title">Delete Account Permanently?</h2>
+      <h2 class="del-title">Move to Deleted?</h2>
 
       <div class="del-user-card">
         <div class="del-user-avatar">{{ getInitials(deleteTargetUser) }}</div>
@@ -259,12 +410,12 @@
       </div>
 
       <p class="del-warning-text">
-        Deleting this account will permanently remove the user and all associated data including enrollments, bookings, submissions, and reviews.
+        This user will be moved to the <strong>Deleted</strong> tab. Their account will be suspended and they cannot log in, but all their data — enrollments, bookings, payments, submissions — is fully preserved.
       </p>
 
-      <div class="del-cannot-undo">
-        <span class="material-icons">warning</span>
-        <strong>This action CANNOT be undone.</strong> There is no recovery option.
+      <div class="del-cannot-undo" style="background:#fffbeb;border-color:#f59e0b;color:#92400e">
+        <span class="material-icons" style="color:#f59e0b">restore</span>
+        <strong>This is reversible.</strong> You can restore this account from the Deleted tab at any time.
       </div>
 
       <div class="del-actions">
@@ -272,7 +423,7 @@
           <span class="material-icons">arrow_back</span> Cancel, Keep Account
         </button>
         <button class="btn btn-danger del-confirm-btn" (click)="deleteUser()">
-          <span class="material-icons">delete_forever</span> Yes, Delete Permanently
+          <span class="material-icons">delete_outline</span> Move to Deleted
         </button>
       </div>
 
@@ -439,12 +590,12 @@
           <div class="form-group">
             <label class="form-label">Module</label>
             @if (availableModulesToAdd.length === 0) {
-              <p class="sd-all-enrolled">This student is enrolled in all available modules.</p>
+              <p class="sd-all-enrolled">No modules available.</p>
             } @else {
-              <select class="form-control" [(ngModel)]="addModuleCode">
+              <select class="form-control" [(ngModel)]="addModuleCode" (ngModelChange)="onAddModuleChange()">
                 <option value="">— Select a module —</option>
                 @for (m of availableModulesToAdd; track m.module_Code) {
-                  <option [value]="m.module_Code">{{ m.module_Code }} — {{ m.module_Name }}</option>
+                  <option [value]="m.module_Code">{{ moduleOptionLabel(m) }}</option>
                 }
               </select>
             }
@@ -452,22 +603,22 @@
 
           <!-- Session type -->
           <div class="form-group">
-            <label class="form-label">Session Type <span class="sd-required">(select at least one)</span></label>
+            <label class="form-label">Session Type <span class="sd-required">(select at least one to add)</span></label>
             <div class="sd-type-options">
-              <label class="sd-type-option" [class.sd-type-selected]="addOneOnOne">
-                <input type="checkbox" [(ngModel)]="addOneOnOne" />
+              <label class="sd-type-option" [class.sd-type-selected]="addOneOnOne" [class.sd-type-disabled]="addOneOnOneDisabled">
+                <input type="checkbox" [(ngModel)]="addOneOnOne" [disabled]="addOneOnOneDisabled" />
                 <span class="material-icons">person</span>
                 <div>
                   <strong>One on One</strong>
-                  <small>5 sessions added</small>
+                  <small>{{ addOneOnOneDisabled ? 'Already enrolled' : '5 sessions added' }}</small>
                 </div>
               </label>
-              <label class="sd-type-option" [class.sd-type-selected]="addGroup">
-                <input type="checkbox" [(ngModel)]="addGroup" />
+              <label class="sd-type-option" [class.sd-type-selected]="addGroup" [class.sd-type-disabled]="addGroupDisabled">
+                <input type="checkbox" [(ngModel)]="addGroup" [disabled]="addGroupDisabled" />
                 <span class="material-icons">groups</span>
                 <div>
                   <strong>Group</strong>
-                  <small>5 sessions added</small>
+                  <small>{{ addGroupDisabled ? 'Already enrolled' : '5 sessions added' }}</small>
                 </div>
               </label>
             </div>
@@ -475,7 +626,7 @@
 
           <button class="btn btn-primary sd-enroll-btn"
             (click)="enrollModule()"
-            [disabled]="enrolling || !addModuleCode || (!addOneOnOne && !addGroup) || availableModulesToAdd.length === 0">
+            [disabled]="enrolling || !addModuleCode || (!addOneOnOne && !addGroup)">
             @if (enrolling) {
               <span class="spinner-sm"></span> Enrolling...
             } @else {

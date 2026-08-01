@@ -28,6 +28,7 @@ export class AdminTestimonialsComponent implements OnInit {
   submitDescription = '';
   submitCategoryId: number | null = null;
   submitting = false;
+  submitErrors: Record<string, string> = {};
 
   // Category form (for admins)
   showCatForm = false;
@@ -35,12 +36,14 @@ export class AdminTestimonialsComponent implements OnInit {
   catName = '';
   savingCat = false;
   deleteCatId: number | null = null;
+  catErrors: Record<string, string> = {};
 
   // Edit testimonial
   editingTestimonial: Testimonial | null = null;
   editDescription = '';
   editCategoryId: number | null = null;
   saving = false;
+  editErrors: Record<string, string> = {};
 
   deleteTargetId: number | null = null;
 
@@ -114,20 +117,37 @@ export class AdminTestimonialsComponent implements OnInit {
     });
   }
 
+  validateTestimonialDesc(val: string, errObj: Record<string, string>) {
+    if (!val?.trim()) { errObj['desc'] = 'Testimonial text is required.'; }
+    else if (val.trim().length < 10) { errObj['desc'] = 'Please write at least 10 characters.'; }
+    else if (val.trim().length > 1000) { errObj['desc'] = 'Testimonial cannot exceed 1000 characters.'; }
+    else { delete errObj['desc']; }
+  }
+
+  validateCatName(val: string) {
+    if (!val?.trim()) { this.catErrors['name'] = 'Category name is required.'; }
+    else if (val.trim().length < 2) { this.catErrors['name'] = 'Name must be at least 2 characters.'; }
+    else { delete this.catErrors['name']; }
+  }
+
   // ─── EDIT ────────────────────────────────────────────────────────────────────
   openEdit(t: Testimonial) {
     this.editingTestimonial = t;
     this.editDescription = t.testimonial_Description;
     this.editCategoryId = t.testimonial_Category_ID;
+    this.editErrors = {};
     this.clearMessages();
   }
 
   cancelEdit() {
     this.editingTestimonial = null;
+    this.editErrors = {};
   }
 
   saveEdit() {
-    if (!this.editingTestimonial || !this.editDescription || !this.editCategoryId) {
+    this.validateTestimonialDesc(this.editDescription, this.editErrors);
+    if (Object.keys(this.editErrors).length > 0) return;
+    if (!this.editingTestimonial || !this.editCategoryId) {
       this.errorMessage = 'Please fill in all fields.';
       return;
     }
@@ -148,10 +168,10 @@ export class AdminTestimonialsComponent implements OnInit {
 
   // ─── SUBMIT NEW (STUDENT) ────────────────────────────────────────────────────
   submitTestimonial() {
-    if (!this.submitDescription || !this.submitCategoryId) {
-      this.errorMessage = 'Please fill in all fields.';
-      return;
-    }
+    this.validateTestimonialDesc(this.submitDescription, this.submitErrors);
+    if (!this.submitCategoryId) this.submitErrors['category'] = 'Please select a category.';
+    else delete this.submitErrors['category'];
+    if (Object.keys(this.submitErrors).length > 0) return;
     this.submitting = true;
     this.clearMessages();
     this.http.post(`${this.apiUrl}/Testimonials`, {
@@ -164,6 +184,7 @@ export class AdminTestimonialsComponent implements OnInit {
         this.successMessage = 'Testimonial submitted! It will appear once approved by an admin.';
         this.submitDescription = '';
         this.submitCategoryId = null;
+        this.submitErrors = {};
         this.loadAll();
       },
       error: () => { this.submitting = false; this.errorMessage = 'Failed to submit testimonial.'; }
@@ -174,12 +195,14 @@ export class AdminTestimonialsComponent implements OnInit {
   openCatForm(cat?: TestimonialCategory) {
     this.editingCat = cat ?? null;
     this.catName = cat?.test_Category_Name ?? '';
+    this.catErrors = {};
     this.showCatForm = true;
     this.clearMessages();
   }
 
   saveCat() {
-    if (!this.catName) { this.errorMessage = 'Category name is required.'; return; }
+    this.validateCatName(this.catName);
+    if (Object.keys(this.catErrors).length > 0) return;
     this.savingCat = true;
     const payload = { test_Category_Name: this.catName };
     const obs = this.editingCat
@@ -203,4 +226,5 @@ export class AdminTestimonialsComponent implements OnInit {
   }
 
   clearMessages() { this.errorMessage = ''; this.successMessage = ''; }
+  clearSubmitError(key: string) { delete this.submitErrors[key]; }
 }

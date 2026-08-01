@@ -28,6 +28,7 @@ export class AddModuleComponent implements OnInit {
   saving = false;
   errorMessage = '';
   successMessage = '';
+  fieldErrors: Record<string, string> = {};
   
   private apiUrl = environment.apiUrl;
 
@@ -80,12 +81,57 @@ export class AddModuleComponent implements OnInit {
     });
   }
 
-  saveModule() {
-    if (!this.formCode || !this.formName || !this.formDescription ||
-        this.formPriceOneOnOne === null || this.formPriceGroup === null) {
-      this.errorMessage = 'Please fill in all fields including both session prices.';
-      return;
+  validateCode(val: string) {
+    if (!val?.trim()) {
+      this.fieldErrors['code'] = 'Module code is required (e.g. CS101).';
+    } else if (!/^[a-zA-Z0-9\-_]{2,20}$/.test(val.trim())) {
+      this.fieldErrors['code'] = 'Code must be 2–20 alphanumeric characters (e.g. CS101, MATH201).';
+    } else {
+      delete this.fieldErrors['code'];
     }
+  }
+
+  validateName(val: string) {
+    if (!val?.trim()) {
+      this.fieldErrors['name'] = 'Module name is required.';
+    } else if (val.trim().length < 3) {
+      this.fieldErrors['name'] = 'Name must be at least 3 characters.';
+    } else if (val.trim().length > 100) {
+      this.fieldErrors['name'] = 'Name cannot exceed 100 characters.';
+    } else {
+      delete this.fieldErrors['name'];
+    }
+  }
+
+  validateDescription(val: string) {
+    if (!val?.trim()) {
+      this.fieldErrors['desc'] = 'Description is required.';
+    } else if (val.trim().length < 10) {
+      this.fieldErrors['desc'] = 'Please provide a more detailed description (at least 10 characters).';
+    } else {
+      delete this.fieldErrors['desc'];
+    }
+  }
+
+  validatePrice(val: number | null, field: string, label: string) {
+    if (val === null || val === undefined || (val as any) === '') {
+      this.fieldErrors[field] = `${label} is required.`;
+    } else if (val < 0) {
+      this.fieldErrors[field] = `${label} cannot be negative.`;
+    } else if (val > 10000) {
+      this.fieldErrors[field] = `${label} seems too high — maximum is R10,000.`;
+    } else {
+      delete this.fieldErrors[field];
+    }
+  }
+
+  saveModule() {
+    this.validateCode(this.formCode);
+    this.validateName(this.formName);
+    this.validateDescription(this.formDescription);
+    this.validatePrice(this.formPriceOneOnOne, 'price1on1', 'One-on-One price');
+    this.validatePrice(this.formPriceGroup, 'priceGroup', 'Group price');
+    if (Object.keys(this.fieldErrors).length > 0) return;
 
     this.saving = true;
     this.errorMessage = '';
@@ -107,7 +153,7 @@ export class AddModuleComponent implements OnInit {
           setTimeout(() => this.goBack(), 1500);
         },
         error: (err) => {
-          this.errorMessage = err.error || 'Failed to update module.';
+          this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to update module. Please try again.';
           this.saving = false;
         }
       });
@@ -119,7 +165,7 @@ export class AddModuleComponent implements OnInit {
           setTimeout(() => this.goBack(), 1500);
         },
         error: (err) => {
-          this.errorMessage = err.error || 'Failed to create module.';
+          this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to create module. Please try again.';
           this.saving = false;
         }
       });

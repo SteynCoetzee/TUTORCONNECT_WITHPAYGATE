@@ -147,11 +147,18 @@ export class BookingComponent implements OnInit {
       : this.selectedEnrollment.can_Book_Group;
   }
 
+  isSlotPast(slot: AvailableSlot): boolean {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(slot.slotDate + 'T00:00:00') < today;
+  }
+
   onFormatChange() {
     this.selectedSlotId = null;
     if (!this.selectedFormat) { this.filteredSlots = []; return; }
     this.filteredSlots = this.allSlots.filter(s =>
       s.session_Type.toLowerCase().startsWith(this.selectedFormat.toLowerCase())
+      && !this.isSlotPast(s)
     );
   }
 

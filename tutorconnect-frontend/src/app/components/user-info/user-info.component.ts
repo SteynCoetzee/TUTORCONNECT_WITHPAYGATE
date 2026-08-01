@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -28,6 +28,17 @@ export class UserInfoComponent implements OnInit {
   editRoleProfile: any = {};
   savingRole = false;
 
+  // Profile picture
+  uploadingPicture = false;
+  pictureError = '';
+  pictureSuccess = '';
+
+  // Camera modal
+  showCameraModal = false;
+  cameraStream: MediaStream | null = null;
+  @ViewChild('cameraVideo') cameraVideoRef!: ElementRef<HTMLVideoElement>;
+  @ViewChild('cameraCanvas') cameraCanvasRef!: ElementRef<HTMLCanvasElement>;
+
   // Change password
   showPasswordForm = false;
   currentPassword = '';
@@ -36,6 +47,7 @@ export class UserInfoComponent implements OnInit {
   savingPassword = false;
   passwordError = '';
   passwordSuccess = '';
+  pwFieldErrors: Record<string, string> = {};
 
   private apiUrl = environment.apiUrl;
 
@@ -64,7 +76,7 @@ export class UserInfoComponent implements OnInit {
         this.roleProfile = data;
         this.editRoleProfile = data ? { ...data } : {};
       },
-      error: () => {}
+      error: () => { this.errorMessage = 'Could not load your role details. Some fields may be empty.'; }
     });
   }
 
@@ -240,6 +252,7 @@ export class UserInfoComponent implements OnInit {
         this.editMode = false;
         this.successMessage = 'Profile updated successfully!';
         this.userService.getUser(userId).subscribe({ next: (d) => { this.profile = d; } });
+        this.userService.notifyProfileChanged();
         this.saveRoleProfile(userId);
         setTimeout(() => { this.successMessage = ''; }, 3000);
       },
@@ -256,8 +269,43 @@ export class UserInfoComponent implements OnInit {
     if (!endpoint) return;
     this.http.put(endpoint, this.editRoleProfile, { responseType: 'text' }).subscribe({
       next: () => { this.roleProfile = { ...this.editRoleProfile }; },
-      error: () => {}
+      error: () => { this.errorMessage = 'Profile saved, but some role-specific details could not be saved. Please try again.'; }
     });
+  }
+
+  validateCurrentPw(value: string) {
+    if (!value) {
+      this.pwFieldErrors['currentPw'] = 'Please enter your current password.';
+    } else {
+      delete this.pwFieldErrors['currentPw'];
+    }
+  }
+
+  validateNewPw(value: string) {
+    if (!value) {
+      this.pwFieldErrors['newPw'] = 'New password is required.';
+    } else if (value.length < 8) {
+      this.pwFieldErrors['newPw'] = 'Password must be at least 8 characters long.';
+    } else if (!/[A-Z]/.test(value)) {
+      this.pwFieldErrors['newPw'] = 'Password must include at least one uppercase letter.';
+    } else if (!/[0-9]/.test(value)) {
+      this.pwFieldErrors['newPw'] = 'Password must include at least one number.';
+    } else if (!/[^a-zA-Z0-9]/.test(value)) {
+      this.pwFieldErrors['newPw'] = 'Password must include at least one special character (e.g. !@#$%).';
+    } else {
+      delete this.pwFieldErrors['newPw'];
+    }
+    if (this.confirmPassword) this.validateConfirmPw(this.confirmPassword);
+  }
+
+  validateConfirmPw(value: string) {
+    if (!value) {
+      this.pwFieldErrors['confirmPw'] = 'Please confirm your new password.';
+    } else if (value !== this.newPassword) {
+      this.pwFieldErrors['confirmPw'] = 'Passwords do not match.';
+    } else {
+      delete this.pwFieldErrors['confirmPw'];
+    }
   }
 
   openPasswordForm() {
@@ -267,12 +315,14 @@ export class UserInfoComponent implements OnInit {
     this.confirmPassword = '';
     this.passwordError = '';
     this.passwordSuccess = '';
+    this.pwFieldErrors = {};
   }
 
   cancelPasswordForm() {
     this.showPasswordForm = false;
     this.passwordError = '';
     this.passwordSuccess = '';
+    this.pwFieldErrors = {};
   }
 
   get pwStrength(): 0 | 1 | 2 | 3 {
@@ -292,32 +342,12 @@ export class UserInfoComponent implements OnInit {
   }
 
   changePassword() {
-    if (!this.currentPassword || !this.newPassword || !this.confirmPassword) {
-      this.passwordError = 'Please fill in all password fields.';
-      return;
-    }
-    if (this.newPassword.length < 8) {
-      this.passwordError = 'New password must be at least 8 characters.';
-      return;
-    }
-    if (!/[A-Z]/.test(this.newPassword)) {
-      this.passwordError = 'Password must contain at least one uppercase letter.';
-      return;
-    }
-    if (!/[0-9]/.test(this.newPassword)) {
-      this.passwordError = 'Password must contain at least one number.';
-      return;
-    }
-    if (!/[^a-zA-Z0-9]/.test(this.newPassword)) {
-      this.passwordError = 'Password must contain at least one special character (e.g. !@#$%).';
-      return;
-    }
-    if (this.newPassword !== this.confirmPassword) {
-      this.passwordError = 'New passwords do not match.';
-      return;
-    }
+    this.validateCurrentPw(this.currentPassword);
+    this.validateNewPw(this.newPassword);
+    this.validateConfirmPw(this.confirmPassword);
+    if (Object.keys(this.pwFieldErrors).length > 0) return;
     if (this.newPassword === this.currentPassword) {
-      this.passwordError = 'New password must be different from your current password.';
+      this.pwFieldErrors['newPw'] = 'New password must be different from your current password.';
       return;
     }
     const userId = this.authService.getCurrentUserId();
@@ -339,7 +369,90 @@ export class UserInfoComponent implements OnInit {
       },
       error: (err) => {
         this.savingPassword = false;
-        this.passwordError = err.error || 'Failed to update password.';
+        if (err.status === 400) {
+          this.pwFieldErrors['currentPw'] = 'Current password is incorrect.';
+        } else {
+          this.passwordError = typeof err.error === 'string' && err.error ? err.error : 'Failed to update password. Please try again.';
+        }
+      }
+    });
+  }
+
+  onProfilePictureSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.type)) {
+      this.pictureError = 'Only JPEG, PNG, WebP, or GIF images are allowed.';
+      input.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.pictureError = 'Profile picture must be under 5 MB.';
+      input.value = '';
+      return;
+    }
+    this.uploadPictureFile(file, () => { input.value = ''; });
+  }
+
+  async openCamera() {
+    this.pictureError = '';
+    try {
+      this.cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      this.showCameraModal = true;
+      setTimeout(() => {
+        if (this.cameraVideoRef?.nativeElement) {
+          this.cameraVideoRef.nativeElement.srcObject = this.cameraStream;
+        }
+      }, 80);
+    } catch {
+      this.pictureError = 'Camera access denied or not available on this device.';
+    }
+  }
+
+  capturePhoto() {
+    const video = this.cameraVideoRef.nativeElement;
+    const canvas = this.cameraCanvasRef.nativeElement;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')!.drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+      this.closeCamera();
+      this.uploadPictureFile(file, () => {});
+    }, 'image/jpeg', 0.92);
+  }
+
+  closeCamera() {
+    this.cameraStream?.getTracks().forEach(t => t.stop());
+    this.cameraStream = null;
+    this.showCameraModal = false;
+  }
+
+  private uploadPictureFile(file: File, reset: () => void) {
+    const userId = this.authService.getCurrentUserId();
+    if (!userId) return;
+    this.uploadingPicture = true;
+    this.pictureError = '';
+    this.pictureSuccess = '';
+    const fd = new FormData();
+    fd.append('file', file);
+    this.http.post(`${this.apiUrl}/Users/${userId}/profile-picture`, fd, { responseType: 'text' }).subscribe({
+      next: (url) => {
+        this.uploadingPicture = false;
+        const cleanUrl = url.replace(/^"|"$/g, '').trim();
+        if (this.profile) this.profile.profile_Picture_Url = cleanUrl;
+        this.userService.notifyProfileChanged();
+        this.pictureSuccess = 'Profile picture updated!';
+        reset();
+        setTimeout(() => { this.pictureSuccess = ''; }, 3000);
+      },
+      error: (err) => {
+        this.uploadingPicture = false;
+        this.pictureError = typeof err.error === 'string' ? err.error : 'Upload failed. Try again.';
+        reset();
       }
     });
   }

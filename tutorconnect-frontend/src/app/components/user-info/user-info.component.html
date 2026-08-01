@@ -27,6 +27,62 @@
         <h3 class="section-title">Personal Information</h3>
       </div>
 
+      <!-- Profile picture -->
+      <div class="profile-pic-row">
+        <div class="profile-pic-wrap">
+          @if (profile.profile_Picture_Url) {
+            <img class="profile-pic" [src]="profile.profile_Picture_Url" alt="Profile picture" />
+          } @else {
+            <div class="profile-pic-initials">
+              {{ profile.firstName.charAt(0) }}{{ profile.lastName.charAt(0) }}
+            </div>
+          }
+          <!-- Upload from gallery -->
+          <label class="profile-pic-upload-btn" [class.loading]="uploadingPicture" title="Upload from gallery">
+            @if (uploadingPicture) {
+              <span class="spinner-sm dark"></span>
+            } @else {
+              <span class="material-icons">photo_library</span>
+            }
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden
+                   (change)="onProfilePictureSelected($event)" [disabled]="uploadingPicture" />
+          </label>
+          <!-- Take a photo with camera -->
+          @if (!showCameraModal) {
+            <button class="profile-pic-camera-btn" [class.loading]="uploadingPicture"
+                    title="Take a photo" type="button" (click)="openCamera()" [disabled]="uploadingPicture">
+              <span class="material-icons">photo_camera</span>
+            </button>
+          }
+        </div>
+        <div class="profile-pic-info">
+          <span class="profile-pic-name">{{ profile.firstName }} {{ profile.lastName }}</span>
+          <span class="profile-pic-role">{{ roleName }}</span>
+          @if (pictureError) { <span class="field-error">{{ pictureError }}</span> }
+          @if (pictureSuccess) { <span class="pic-success">{{ pictureSuccess }}</span> }
+        </div>
+      </div>
+
+      <!-- Inline camera preview -->
+      @if (showCameraModal) {
+        <div class="cam-inline">
+          <div class="cam-inline-header">
+            <span class="cam-inline-label"><span class="material-icons">photo_camera</span> Take a Photo</span>
+            <button class="cam-close" type="button" (click)="closeCamera()">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+          <video #cameraVideo autoplay playsinline class="cam-inline-preview"></video>
+          <canvas #cameraCanvas hidden></canvas>
+          <div class="cam-inline-footer">
+            <button class="btn btn-primary" type="button" (click)="capturePhoto()">
+              <span class="material-icons">camera</span> Capture
+            </button>
+            <button class="btn btn-secondary" type="button" (click)="closeCamera()">Cancel</button>
+          </div>
+        </div>
+      }
+
       <ng-container *ngIf="!editMode">
         <div class="grid-2">
           <div class="form-group">
@@ -331,13 +387,26 @@
         }
         <div class="form-group mt-12">
           <label>Current Password *</label>
-          <input type="password" class="form-control" [(ngModel)]="currentPassword" placeholder="Enter your current password" />
+          <input type="password" class="form-control"
+                 [class.input-error]="pwFieldErrors['currentPw']"
+                 [(ngModel)]="currentPassword"
+                 placeholder="Enter your current password"
+                 (ngModelChange)="validateCurrentPw($event)" />
+          @if (pwFieldErrors['currentPw']) {
+            <span class="field-error">{{ pwFieldErrors['currentPw'] }}</span>
+          }
         </div>
         <div class="grid-2">
           <div class="form-group">
             <label>New Password *</label>
-            <input type="password" class="form-control" [(ngModel)]="newPassword"
-                   placeholder="Min 8 chars, uppercase, number, special" />
+            <input type="password" class="form-control"
+                   [class.input-error]="pwFieldErrors['newPw']"
+                   [(ngModel)]="newPassword"
+                   placeholder="Min 8 chars, uppercase, number, special"
+                   (ngModelChange)="validateNewPw($event)" />
+            @if (pwFieldErrors['newPw']) {
+              <span class="field-error">{{ pwFieldErrors['newPw'] }}</span>
+            }
             @if (newPassword) {
               <div class="pw-strength">
                 <div class="pw-bar-track">
@@ -355,7 +424,14 @@
           </div>
           <div class="form-group">
             <label>Confirm New Password *</label>
-            <input type="password" class="form-control" [(ngModel)]="confirmPassword" placeholder="Repeat new password" />
+            <input type="password" class="form-control"
+                   [class.input-error]="pwFieldErrors['confirmPw']"
+                   [(ngModel)]="confirmPassword"
+                   placeholder="Repeat new password"
+                   (ngModelChange)="validateConfirmPw($event)" />
+            @if (pwFieldErrors['confirmPw']) {
+              <span class="field-error">{{ pwFieldErrors['confirmPw'] }}</span>
+            }
           </div>
         </div>
         <div class="actions" style="margin-top:4px">
@@ -370,3 +446,4 @@
 
   </ng-container>
 </div>
+

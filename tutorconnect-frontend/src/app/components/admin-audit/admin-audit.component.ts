@@ -25,7 +25,39 @@ export class AdminAuditComponent implements OnInit {
   logs: AuditEntry[] = [];
   loading = false;
   filterType = '';
+  filterCategory = '';
+  searchQuery = '';
+  filterDateFrom = '';
+  filterDateTo = '';
   private apiUrl = environment.apiUrl;
+
+  readonly categoryMap: Record<string, string[]> = {
+    'Login / Security': ['User Login', 'User Registered', 'Password Changed', 'Password Reset'],
+    'Bookings': ['Session Booked', 'Booking Cancelled', 'Booking Slot Created', 'Booking Slot Deleted'],
+    'Enrollments': ['Student Enrolled', 'Student Unenrolled'],
+    'Modules': ['Module Created', 'Module Updated', 'Module Deleted'],
+    'Content': ['Assignment Created', 'Quiz Created', 'Announcement Created', 'Resource Added'],
+    'Reviews / Approvals': ['Hours Approved', 'Hours Rejected', 'Tutor Review Submitted', 'Testimonial Approved'],
+    'Payments': ['Payment Initiated', 'Payment Completed'],
+    'Admin Actions': ['User Archived', 'User Deleted', 'User Role Changed'],
+  };
+
+  get filteredLogs(): AuditEntry[] {
+    const q = this.searchQuery.toLowerCase().trim();
+    const categoryTypes = this.filterCategory ? this.categoryMap[this.filterCategory] ?? [] : [];
+    return this.logs.filter(l => {
+      const matchType     = !this.filterType     || l.transaction_Type === this.filterType;
+      const matchCategory = !this.filterCategory || categoryTypes.some(t => l.transaction_Type.includes(t.split(' ')[1] ?? t));
+      const matchFrom     = !this.filterDateFrom || l.audit_Date >= this.filterDateFrom;
+      const matchTo       = !this.filterDateTo   || l.audit_Date <= this.filterDateTo;
+      const matchSearch   = !q ||
+        l.userName.toLowerCase().includes(q) ||
+        l.critical_Data?.toLowerCase().includes(q) ||
+        l.transaction_Type.toLowerCase().includes(q) ||
+        String(l.user_ID).includes(q);
+      return matchType && matchCategory && matchFrom && matchTo && matchSearch;
+    });
+  }
 
   constructor(private http: HttpClient) {}
 
@@ -33,9 +65,7 @@ export class AdminAuditComponent implements OnInit {
 
   loadLogs() {
     this.loading = true;
-    let url = `${this.apiUrl}/AuditLogs`;
-    if (this.filterType) url += `?type=${encodeURIComponent(this.filterType)}`;
-    this.http.get<AuditEntry[]>(url).subscribe({
+    this.http.get<AuditEntry[]>(`${this.apiUrl}/AuditLogs`).subscribe({
       next: (data) => { this.logs = data; this.loading = false; },
       error: () => { this.loading = false; }
     });
@@ -43,6 +73,16 @@ export class AdminAuditComponent implements OnInit {
 
   get transactionTypes(): string[] {
     return [...new Set(this.logs.map(l => l.transaction_Type))].sort();
+  }
+
+  get categoryKeys(): string[] { return Object.keys(this.categoryMap); }
+
+  resetFilters() {
+    this.filterType = '';
+    this.filterCategory = '';
+    this.searchQuery = '';
+    this.filterDateFrom = '';
+    this.filterDateTo = '';
   }
 
   formatTime(t: string): string {

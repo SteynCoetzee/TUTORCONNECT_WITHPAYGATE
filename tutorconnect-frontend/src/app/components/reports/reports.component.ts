@@ -1,18 +1,16 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ReportService } from '../../services/report.service';
+import { AuthService } from '../../services/auth.service';
 import { Chart, registerables } from 'chart.js';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 Chart.register(...registerables);
 
-interface ReportType {
-  id: string; name: string; icon: string; description: string;
-  chartType: 'bar' | 'line' | 'doughnut' | 'horizontalBar';
-  labelKey: string; valueKey: string; valueLabel: string;
-  supportsDateRange: boolean;
-}
-
-interface RecentReport { name: string; icon: string; generatedOn: string; data: any[]; }
+type ReportTab = 'simple' | 'transactional' | 'criteria' | 'management';
+type SimpleReport = 'tutor-summary' | 'module-catalogue' | 'monthly-enrollments';
+type TransactionalReport = 'revenue-detail' | 'tutor-hours-detail';
 
 @Component({
   selector: 'app-reports',
@@ -22,289 +20,541 @@ interface RecentReport { name: string; icon: string; generatedOn: string; data: 
   styleUrl: './reports.component.css'
 })
 export class ReportsComponent implements OnInit, OnDestroy {
-  selectedReportType = 'tutor-hours';
+  @ViewChild('mgmtCanvas') mgmtCanvas!: ElementRef<HTMLCanvasElement>;
+
+  activeTab: ReportTab = 'simple';
+  loading = false;
   errorMessage = '';
+  successMessage = '';
 
-  // Date range (shared for standard reports)
-  dateFrom = '';
-  dateTo   = '';
+  // ── Simple list ──────────────────────────────────────────────────────────────
+  activeSimple: SimpleReport = 'tutor-summary';
+  simpleData: any[] | null = null;
+  simpleSearch    = '';
+  simpleMinRating = '';
 
-  // Preview state
-  previewData: any[] | null = null;
-  previewLoading = false;
-  previewTitle = '';
-  previewIcon  = '';
+  // ── Transactional ────────────────────────────────────────────────────────────
+  activeTx: TransactionalReport = 'revenue-detail';
+  txData: any[] | null = null;
+  txFrom = '';
+  txTo   = '';
+  txGroups: { key: string; rows: any[]; subtotal: number }[] = [];
 
-  // Chart
-  private chart: Chart | null = null;
+  // ── Adjustable Criteria ──────────────────────────────────────────────────────
+  criteriaFrom = '';
+  criteriaTo   = '';
+  criteriaType = 'All';
+  criteriaData: any[] | null = null;
 
-  // Custom query
-  customEntity  = 'bookings';
-  customGroupBy = 'month';
-  customFrom    = '';
-  customTo      = '';
-  customData: any[] | null = null;
-  customLoading = false;
-  customTitle   = '';
-  private customChart: Chart | null = null;
+  // ── Management / Graph ───────────────────────────────────────────────────────
+  mgmtData: any[] | null = null;
+  private mgmtChart: Chart | null = null;
+  mgmtReady = false;
+  mgmtChartType: 'bar' | 'pie' | 'doughnut' = 'bar';
+  mgmtFrom = '';
+  mgmtTo   = '';
 
-  readonly reportTypes: ReportType[] = [
-    { id: 'tutor-hours',      name: 'Tutor Hours',        icon: 'timer',          description: 'Total logged hours per tutor',                   chartType: 'bar',           labelKey: 'tutorName',    valueKey: 'totalHoursWorked', valueLabel: 'Hours',       supportsDateRange: true  },
-    { id: 'tutor-ratings',    name: 'Tutor Ratings',      icon: 'star',           description: 'Average ratings per tutor',                      chartType: 'horizontalBar', labelKey: 'tutorName',    valueKey: 'averageRating',    valueLabel: 'Avg Rating',  supportsDateRange: false },
-    { id: 'monthly-income',   name: 'Monthly Income',     icon: 'payments',       description: 'Total paid income per month',                    chartType: 'line',          labelKey: 'period',       valueKey: 'totalIncome',      valueLabel: 'Income (R)',  supportsDateRange: true  },
-    { id: 'monthly-students', name: 'Monthly Students',   icon: 'people',         description: 'Unique students with bookings per month',        chartType: 'line',          labelKey: 'period',       valueKey: 'uniqueStudents',   valueLabel: 'Students',    supportsDateRange: true  },
-    { id: 'sessions',         name: 'Sessions',           icon: 'calendar_today', description: 'All booked sessions with date, time & type',     chartType: 'doughnut',      labelKey: 'sessionType',  valueKey: 'sessionType',      valueLabel: 'Sessions',    supportsDateRange: true  },
-    { id: 'popular-modules',  name: 'Popular Modules',    icon: 'menu_book',      description: 'Module popularity by announcement activity',     chartType: 'horizontalBar', labelKey: 'moduleName',   valueKey: 'announcementCount',valueLabel: 'Announcements',supportsDateRange: true  },
-  ];
+  private generatedBy = '';
+  private readonly BRAND_COLOR  = '#1a6b6b';
+  private readonly ACCENT_COLOR = '#5bbfba';
+  private readonly COLORS = ['#5bbfba','#2d3748','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#ec4899'];
 
-  readonly customEntities = [
-    { id: 'bookings',    label: 'Bookings',    groupBys: [{ id: 'month', label: 'By Month' }, { id: 'type', label: 'By Session Type' }] },
-    { id: 'enrollments', label: 'Enrollments', groupBys: [{ id: 'month', label: 'By Month' }, { id: 'module', label: 'By Module' }] },
-    { id: 'payments',    label: 'Payments',    groupBys: [{ id: 'month', label: 'By Month' }, { id: 'status', label: 'By Status' }] },
-    { id: 'users',       label: 'Users',       groupBys: [{ id: 'role',  label: 'By Role' }] },
-  ];
-
-  recentReports: RecentReport[] = [];
-
-  constructor(private reportService: ReportService) {}
+  constructor(private reportService: ReportService, private authService: AuthService) {}
 
   ngOnInit() {
-    const def = this.reportTypes.find(r => r.id === this.selectedReportType)!;
-    this.selectReport(def);
+    this.generatedBy = this.authService.getCurrentUserName() || 'Admin';
+    this.loadSimple();
   }
 
-  ngOnDestroy() {
-    this.chart?.destroy();
-    this.customChart?.destroy();
-  }
+  ngOnDestroy() { this.mgmtChart?.destroy(); }
 
-  get selectedReport(): ReportType | undefined {
-    return this.reportTypes.find(r => r.id === this.selectedReportType);
-  }
-
-  get previewColumns(): string[] {
-    return this.previewData?.length ? Object.keys(this.previewData[0]) : [];
-  }
-
-  get customColumns(): string[] {
-    return this.customData?.length ? Object.keys(this.customData[0]) : [];
-  }
-
-  get currentEntityGroupBys() {
-    return this.customEntities.find(e => e.id === this.customEntity)?.groupBys ?? [];
-  }
-
-  onEntityChange() {
-    this.customGroupBy = this.currentEntityGroupBys[0]?.id ?? 'month';
-  }
-
-  // ── Standard report selection ───────────────────────────────────────────────
-  selectReport(rt: ReportType) {
-    this.selectedReportType = rt.id;
-    this.previewData = null;
-    this.previewTitle = rt.name;
-    this.previewIcon  = rt.icon;
+  // ── Tab switching ────────────────────────────────────────────────────────────
+  setTab(tab: ReportTab) {
+    this.activeTab = tab;
     this.errorMessage = '';
-    this.previewLoading = true;
-    this.chart?.destroy();
-    this.chart = null;
-
-    this.getObs(rt.id).subscribe({
-      next: (data) => {
-        this.previewLoading = false;
-        this.previewData = data ?? [];
-        if (!data?.length) { this.errorMessage = 'No data for this report yet.'; return; }
-        requestAnimationFrame(() => this.renderChart(data, rt));
-      },
-      error: () => { this.previewLoading = false; this.errorMessage = 'Failed to load report.'; }
-    });
+    this.successMessage = '';
+    if (tab === 'simple'         && !this.simpleData)   this.loadSimple();
+    if (tab === 'transactional'  && !this.txData)        this.loadTx();
+    if (tab === 'criteria'       && !this.criteriaData)  this.loadCriteria();
+    if (tab === 'management'     && !this.mgmtData)      this.loadManagement();
   }
 
-  applyDateRange() {
-    const rt = this.selectedReport;
-    if (rt) this.selectReport(rt);
+  // ── Simple reports ───────────────────────────────────────────────────────────
+  setSimple(r: SimpleReport) {
+    this.activeSimple = r;
+    this.simpleData = null;
+    this.resetSimpleFilters();
+    this.loadSimple();
   }
 
-  // ── Custom query ────────────────────────────────────────────────────────────
-  runCustomQuery() {
-    this.customData = null;
-    this.customLoading = true;
-    this.customTitle = `${this.customEntities.find(e => e.id === this.customEntity)?.label} — ${this.currentEntityGroupBys.find(g => g.id === this.customGroupBy)?.label}`;
-    this.customChart?.destroy();
-    this.customChart = null;
-
-    this.reportService.getCustomReport(this.customEntity, this.customGroupBy, this.customFrom || undefined, this.customTo || undefined).subscribe({
-      next: (data) => {
-        this.customLoading = false;
-        this.customData = data ?? [];
-        if (data?.length) requestAnimationFrame(() => this.renderCustomChart(data));
-      },
-      error: () => { this.customLoading = false; this.errorMessage = 'Custom query failed.'; }
-    });
+  resetSimpleFilters() {
+    this.simpleSearch    = '';
+    this.simpleMinRating = '';
   }
 
-  // ── Download ────────────────────────────────────────────────────────────────
-  downloadPreview() {
-    if (!this.previewData?.length) return;
-    const base = this.selectedReportType + '-report';
-    this.downloadCsv(this.toCsv(this.previewData), `${base}.csv`);
-    this.downloadChartPng(this.chart, `${base}-chart.png`);
-    const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    const entry = { name: `${this.previewTitle} — ${date}`, icon: this.previewIcon, generatedOn: date, data: this.previewData };
-    if (!this.recentReports.some(r => r.name === entry.name)) this.recentReports.unshift(entry);
-  }
+  get filteredSimpleData(): any[] | null {
+    if (!this.simpleData) return null;
+    let data = [...this.simpleData];
+    const q = this.simpleSearch.trim().toLowerCase();
 
-  downloadCustom() {
-    if (!this.customData?.length) return;
-    const base = `custom-${this.customEntity}-report`;
-    this.downloadCsv(this.toCsv(this.customData), `${base}.csv`);
-    this.downloadChartPng(this.customChart, `${base}-chart.png`);
-  }
+    if (this.activeSimple === 'tutor-summary') {
+      if (q) data = data.filter(r =>
+        String(r['tutorName'] ?? '').toLowerCase().includes(q));
+      if (this.simpleMinRating)
+        data = data.filter(r => Number(r['averageRating'] ?? 0) >= Number(this.simpleMinRating));
 
-  downloadRecent(r: RecentReport) {
-    this.downloadCsv(this.toCsv(r.data), `${r.name.replace(/[\s—]/g, '-')}.csv`);
-  }
+    } else if (this.activeSimple === 'module-catalogue') {
+      if (q) data = data.filter(r =>
+        String(r['moduleCode'] ?? '').toLowerCase().includes(q) ||
+        String(r['moduleName'] ?? '').toLowerCase().includes(q) ||
+        String(r['moduleDescription'] ?? '').toLowerCase().includes(q));
 
-  private downloadChartPng(chart: Chart | null, filename: string) {
-    if (!chart) return;
-    const a = document.createElement('a');
-    a.href = chart.toBase64Image('image/png', 1);
-    a.download = filename;
-    a.click();
-  }
-
-  // ── Chart rendering ─────────────────────────────────────────────────────────
-  private COLORS = ['#5bbfba','#2d3748','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#ec4899'];
-
-  private renderChart(data: any[], rt: ReportType) {
-    const canvas = document.getElementById('reportChart') as HTMLCanvasElement;
-    if (!canvas) return;
-    this.chart?.destroy();
-    const w = canvas.parentElement?.clientWidth || 600;
-    canvas.width  = w;
-    canvas.height = Math.round(w / (rt.chartType === 'doughnut' ? 2 : rt.chartType === 'horizontalBar' ? 1.8 : 2.8));
-
-    let labels: string[];
-    let values: number[];
-    let type: 'bar' | 'line' | 'doughnut';
-
-    if (rt.id === 'sessions') {
-      // Aggregate by session type for doughnut
-      const counts: Record<string, number> = {};
-      data.forEach(d => { const k = d.sessionType || 'Unknown'; counts[k] = (counts[k] || 0) + 1; });
-      labels = Object.keys(counts);
-      values = Object.values(counts);
-      type = 'doughnut';
-    } else {
-      labels = data.map(d => String(d[rt.labelKey] ?? ''));
-      values = data.map(d => Number(d[rt.valueKey] ?? 0));
-      type = rt.chartType === 'horizontalBar' ? 'bar' : rt.chartType as 'bar' | 'line';
+    } else if (this.activeSimple === 'monthly-enrollments') {
+      if (q) data = data.filter(r =>
+        String(r['month'] ?? '').toLowerCase().includes(q));
     }
+    return data;
+  }
 
-    const isHoriz = rt.chartType === 'horizontalBar';
-    const isLine  = type === 'line';
-    const isDough = type === 'doughnut';
+  loadSimple() {
+    this.loading = true;
+    this.simpleData = null;
+    this.errorMessage = '';
+    let obs$;
+    switch (this.activeSimple) {
+      case 'tutor-summary':    obs$ = this.reportService.getTutorRatingsReport();  break;
+      case 'module-catalogue': obs$ = this.reportService.getModuleCatalogue();     break;
+      case 'monthly-enrollments': obs$ = this.reportService.getMonthlyStudentEnrollments(); break;
+    }
+    obs$.subscribe({
+      next:  (d) => { this.simpleData = d; this.loading = false; },
+      error: ()  => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+    });
+  }
 
-    this.chart = new Chart(canvas, {
-      type,
+  get simpleColumns(): string[] {
+    return this.simpleData?.length ? Object.keys(this.simpleData[0]) : [];
+  }
+
+  get simpleFilterActive(): boolean {
+    return this.simpleSearch.trim() !== '' ||
+           this.simpleMinRating !== '';
+  }
+
+  simpleLabel(): string {
+    switch (this.activeSimple) {
+      case 'tutor-summary':    return 'Tutor Rating Summary';
+      case 'module-catalogue': return 'Module Catalogue';
+      case 'monthly-enrollments': return 'Monthly Student Enrollments';
+    }
+  }
+
+  // ── Transactional ────────────────────────────────────────────────────────────
+  setTx(r: TransactionalReport) {
+    this.activeTx = r;
+    this.txData = null;
+    this.txGroups = [];
+    this.loadTx();
+  }
+
+  loadTx() {
+    this.loading = true;
+    this.txData = null;
+    this.txGroups = [];
+    this.errorMessage = '';
+    const from = this.txFrom || undefined;
+    const to   = this.txTo   || undefined;
+    const obs$ = this.activeTx === 'revenue-detail'
+      ? this.reportService.getRevenueDetail(from, to)
+      : this.reportService.getTutorHoursDetail(from, to);
+    obs$.subscribe({
+      next: (d) => {
+        this.txData = d;
+        this.buildGroups(d);
+        this.loading = false;
+      },
+      error: () => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+    });
+  }
+
+  private buildGroups(data: any[]) {
+    const groupKey = this.activeTx === 'revenue-detail' ? 'period' : 'tutorName';
+    const valueKey = this.activeTx === 'revenue-detail' ? 'amount'  : 'hours';
+    const map = new Map<string, any[]>();
+    for (const row of data) {
+      const k = String(row[groupKey] ?? '');
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(row);
+    }
+    this.txGroups = Array.from(map.entries()).map(([key, rows]) => ({
+      key,
+      rows,
+      subtotal: rows.reduce((s, r) => s + Number(r[valueKey] ?? 0), 0)
+    }));
+  }
+
+  get txGrandTotal(): number {
+    return this.txGroups.reduce((s, g) => s + g.subtotal, 0);
+  }
+
+  get txRowKeys(): string[] {
+    if (!this.txData?.length) return [];
+    const skip = this.activeTx === 'revenue-detail' ? 'period' : 'tutorName';
+    return Object.keys(this.txData[0]).filter(k => k !== skip);
+  }
+
+  txLabel(): string {
+    return this.activeTx === 'revenue-detail' ? 'Monthly Revenue Detail' : 'Tutor Hours Detail';
+  }
+
+  txSubtotalLabel(): string {
+    return this.activeTx === 'revenue-detail' ? 'Month Subtotal' : 'Tutor Subtotal';
+  }
+
+  txValueLabel(): string {
+    return this.activeTx === 'revenue-detail' ? 'Amount (R)' : 'Hours';
+  }
+
+  formatTxSubtotal(val: number): string {
+    if (this.activeTx === 'revenue-detail') return `R ${val.toFixed(2)}`;
+    return `${val.toFixed(1)} hrs`;
+  }
+
+  // ── Adjustable Criteria ──────────────────────────────────────────────────────
+  loadCriteria() {
+    this.loading = true;
+    this.criteriaData = null;
+    this.errorMessage = '';
+    this.reportService.getSessionsReport(
+      this.criteriaFrom || undefined,
+      this.criteriaTo   || undefined,
+      this.criteriaType !== 'All' ? this.criteriaType : undefined
+    ).subscribe({
+      next:  (d) => { this.criteriaData = d; this.loading = false; },
+      error: ()  => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+    });
+  }
+
+  get criteriaColumns(): string[] {
+    return this.criteriaData?.length ? Object.keys(this.criteriaData[0]) : [];
+  }
+
+  // ── Management / Graph ───────────────────────────────────────────────────────
+  loadManagement() {
+    this.loading = true;
+    this.mgmtData = null;
+    this.mgmtReady = false;
+    this.mgmtChart?.destroy();
+    this.mgmtChart = null;
+    this.errorMessage = '';
+    this.reportService.getModuleEnrollments(
+      this.mgmtFrom || undefined,
+      this.mgmtTo   || undefined
+    ).subscribe({
+      next: (d) => {
+        this.mgmtData = d;
+        this.loading = false;
+        setTimeout(() => this.buildMgmtChart(), 100);
+      },
+      error: () => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+    });
+  }
+
+  setChartType(type: 'bar' | 'pie' | 'doughnut') {
+    this.mgmtChartType = type;
+    this.buildMgmtChart();
+  }
+
+  private buildMgmtChart() {
+    const canvas = this.mgmtCanvas?.nativeElement;
+    if (!canvas || !this.mgmtData?.length) return;
+    this.mgmtChart?.destroy();
+    const labels = this.mgmtData.map(d => d['moduleName'] ?? d['moduleCode']);
+    const values = this.mgmtData.map(d => Number(d['enrolledStudents'] ?? 0));
+    const isRadial = this.mgmtChartType === 'pie' || this.mgmtChartType === 'doughnut';
+    this.mgmtChart = new Chart(canvas, {
+      type: this.mgmtChartType,
       data: {
         labels,
         datasets: [{
-          label: rt.valueLabel,
+          label: 'Enrolled Students',
           data: values,
-          backgroundColor: isDough ? this.COLORS.slice(0, labels.length) : isLine ? 'rgba(91,191,186,0.15)' : '#5bbfba',
-          borderColor: isDough ? this.COLORS.slice(0, labels.length) : '#5bbfba',
-          borderWidth: isDough ? 2 : isLine ? 2 : 0,
-          fill: isLine,
-          tension: 0.4,
-          borderRadius: isLine || isDough ? 0 : 6,
-          pointBackgroundColor: '#5bbfba',
-          pointRadius: isLine ? 4 : 0,
+          backgroundColor: this.COLORS.slice(0, labels.length),
+          borderRadius: isRadial ? 0 : 6,
+          borderWidth: isRadial ? 2 : 0,
+          borderColor: '#fff'
         }]
       },
       options: {
-        responsive: false,
+        responsive: true,
         maintainAspectRatio: false,
-        indexAxis: isHoriz ? 'y' : 'x',
         plugins: {
-          legend: { display: isDough, position: 'right' },
-          tooltip: { callbacks: {
-            label: (ctx) => {
-              const v = ctx.parsed[isHoriz ? 'x' : 'y'];
-              if (rt.id === 'monthly-income') return ` R ${Number(v).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
-              if (rt.id === 'tutor-ratings') return ` ${v} / 5`;
-              return ` ${v}`;
+          legend: {
+            display: isRadial,
+            position: 'right',
+            labels: { color: '#374151', font: { size: 11 }, boxWidth: 14, padding: 10 }
+          },
+          tooltip: {
+            callbacks: {
+              label: isRadial
+                ? (c) => ` ${c.label}: ${c.parsed} students`
+                : (c) => ` ${c.parsed.y} students`
             }
-          }}
+          }
         },
-        scales: isDough ? {} : {
-          x: { grid: { color: '#f0f0f0' }, ticks: { color: '#6b7280', font: { size: 11 } } },
-          y: { grid: { color: '#f0f0f0' }, ticks: { color: '#6b7280', font: { size: 11 } }, beginAtZero: true }
-        }
+        ...(isRadial ? {} : {
+          scales: {
+            x: { grid: { color: '#f0f0f0' }, ticks: { color: '#374151', font: { size: 11 } } },
+            y: { grid: { color: '#f0f0f0' }, ticks: { color: '#374151', font: { size: 11 } }, beginAtZero: true }
+          }
+        })
       }
     });
+    this.mgmtReady = true;
   }
 
-  private renderCustomChart(data: any[]) {
-    const canvas = document.getElementById('customChart') as HTMLCanvasElement;
-    if (!canvas) return;
-    this.customChart?.destroy();
-    const w = canvas.parentElement?.clientWidth || 400;
-    canvas.width  = w;
-    canvas.height = Math.round(w / 2);
-    const labels = data.map(d => String(d['category'] ?? d['Category'] ?? ''));
-    const values = data.map(d => Number(d['count'] ?? d['Count'] ?? d['total'] ?? d['Total'] ?? 0));
-    this.customChart = new Chart(canvas, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{ label: 'Count', data: values, backgroundColor: '#2d3748', borderRadius: 6 }]
-      },
-      options: {
-        responsive: false,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: '#f0f0f0' }, ticks: { color: '#6b7280', font: { size: 11 } } },
-          y: { grid: { color: '#f0f0f0' }, ticks: { color: '#6b7280', font: { size: 11 } }, beginAtZero: true }
-        }
-      }
-    });
+  // ── PDF Generation ───────────────────────────────────────────────────────────
+  // Adds standard header: logo block + title + metadata line
+  private pdfHeader(doc: jsPDF, title: string): number {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Logo block
+    doc.setFillColor(26, 107, 107);
+    doc.rect(14, 10, 52, 14, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TutorConnect', 17, 19);
+
+    // Title
+    doc.setTextColor(26, 107, 107);
+    doc.setFontSize(14);
+    doc.text(title, 72, 16);
+
+    // Metadata
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated: ${dateStr}   |   Generated by: ${this.generatedBy}`, 72, 22);
+
+    // Divider
+    doc.setDrawColor(26, 107, 107);
+    doc.setLineWidth(0.5);
+    doc.line(14, 28, 196, 28);
+
+    return 34; // Y position after header
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-  private getObs(id: string) {
-    const f = this.dateFrom || undefined;
-    const t = this.dateTo   || undefined;
-    switch (id) {
-      case 'tutor-hours':      return this.reportService.getTutorHoursReport(f, t);
-      case 'tutor-ratings':    return this.reportService.getTutorRatingsReport();
-      case 'monthly-income':   return this.reportService.getMonthlyIncome(f, t);
-      case 'monthly-students': return this.reportService.getMonthlyStudentsReport(f, t);
-      case 'sessions':         return this.reportService.getSessionsReport(f, t);
-      case 'popular-modules':  return this.reportService.getPopularModulesReport(f, t);
-      default:                 return this.reportService.getTutorHoursReport(f, t);
+  generateSimplePdf() {
+    const data = this.filteredSimpleData;
+    if (!data?.length) return;
+    const title = this.simpleLabel();
+    const doc = new jsPDF();
+    let y = this.pdfHeader(doc, title);
+
+    // If filters are active, print a filter summary line
+    if (this.simpleFilterActive) {
+      const parts: string[] = [];
+      if (this.simpleSearch)    parts.push(`Search: "${this.simpleSearch}"`);
+      if (this.simpleMinRating) parts.push(`Min rating: ${this.simpleMinRating}★`);
+      doc.setFillColor(245, 251, 251);
+      doc.rect(14, y, 182, 8, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(60, 60, 60);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Filters applied — ${parts.join('   |   ')}`, 17, y + 5.5);
+      y += 13;
     }
+
+    const cols = this.simpleColumns.map(c => this.humanKey(c));
+    const rows = data.map(r => this.simpleColumns.map(c => this.fmtPdf(r[c])));
+    autoTable(doc, {
+      startY: y,
+      head: [cols],
+      body: rows,
+      headStyles: { fillColor: [26, 107, 107], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8, textColor: [40, 40, 40] },
+      alternateRowStyles: { fillColor: [245, 251, 251] },
+      margin: { left: 14, right: 14 }
+    });
+    const finalY = (doc as any).lastAutoTable.finalY + 6;
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Records: ${data.length}${this.simpleFilterActive ? ` (filtered from ${this.simpleData!.length} total)` : ''}`, 14, finalY);
+    doc.save(`${title.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.pdf`);
+    this.successMessage = 'PDF downloaded.';
   }
 
-  toCsv(data: any[]): string {
-    if (!data?.length) return '';
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row => Object.values(row).map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
-    return [headers, ...rows].join('\n');
+  generateTransactionalPdf() {
+    if (!this.txGroups.length) return;
+    const title = this.txLabel();
+    const doc = new jsPDF();
+    let y = this.pdfHeader(doc, title);
+    const rowKeys = this.txRowKeys;
+    const valueKey = this.activeTx === 'revenue-detail' ? 'amount' : 'hours';
+
+    for (const group of this.txGroups) {
+      // Control break header
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(26, 107, 107);
+      doc.text(group.key, 14, y);
+      y += 4;
+
+      // Detail rows
+      const head = [rowKeys.map(k => this.humanKey(k))];
+      const body = group.rows.map(r => rowKeys.map(k => this.fmtPdf(r[k])));
+      autoTable(doc, {
+        startY: y,
+        head,
+        body,
+        headStyles: { fillColor: [91, 191, 186], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        margin: { left: 14, right: 14 }
+      });
+      y = (doc as any).lastAutoTable.finalY + 2;
+
+      // Subtotal row
+      doc.setFillColor(230, 247, 247);
+      doc.rect(14, y, 182, 7, 'F');
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(26, 107, 107);
+      doc.text(`${this.txSubtotalLabel()}: ${this.formatTxSubtotal(group.subtotal)}`, 16, y + 5);
+      y += 12;
+
+      if (y > 260) { doc.addPage(); y = 20; }
+    }
+
+    // Grand total
+    doc.setFillColor(26, 107, 107);
+    doc.rect(14, y, 182, 9, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(`GRAND TOTAL: ${this.formatTxSubtotal(this.txGrandTotal)}`, 16, y + 6.5);
+
+    doc.save(`${title.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.pdf`);
+    this.successMessage = 'PDF downloaded.';
   }
 
-  downloadCsv(csv: string, filename: string) {
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
+  generateCriteriaPdf() {
+    if (!this.criteriaData?.length) return;
+    const title = `Sessions Report${this.criteriaType !== 'All' ? ' — ' + this.criteriaType : ''}`;
+    const dateRange = this.criteriaFrom || this.criteriaTo
+      ? `  (${this.criteriaFrom || 'Any'} → ${this.criteriaTo || 'Any'})`
+      : '';
+    const doc = new jsPDF({ orientation: 'landscape' });
+    let y = this.pdfHeader(doc, title);
+
+    // Criteria summary box
+    doc.setFillColor(245, 251, 251);
+    doc.rect(14, y, 268, 8, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(60, 60, 60);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Filters applied — Session Type: ${this.criteriaType}${dateRange}`, 17, y + 5.5);
+    y += 13;
+
+    const cols = this.criteriaColumns.map(c => this.humanKey(c));
+    const rows = this.criteriaData.map(r => this.criteriaColumns.map(c => this.fmtPdf(r[c])));
+    autoTable(doc, {
+      startY: y,
+      head: [cols],
+      body: rows,
+      headStyles: { fillColor: [26, 107, 107], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [245, 251, 251] },
+      margin: { left: 14, right: 14 }
+    });
+    const finalY = (doc as any).lastAutoTable.finalY + 6;
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Total sessions matching criteria: ${this.criteriaData.length}`, 14, finalY);
+    doc.save(`sessions-criteria-report-${new Date().toISOString().slice(0,10)}.pdf`);
+    this.successMessage = 'PDF downloaded.';
   }
 
-  formatVal(v: any): string {
+  generateManagementPdf() {
+    if (!this.mgmtData?.length || !this.mgmtChart) return;
+    const doc = new jsPDF();
+    let y = this.pdfHeader(doc, 'Module Enrollment — Management Report');
+
+    // Embed chart — preserve the canvas's actual pixel aspect ratio so
+    // pie charts stay circular and bars stay proportional.
+    const canvas = this.mgmtCanvas.nativeElement;
+    const canvasRatio = canvas.width / canvas.height;   // e.g. ~2.4 for a wide container
+    const chartImg = this.mgmtChart.toBase64Image('image/png', 1);
+    const pdfW = 170;
+    const pdfH = Math.round(pdfW / canvasRatio);
+    const xOff = (210 - pdfW) / 2;                     // centre horizontally on A4
+    doc.addImage(chartImg, 'PNG', xOff, y, pdfW, pdfH);
+    y += pdfH + 8;
+
+    // Table below chart
+    const cols = ['Module Code', 'Module Name', 'Enrolled Students', 'First Enrollment', 'Last Enrollment'];
+    const rows = this.mgmtData.map(d => [
+      String(d['moduleCode'] ?? ''),
+      String(d['moduleName'] ?? ''),
+      String(d['enrolledStudents'] ?? 0),
+      String(d['earliestEnrollment'] ?? ''),
+      String(d['latestEnrollment'] ?? '')
+    ]);
+    autoTable(doc, {
+      startY: y,
+      head: [cols],
+      body: rows,
+      headStyles: { fillColor: [26, 107, 107], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 251, 251] },
+      margin: { left: 14, right: 14 }
+    });
+    const total = this.mgmtData.reduce((s, d) => s + Number(d['enrolledStudents'] ?? 0), 0);
+    const finalY = (doc as any).lastAutoTable.finalY + 6;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 107, 107);
+    doc.text(`Total enrolled students (across all modules): ${total}`, 14, finalY);
+    doc.save(`module-enrollment-management-${new Date().toISOString().slice(0,10)}.pdf`);
+    this.successMessage = 'PDF downloaded.';
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  humanKey(k: string): string {
+    return k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+  }
+
+  fmtPdf(v: any): string {
     if (v == null) return '—';
-    if (typeof v === 'number' && String(v).includes('.')) return Number(v).toFixed(2);
+    if (typeof v === 'number') {
+      if (String(v).includes('.')) return Number(v).toFixed(2);
+    }
     return String(v);
+  }
+
+  fmt(v: any): string {
+    if (v == null) return '—';
+    return String(v);
+  }
+
+  formatCurrency(v: any): string {
+    return `R ${Number(v ?? 0).toFixed(2)}`;
+  }
+
+  get txDatesInvalid(): boolean {
+    return !!(this.txFrom && this.txTo && this.txTo < this.txFrom);
+  }
+
+  get criteriaDatesInvalid(): boolean {
+    return !!(this.criteriaFrom && this.criteriaTo && this.criteriaTo < this.criteriaFrom);
+  }
+
+  get mgmtDatesInvalid(): boolean {
+    return !!(this.mgmtFrom && this.mgmtTo && this.mgmtTo < this.mgmtFrom);
+  }
+
+  get totalEnrolled(): number {
+    return (this.mgmtData ?? []).reduce((s, d) => s + Number(d['enrolledStudents'] ?? 0), 0);
   }
 }

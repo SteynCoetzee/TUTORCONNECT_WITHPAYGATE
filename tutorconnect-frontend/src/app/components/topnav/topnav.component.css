@@ -77,6 +77,13 @@
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.avatar-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 .user-name {
   font-size: 13px;

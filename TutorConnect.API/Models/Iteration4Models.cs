@@ -30,6 +30,9 @@ namespace TutorConnect.API.Models
         public string? Phone { get; set; }
         public string? Address { get; set; }
         public string? Bio { get; set; }
+        public bool Is_Archived { get; set; } = false;
+        public bool Is_Deleted { get; set; } = false;
+        public string? Profile_Picture_Url { get; set; }
     }
 
     public class Module

@@ -64,6 +64,7 @@ export class ReviewsComponent implements OnInit {
   tutorRating = 5;
   savingTutor = false;
   tutorOptions: TutorOption[] = [];
+  tutorFormErrors: Record<string, string> = {};
 
   // Inline session review form
   showSessionForm = false;
@@ -72,6 +73,7 @@ export class ReviewsComponent implements OnInit {
   sessionDescription = '';
   savingSession = false;
   sessionOptions: SessionOption[] = [];
+  sessionFormErrors: Record<string, string> = {};
 
   // Inline delete confirm
   confirmDeleteTutorId: number | null = null;
@@ -162,27 +164,45 @@ export class ReviewsComponent implements OnInit {
     });
   }
 
+  validateSessionDescription(val: string) {
+    if (!val?.trim()) {
+      this.sessionFormErrors['desc'] = 'Please write a short description of your session experience.';
+    } else if (val.trim().length < 10) {
+      this.sessionFormErrors['desc'] = 'Description must be at least 10 characters.';
+    } else if (val.trim().length > 500) {
+      this.sessionFormErrors['desc'] = 'Description cannot exceed 500 characters.';
+    } else {
+      delete this.sessionFormErrors['desc'];
+    }
+  }
+
   openTutorForm() {
     this.showTutorForm = true;
     this.selectedTutorId = null;
     this.tutorRating = 5;
+    this.tutorFormErrors = {};
     this.clearMessages();
   }
 
-  cancelTutorForm() { this.showTutorForm = false; this.clearMessages(); }
+  cancelTutorForm() { this.showTutorForm = false; this.tutorFormErrors = {}; this.clearMessages(); }
 
   openSessionForm() {
     this.showSessionForm = true;
     this.selectedBookingSlotId = null;
     this.sessionRating = 5;
     this.sessionDescription = '';
+    this.sessionFormErrors = {};
     this.clearMessages();
   }
 
-  cancelSessionForm() { this.showSessionForm = false; this.clearMessages(); }
+  cancelSessionForm() { this.showSessionForm = false; this.sessionFormErrors = {}; this.clearMessages(); }
 
   submitTutorReview() {
-    if (!this.selectedTutorId) { this.errorMessage = 'Please select a tutor.'; return; }
+    if (!this.selectedTutorId) {
+      this.tutorFormErrors['tutor'] = 'Please select a tutor to review.';
+      return;
+    }
+    delete this.tutorFormErrors['tutor'];
     this.savingTutor = true;
     this.clearMessages();
     this.http.post(`${this.apiUrl}/Reviews/tutor`, {
@@ -196,14 +216,18 @@ export class ReviewsComponent implements OnInit {
         this.showTutorForm = false;
         this.loadTutorReviews();
       },
-      error: () => { this.savingTutor = false; this.errorMessage = 'Failed to submit review.'; }
+      error: () => { this.savingTutor = false; this.errorMessage = 'Failed to submit review. You may have already reviewed this tutor.'; }
     });
   }
 
   submitSessionReview() {
-    if (!this.selectedBookingSlotId || !this.sessionDescription) {
-      this.errorMessage = 'Please select a session and add a description.'; return;
+    if (!this.selectedBookingSlotId) {
+      this.sessionFormErrors['session'] = 'Please select a session to review.';
+    } else {
+      delete this.sessionFormErrors['session'];
     }
+    this.validateSessionDescription(this.sessionDescription);
+    if (Object.keys(this.sessionFormErrors).length > 0) return;
     this.savingSession = true;
     this.clearMessages();
     this.http.post(`${this.apiUrl}/Reviews/session`, {
@@ -218,7 +242,7 @@ export class ReviewsComponent implements OnInit {
         this.showSessionForm = false;
         this.loadSessionReviews();
       },
-      error: () => { this.savingSession = false; this.errorMessage = 'Failed to submit review.'; }
+      error: () => { this.savingSession = false; this.errorMessage = 'Failed to submit review. You may have already reviewed this session.'; }
     });
   }
 
@@ -264,4 +288,6 @@ export class ReviewsComponent implements OnInit {
 
   getStars(): number[] { return [1, 2, 3, 4, 5]; }
   clearMessages() { this.errorMessage = ''; this.successMessage = ''; }
+  clearTutorError(key: string)   { delete this.tutorFormErrors[key]; }
+  clearSessionError(key: string) { delete this.sessionFormErrors[key]; }
 }

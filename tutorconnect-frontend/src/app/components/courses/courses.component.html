@@ -374,17 +374,34 @@
                 }
               </div>
 
-              <div class="module-footer">
-                <div class="module-actions" (click)="$event.stopPropagation()">
-                  <button class="btn btn-secondary btn-sm" (click)="openModule(enr.module_Code)">
-                    <span class="material-icons">open_in_new</span> View Materials
-                  </button>
-                  <button class="btn btn-danger btn-sm" (click)="unenroll(enr.module_Code)"
-                    [disabled]="unenrollingCode === enr.module_Code">
-                    @if (unenrollingCode === enr.module_Code) { <span class="spinner-sm"></span> }
-                    Unenrol
-                  </button>
-                </div>
+              <div class="module-footer" (click)="$event.stopPropagation()">
+                @if (pendingUnenrolCode === enr.module_Code) {
+                  <div class="unenrol-confirm-inline">
+                    <span class="unenrol-confirm-text">
+                      <span class="material-icons" style="font-size:16px;color:#dc2626;vertical-align:middle">warning</span>
+                      Remove this module?
+                    </span>
+                    <div class="unenrol-confirm-btns">
+                      <button class="btn btn-secondary btn-sm" (click)="cancelUnenrol()">Cancel</button>
+                      <button class="btn btn-danger btn-sm" (click)="confirmUnenrol()"
+                              [disabled]="unenrollingCode === enr.module_Code">
+                        @if (unenrollingCode === enr.module_Code) { <span class="spinner-sm"></span> }
+                        Yes, Unenrol
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="module-actions">
+                    <button class="btn btn-secondary btn-sm" (click)="openModule(enr.module_Code)">
+                      <span class="material-icons">open_in_new</span> View Materials
+                    </button>
+                    <button class="btn btn-danger btn-sm"
+                      (click)="requestUnenrol(enr.module_Code)"
+                      [disabled]="unenrollingCode === enr.module_Code">
+                      Unenrol
+                    </button>
+                  </div>
+                }
               </div>
             </div>
           }
@@ -404,8 +421,8 @@
           @for (mod of filteredAllModules; track mod.module_Code; let i = $index) {
             <div class="module-card"
                  [class.assigned]="isEnrolled(mod.module_Code)"
-                 [class.card-expanded]="expandedModuleCodes.has(mod.module_Code) && !isEnrolled(mod.module_Code)"
-                 (click)="isEnrolled(mod.module_Code) ? openModule(mod.module_Code) : toggleExpand(mod.module_Code)">
+                 [class.card-expanded]="expandedModuleCodes.has(mod.module_Code)"
+                 (click)="isFullyEnrolled(mod.module_Code) ? openModule(mod.module_Code) : toggleExpand(mod.module_Code)">
 
               <div class="module-header">
                 <div class="module-icon-wrap" [style.background]="getModuleColor(i)">
@@ -429,32 +446,54 @@
                 }
               </div>
 
-              <!-- ── Session type checkboxes (expand on click for non-enrolled) ── -->
-              @if (!isEnrolled(mod.module_Code) && expandedModuleCodes.has(mod.module_Code)) {
+              <!-- ── Session type checkboxes ── -->
+              @if (expandedModuleCodes.has(mod.module_Code) && !isFullyEnrolled(mod.module_Code)) {
                 <div class="session-picker" (click)="$event.stopPropagation()">
-                  <p class="session-picker-label">Select session type(s) to enrol:</p>
-                  <div class="session-option" [class.checked]="hasSessionType(mod.module_Code, 'OneOnOne')"
+                  <p class="session-picker-label">
+                    {{ isEnrolled(mod.module_Code) ? 'Add another session type:' : 'Select session type(s) to enrol:' }}
+                  </p>
+
+                  <!-- 1-on-1 option -->
+                  <div class="session-option"
+                       [class.checked]="hasSessionType(mod.module_Code, 'OneOnOne')"
+                       [class.session-option-disabled]="isEnrolledOneOnOne(mod.module_Code)"
                        (click)="toggleSessionType(mod.module_Code, 'OneOnOne')">
                     <span class="material-icons session-check-icon">
-                      {{ hasSessionType(mod.module_Code, 'OneOnOne') ? 'check_box' : 'check_box_outline_blank' }}
+                      @if (isEnrolledOneOnOne(mod.module_Code)) { check_box
+                      } @else { {{ hasSessionType(mod.module_Code, 'OneOnOne') ? 'check_box' : 'check_box_outline_blank' }} }
                     </span>
                     <span class="session-option-info">
                       <span class="material-icons session-opt-icon">person</span>
                       <span>
-                        <span class="session-opt-name">1 on 1 Session</span>
+                        <span class="session-opt-name">
+                          1 on 1 Session
+                          @if (isEnrolledOneOnOne(mod.module_Code)) {
+                            <span class="already-enrolled-tag">Already enrolled</span>
+                          }
+                        </span>
                         <span class="session-opt-price">R{{ mod.module_Price_OneOnOne | number:'1.0-0' }} per session</span>
                       </span>
                     </span>
                   </div>
-                  <div class="session-option" [class.checked]="hasSessionType(mod.module_Code, 'Group')"
+
+                  <!-- Group option -->
+                  <div class="session-option"
+                       [class.checked]="hasSessionType(mod.module_Code, 'Group')"
+                       [class.session-option-disabled]="isEnrolledGroup(mod.module_Code)"
                        (click)="toggleSessionType(mod.module_Code, 'Group')">
                     <span class="material-icons session-check-icon">
-                      {{ hasSessionType(mod.module_Code, 'Group') ? 'check_box' : 'check_box_outline_blank' }}
+                      @if (isEnrolledGroup(mod.module_Code)) { check_box
+                      } @else { {{ hasSessionType(mod.module_Code, 'Group') ? 'check_box' : 'check_box_outline_blank' }} }
                     </span>
                     <span class="session-option-info">
                       <span class="material-icons session-opt-icon">group</span>
                       <span>
-                        <span class="session-opt-name">Group Session</span>
+                        <span class="session-opt-name">
+                          Group Session
+                          @if (isEnrolledGroup(mod.module_Code)) {
+                            <span class="already-enrolled-tag">Already enrolled</span>
+                          }
+                        </span>
                         <span class="session-opt-price">R{{ mod.module_Price_Group | number:'1.0-0' }} per session</span>
                       </span>
                     </span>
@@ -468,13 +507,41 @@
                     <button class="btn btn-secondary btn-sm" (click)="openModule(mod.module_Code)">
                       <span class="material-icons">open_in_new</span> View
                     </button>
-                    <button class="btn btn-danger btn-sm" (click)="unenroll(mod.module_Code)"
-                      [disabled]="unenrollingCode === mod.module_Code">
-                      @if (unenrollingCode === mod.module_Code) { <span class="spinner-sm"></span> }
-                      Unenrol
-                    </button>
+                    @if (!isFullyEnrolled(mod.module_Code)) {
+                      <span class="select-hint" (click)="toggleExpand(mod.module_Code)">
+                        @if (isSelected(mod.module_Code)) {
+                          <span class="material-icons" style="color:var(--primary)">check_box</span> Selected to add
+                        } @else if (expandedModuleCodes.has(mod.module_Code)) {
+                          <span class="material-icons">expand_less</span> Collapse
+                        } @else {
+                          <span class="material-icons">add_circle_outline</span> Add session type
+                        }
+                      </span>
+                    }
+                    @if (pendingUnenrolCode === mod.module_Code) {
+                      <div class="unenrol-confirm-inline" (click)="$event.stopPropagation()">
+                        <span class="unenrol-confirm-text">
+                          <span class="material-icons" style="font-size:16px;color:#dc2626;vertical-align:middle">warning</span>
+                          Remove this module?
+                        </span>
+                        <div class="unenrol-confirm-btns">
+                          <button class="btn btn-secondary btn-sm" (click)="cancelUnenrol()">Cancel</button>
+                          <button class="btn btn-danger btn-sm" (click)="confirmUnenrol()"
+                                  [disabled]="unenrollingCode === mod.module_Code">
+                            @if (unenrollingCode === mod.module_Code) { <span class="spinner-sm"></span> }
+                            Yes, Unenrol
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <button class="btn btn-danger btn-sm"
+                        (click)="$event.stopPropagation(); requestUnenrol(mod.module_Code)"
+                        [disabled]="unenrollingCode === mod.module_Code">
+                        Unenrol
+                      </button>
+                    }
                   } @else {
-                    <span class="select-hint">
+                    <span class="select-hint" (click)="toggleExpand(mod.module_Code)">
                       @if (isSelected(mod.module_Code)) {
                         <span class="material-icons" style="color:var(--primary)">check_box</span> Selected for enrolment
                       } @else if (expandedModuleCodes.has(mod.module_Code)) {
@@ -567,3 +634,4 @@
     </div>
   </div>
 }
+

@@ -638,3 +638,34 @@
   font-size: 0.82rem; color: var(--text-muted);
 }
 .submissions-summary strong { color: var(--text-dark); }
+
+/* ── Drag & drop zone ──────────────────────────────────────────────── */
+.res-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+}
+
+.res-dropzone.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light, #eff6ff);
+}
+
+.res-drop-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  pointer-events: none;
+}
+
+.res-drop-hint .material-icons { font-size: 14px; }
+
+.res-dropzone.drag-over .res-drop-hint {
+  color: var(--primary);
+  font-weight: 600;
+}

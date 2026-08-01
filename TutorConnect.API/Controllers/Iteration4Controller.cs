@@ -43,7 +43,11 @@ namespace TutorConnect.API.Controllers
                 return BadRequest("User already exists.");
             }
 
-            // 2. Hash the password securely
+            // 2. Enforce password complexity
+            if (!IsPasswordComplex(request.Password))
+                return BadRequest("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
+
+            // 3. Hash the password securely
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
             // 3. Create the new user
@@ -86,6 +90,17 @@ namespace TutorConnect.API.Controllers
                 return BadRequest("Wrong password.");
             }
 
+            // Deleted accounts cannot log in
+            if (user.Is_Deleted)
+                return Unauthorized("This account has been removed. Please contact an administrator.");
+
+            // Auto-restore archived accounts when the user successfully logs in
+            if (user.Is_Archived)
+            {
+                user.Is_Archived = false;
+                await _context.SaveChangesAsync();
+            }
+
             string token = CreateToken(user);
             await _audit.LogAsync(user.User_ID, "User Login", $"Email: {user.Email}");
             return Ok(token);
@@ -121,7 +136,7 @@ namespace TutorConnect.API.Controllers
 
             if (user == null)
             {
-                return BadRequest("User not found.");
+                return Ok(new { message = "If this email is registered, a reset code has been sent." });
             }
 
             // Generate a 6-character alphanumeric reset code (uppercase letters + digits)
@@ -129,13 +144,13 @@ namespace TutorConnect.API.Controllers
             var rng = new Random();
             var resetCode = new string(Enumerable.Range(0, 6).Select(_ => otpChars[rng.Next(otpChars.Length)]).ToArray());
             user.PasswordResetCode = resetCode;
-            user.PasswordResetCodeExpiration = DateTime.Now.AddMinutes(15); // Code valid for 15 minutes
+            user.PasswordResetCodeExpiration = DateTime.Now.AddMinutes(15);
 
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
             await _emailService.SendResetCodeAsync(user.Email, resetCode);
-            return Ok(new { message = "Password reset code sent to your email." });
+            return Ok(new { message = "If this email is registered, a reset code has been sent." });
         }
 
         [HttpPost("verify-reset-code")]
@@ -153,6 +168,9 @@ namespace TutorConnect.API.Controllers
         [HttpPost("reset-password")]
         public async Task<ActionResult<string>> ResetPassword(ResetPasswordDto request)
         {
+            if (!IsPasswordComplex(request.NewPassword))
+                return BadRequest("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
+
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (user == null)
@@ -209,6 +227,12 @@ namespace TutorConnect.API.Controllers
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
             return jwt;
         }
+
+        private static bool IsPasswordComplex(string pw) =>
+            pw.Length >= 8 &&
+            pw.Any(char.IsUpper) &&
+            pw.Any(char.IsDigit) &&
+            pw.Any(c => !char.IsLetterOrDigit(c));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -236,15 +260,18 @@ namespace TutorConnect.API.Controllers
 
             return Ok(new UserProfileDto
             {
-                User_ID      = user.User_ID,
-                FirstName    = user.FirstName,
-                LastName     = user.LastName,
-                Email        = user.Email,
-                Phone        = user.Phone,
-                Address      = user.Address,
-                Bio          = user.Bio,
-                User_Role_ID = user.User_Role_ID,
-                RoleName     = user.User_Role?.User_Role_Name
+                User_ID             = user.User_ID,
+                FirstName           = user.FirstName,
+                LastName            = user.LastName,
+                Email               = user.Email,
+                Phone               = user.Phone,
+                Address             = user.Address,
+                Bio                 = user.Bio,
+                User_Role_ID        = user.User_Role_ID,
+                RoleName            = user.User_Role?.User_Role_Name,
+                Is_Archived         = user.Is_Archived,
+                Is_Deleted          = user.Is_Deleted,
+                Profile_Picture_Url = user.Profile_Picture_Url
             });
         }
 
@@ -252,6 +279,9 @@ namespace TutorConnect.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, UserProfileUpdateDto request)
         {
+            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (callerId != id && !User.IsInRole("Admin")) return Forbid();
+
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound("User not found.");
 
@@ -276,15 +306,18 @@ namespace TutorConnect.API.Controllers
 
             return Ok(users.Select(u => new UserProfileDto
             {
-                User_ID      = u.User_ID,
-                FirstName    = u.FirstName,
-                LastName     = u.LastName,
-                Email        = u.Email,
-                Phone        = u.Phone,
-                Address      = u.Address,
-                Bio          = u.Bio,
-                User_Role_ID = u.User_Role_ID,
-                RoleName     = u.User_Role?.User_Role_Name
+                User_ID           = u.User_ID,
+                FirstName         = u.FirstName,
+                LastName          = u.LastName,
+                Email             = u.Email,
+                Phone             = u.Phone,
+                Address           = u.Address,
+                Bio               = u.Bio,
+                User_Role_ID      = u.User_Role_ID,
+                RoleName          = u.User_Role?.User_Role_Name,
+                Is_Archived         = u.Is_Archived,
+                Is_Deleted          = u.Is_Deleted,
+                Profile_Picture_Url = u.Profile_Picture_Url
             }));
         }
 
@@ -348,6 +381,8 @@ namespace TutorConnect.API.Controllers
         [HttpPut("{id}/student-profile")]
         public async Task<IActionResult> UpdateStudentProfile(int id, [FromBody] StudentProfileDto dto)
         {
+            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (callerId != id && !User.IsInRole("Admin")) return Forbid();
             var profile = await _context.Student_Profiles.FirstOrDefaultAsync(p => p.User_ID == id);
             if (profile == null)
                 _context.Student_Profiles.Add(new Student_Profile {
@@ -369,6 +404,8 @@ namespace TutorConnect.API.Controllers
         [HttpPut("{id}/tutor-profile")]
         public async Task<IActionResult> UpdateTutorProfile(int id, [FromBody] TutorProfileDto dto)
         {
+            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (callerId != id && !User.IsInRole("Admin")) return Forbid();
             var profile = await _context.Tutor_Profiles.FirstOrDefaultAsync(p => p.User_ID == id);
             if (profile == null)
                 _context.Tutor_Profiles.Add(new Tutor_Profile {
@@ -391,6 +428,8 @@ namespace TutorConnect.API.Controllers
         [HttpPut("{id}/admin-profile")]
         public async Task<IActionResult> UpdateAdminProfile(int id, [FromBody] AdminProfileDto dto)
         {
+            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (callerId != id && !User.IsInRole("Admin")) return Forbid();
             var profile = await _context.Admin_Profiles.FirstOrDefaultAsync(p => p.User_ID == id);
             if (profile == null)
                 _context.Admin_Profiles.Add(new Admin_Profile { User_ID = id, Staff_Number = dto.Staff_Number, Job_Title = dto.Job_Title });
@@ -403,7 +442,84 @@ namespace TutorConnect.API.Controllers
             return Ok("Admin profile updated.");
         }
 
-        // DELETE: api/Users/{id} (1.4 Delete user profile)
+        // POST: api/Users/{id}/archive
+        [HttpPost("{id}/archive")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ArchiveUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (id == currentUserId) return BadRequest("You cannot archive your own account.");
+            user.Is_Archived = true;
+            await _context.SaveChangesAsync();
+            await _audit.LogAsync(currentUserId, "User Archived", $"User_ID: {id}, Email: {user.Email}");
+            return Ok("User archived.");
+        }
+
+        // POST: api/Users/{id}/unarchive
+        [HttpPost("{id}/unarchive")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UnarchiveUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+            user.Is_Archived = false;
+            await _context.SaveChangesAsync();
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _audit.LogAsync(currentUserId, "User Unarchived", $"User_ID: {id}, Email: {user.Email}");
+            return Ok("User restored to active.");
+        }
+
+        // POST: api/Users/{id}/profile-picture
+        [HttpPost("{id}/profile-picture")]
+        [Authorize]
+        public async Task<IActionResult> UploadProfilePicture(int id, IFormFile file, [FromServices] CloudinaryService cloudinary)
+        {
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var isAdmin = User.IsInRole("Admin");
+            if (currentUserId != id && !isAdmin) return Forbid();
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+            if (file == null || file.Length == 0) return BadRequest("No file provided.");
+
+            var allowed = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+            if (!allowed.Contains(file.ContentType.ToLower()))
+                return BadRequest("Only JPEG, PNG, WebP, or GIF images are allowed.");
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest("Profile picture must be under 5 MB.");
+
+            using var stream = file.OpenReadStream();
+            var url = await cloudinary.UploadImageAsync(stream, file.FileName);
+            user.Profile_Picture_Url = url;
+            await _context.SaveChangesAsync();
+            await _audit.LogAsync(currentUserId, "Profile Picture Updated", $"User_ID: {id}");
+            return Ok(url);
+        }
+
+        // Returns a block reason if this student must not be deleted right now, null if safe to delete.
+        private async Task<string?> StudentDeletionBlockedAsync(int studentId)
+        {
+            var hasSessions = await _context.Student_Modules
+                .AnyAsync(sm => sm.Student_ID == studentId && sm.IsActive &&
+                                (sm.Sessions_Remaining_OneOnOne > 0 || sm.Sessions_Remaining_Group > 0));
+            if (hasSessions)
+                return "This student still has unused sessions. Please wait until all sessions have been used or refund them before deleting.";
+
+            var now = DateTime.UtcNow;
+            var hasPaidThisMonth = await _context.Payments
+                .AnyAsync(p => p.Student_ID == studentId &&
+                               p.Payment_Status == "Paid" &&
+                               p.Payment_Date.Year  == now.Year &&
+                               p.Payment_Date.Month == now.Month);
+            if (hasPaidThisMonth)
+                return $"This student has a payment recorded for {now:MMMM yyyy}. Deletion is blocked until the next calendar month.";
+
+            return null;
+        }
+
+        // DELETE: api/Users/{id} — soft delete (moves to Deleted tab, fully restorable)
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -412,13 +528,57 @@ namespace TutorConnect.API.Controllers
                 .Include(u => u.User_Role)
                 .FirstOrDefaultAsync(u => u.User_ID == id);
             if (user == null) return NotFound("User not found.");
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (id == currentUserId) return BadRequest("You cannot delete your own account.");
 
-            // Prevent admin from deleting their own account
+            if (user.User_Role?.User_Role_Name == "Student")
+            {
+                var block = await StudentDeletionBlockedAsync(id);
+                if (block != null) return Conflict(block);
+            }
+
+            user.Is_Deleted = true;
+            user.Is_Archived = false;
+            await _context.SaveChangesAsync();
+            await _audit.LogAsync(currentUserId, "User Soft-Deleted", $"User_ID: {id}, Email: {user.Email}");
+            return Ok("User moved to deleted.");
+        }
+
+        // POST: api/Users/{id}/restore-deleted
+        [HttpPost("{id}/restore-deleted")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RestoreDeleted(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+            user.Is_Deleted = false;
+            await _context.SaveChangesAsync();
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _audit.LogAsync(currentUserId, "User Restored", $"User_ID: {id}, Email: {user.Email}");
+            return Ok("User restored to active.");
+        }
+
+        // DELETE: api/Users/{id}/permanent — irreversible hard delete
+        [HttpDelete("{id}/permanent")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> PermanentDeleteUser(int id)
+        {
+            var user = await _context.Users
+                .Include(u => u.User_Role)
+                .FirstOrDefaultAsync(u => u.User_ID == id);
+            if (user == null) return NotFound("User not found.");
+
             var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             if (id == currentUserId)
-                return BadRequest("You cannot delete your own account.");
+                return BadRequest("You cannot permanently delete your own account.");
 
             var role = user.User_Role?.User_Role_Name ?? "";
+
+            if (role == "Student")
+            {
+                var block = await StudentDeletionBlockedAsync(id);
+                if (block != null) return Conflict(block);
+            }
 
             try
             {
@@ -524,12 +684,12 @@ namespace TutorConnect.API.Controllers
 
                 _context.Users.Remove(user);
                 await _context.SaveChangesAsync();
-                await _audit.LogAsync(1, "User Deleted", $"User_ID: {id}, Role: {role}, Email: {user.Email}");
-                return Ok("User deleted successfully.");
+                await _audit.LogAsync(currentUserId, "User Permanently Deleted", $"User_ID: {id}, Role: {role}, Email: {user.Email}");
+                return Ok("User permanently deleted.");
             }
             catch (DbUpdateException ex)
             {
-                return Conflict($"Delete failed: {ex.InnerException?.Message ?? ex.Message}");
+                return Conflict($"Permanent delete failed: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
     }
@@ -743,9 +903,9 @@ namespace TutorConnect.API.Controllers
                         :           await _cloudinary.UploadImageAsync(stream, fileName);
                 return Ok(url);
             }
-            catch (Exception ex)
+            catch
             {
-                return StatusCode(500, $"Upload failed: {ex.Message}");
+                return StatusCode(500, "File upload failed. Please try again.");
             }
         }
 
@@ -899,6 +1059,9 @@ namespace TutorConnect.API.Controllers
         [HttpPost]
         public async Task<ActionResult<Log_Hours>> LogTime(LogHoursCreateDto request)
         {
+            if (request.Log_Hours_Amount <= 0 || request.Log_Hours_Amount > 24)
+                return BadRequest("Hours must be between 0.01 and 24.");
+
             var newLog = new Log_Hours
             {
                 Log_Hours_Date = request.Log_Hours_Date,
@@ -917,6 +1080,9 @@ namespace TutorConnect.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateLogHours(int id, LogHoursCreateDto request)
         {
+            if (request.Log_Hours_Amount <= 0 || request.Log_Hours_Amount > 24)
+                return BadRequest("Hours must be between 0.01 and 24.");
+
             var log = await _context.Log_Hours.FindAsync(id);
             if (log == null) return NotFound("Log entry not found.");
 
@@ -967,8 +1133,10 @@ namespace TutorConnect.API.Controllers
         // PUT: api/LogHours/{id}/approve — approve a log entry (admin)
         [HttpPut("{id}/approve")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> ApproveLogHours(int id, [FromBody] int adminId)
+        public async Task<IActionResult> ApproveLogHours(int id)
         {
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+
             var log = await _context.Log_Hours.FindAsync(id);
             if (log == null) return NotFound("Log entry not found.");
 

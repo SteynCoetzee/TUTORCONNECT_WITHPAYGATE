@@ -70,6 +70,19 @@ export class CoursesComponent implements OnInit {
   selectedForEnroll = new Set<string>();
   enrollingAll = false;
   unenrollingCode = '';
+  pendingUnenrolCode = '';
+
+  requestUnenrol(code: string) {
+    this.pendingUnenrolCode = code;
+  }
+  cancelUnenrol() {
+    this.pendingUnenrolCode = '';
+  }
+  confirmUnenrol() {
+    const code = this.pendingUnenrolCode;
+    this.pendingUnenrolCode = '';
+    this.unenroll(code);
+  }
 
   // Payment modal
   showPreConfirmModal = false;
@@ -189,6 +202,12 @@ export class CoursesComponent implements OnInit {
 
   isEnrolled(code: string): boolean { return this.enrolledModuleCodes.has(code); }
   isSelected(code: string): boolean { return this.selectedForEnroll.has(code); }
+  isEnrolledOneOnOne(code: string): boolean { return this.getEnrollment(code)?.can_Book_OneOnOne ?? false; }
+  isEnrolledGroup(code: string): boolean     { return this.getEnrollment(code)?.can_Book_Group     ?? false; }
+  isFullyEnrolled(code: string): boolean {
+    const e = this.getEnrollment(code);
+    return !!e && e.can_Book_OneOnOne && e.can_Book_Group;
+  }
 
   toggleSelect(code: string, event: Event) {
     event.stopPropagation();
@@ -217,6 +236,9 @@ export class CoursesComponent implements OnInit {
   }
 
   toggleSessionType(code: string, type: 'OneOnOne' | 'Group') {
+    // Do not allow selecting a type the student is already enrolled in
+    if (type === 'OneOnOne' && this.isEnrolledOneOnOne(code)) return;
+    if (type === 'Group'    && this.isEnrolledGroup(code))    return;
     if (!this.selectedSessionTypes[code]) this.selectedSessionTypes[code] = new Set();
     const set = this.selectedSessionTypes[code];
     if (set.has(type)) { set.delete(type); } else { set.add(type); }

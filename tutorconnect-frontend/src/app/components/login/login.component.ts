@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { CommonModule } from '@angular/common';
 
@@ -11,16 +11,53 @@ import { CommonModule } from '@angular/common';
   templateUrl: './login.component.html',
   styleUrl: './login.component.css'
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   loginObj = { email: '', password: '' };
   rememberMe = false;
   showPassword = false;
   loading = false;
   errorMessage = '';
+  fieldErrors: Record<string, string> = {};
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
+
+  ngOnInit() {
+    this.route.queryParams.subscribe(params => {
+      if (params['sessionExpired'] === 'true') {
+        this.errorMessage = 'Your session has expired. Please sign in again.';
+      }
+    });
+  }
+
+  private emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  validateEmail(value: string) {
+    if (!value.trim()) {
+      this.fieldErrors['email'] = 'Email address is required.';
+    } else if (!this.emailRegex.test(value.trim())) {
+      this.fieldErrors['email'] = 'Please enter a valid email address (e.g. you@university.edu).';
+    } else {
+      delete this.fieldErrors['email'];
+    }
+  }
+
+  validatePassword(value: string) {
+    if (!value) {
+      this.fieldErrors['password'] = 'Password is required.';
+    } else {
+      delete this.fieldErrors['password'];
+    }
+  }
 
   onLogin() {
+    this.validateEmail(this.loginObj.email);
+    this.validatePassword(this.loginObj.password);
+    if (Object.keys(this.fieldErrors).length > 0) return;
+
     this.errorMessage = '';
     this.loading = true;
     this.authService.login(this.loginObj).subscribe({
@@ -31,11 +68,13 @@ export class LoginComponent {
       error: (err: any) => {
         this.loading = false;
         if (err.status === 0) {
-          this.errorMessage = 'Cannot connect to the server. Please ensure the API is running.';
+          this.errorMessage = 'Cannot connect to the server. Please check your internet connection or try again later.';
+        } else if (err.status === 401) {
+          this.errorMessage = 'Incorrect email or password. Please try again.';
         } else if (typeof err.error === 'string' && err.error) {
           this.errorMessage = err.error;
         } else {
-          this.errorMessage = 'Login failed. Please check your credentials.';
+          this.errorMessage = 'Sign in failed. Please check your details and try again.';
         }
       }
     });

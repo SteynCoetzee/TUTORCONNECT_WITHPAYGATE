@@ -26,6 +26,7 @@ export class AdminMediaComponent implements OnInit {
   createPreview: string | null = null;
   createFile: File | null = null;
   creating = false;
+  createErrors: Record<string, string> = {};
 
   // Inline edit
   editingItem: MediaContent | null = null;
@@ -34,6 +35,7 @@ export class AdminMediaComponent implements OnInit {
   editPreview: string | null = null;
   editFile: File | null = null;
   updating = false;
+  editErrors: Record<string, string> = {};
 
   // Delete
   deleteTargetId: number | null = null;
@@ -54,12 +56,25 @@ export class AdminMediaComponent implements OnInit {
 
   // ── Create ──────────────────────────────────────────────────────────────────
 
+  validateCreateName(val: string) {
+    if (!val?.trim()) { this.createErrors['name'] = 'Name is required.'; }
+    else if (val.trim().length < 2) { this.createErrors['name'] = 'Name must be at least 2 characters.'; }
+    else { delete this.createErrors['name']; }
+  }
+
+  validateEditNameField(val: string) {
+    if (!val?.trim()) { this.editErrors['name'] = 'Name is required.'; }
+    else if (val.trim().length < 2) { this.editErrors['name'] = 'Name must be at least 2 characters.'; }
+    else { delete this.editErrors['name']; }
+  }
+
   openCreate() {
     this.showCreateForm = true;
     this.createName = '';
     this.createAddress = '';
     this.createPreview = null;
     this.createFile = null;
+    this.createErrors = {};
     this.editingItem = null;
     this.clearMessages();
   }
@@ -99,8 +114,10 @@ export class AdminMediaComponent implements OnInit {
   }
 
   create() {
-    if (!this.createName) { this.errorMessage = 'Name is required.'; return; }
-    if (!this.createFile && !this.createAddress) { this.errorMessage = 'Please upload a file or enter a URL.'; return; }
+    this.validateCreateName(this.createName);
+    if (!this.createFile && !this.createAddress) this.createErrors['media'] = 'Please upload a file or enter a URL.';
+    else delete this.createErrors['media'];
+    if (Object.keys(this.createErrors).length > 0) return;
     this.creating = true;
     if (this.createFile) {
       this.uploadFile(this.createFile, (url) => {
@@ -133,6 +150,7 @@ export class AdminMediaComponent implements OnInit {
     this.editAddress = item.media_Address;
     this.editPreview = this.isImage(item.media_Address) ? item.media_Address : null;
     this.editFile = null;
+    this.editErrors = {};
     this.clearMessages();
   }
 
@@ -159,8 +177,10 @@ export class AdminMediaComponent implements OnInit {
 
   saveEdit() {
     if (!this.editingItem) return;
-    if (!this.editName) { this.errorMessage = 'Name is required.'; return; }
-    if (!this.editFile && !this.editAddress) { this.errorMessage = 'Please upload a file or enter a URL.'; return; }
+    this.validateEditNameField(this.editName);
+    if (!this.editFile && !this.editAddress) this.editErrors['media'] = 'Please upload a file or enter a URL.';
+    else delete this.editErrors['media'];
+    if (Object.keys(this.editErrors).length > 0) return;
     this.updating = true;
     if (this.editFile) {
       this.uploadFile(this.editFile, (url) => { this.submitEdit(url); });

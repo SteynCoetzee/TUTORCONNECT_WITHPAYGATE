@@ -62,7 +62,10 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
     }
   }
 
+  private readonly PROFILE_DISMISSED_KEY = 'profile_prompt_dismissed';
+
   private checkStudentProfile(userId: number) {
+    if (sessionStorage.getItem(this.PROFILE_DISMISSED_KEY)) return;
     this.http.get<any>(`${this.apiUrl}/Users/${userId}`).subscribe({
       next: (user) => {
         if (!user.firstName || !user.lastName || !user.phone) {
@@ -84,18 +87,21 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
 
   dismissAwaitingPopup() {
     this.showAwaitingApprovalPopup = false;
-    // After dismissing approval notice, prompt to complete profile
-    this.showCompleteProfilePopup = true;
+    if (!sessionStorage.getItem(this.PROFILE_DISMISSED_KEY)) {
+      this.showCompleteProfilePopup = true;
+    }
   }
 
   goToProfile() {
     this.showCompleteProfilePopup = false;
+    sessionStorage.setItem(this.PROFILE_DISMISSED_KEY, '1');
     this.router.navigate(['/dashboard/user-info']);
   }
 
   dismissPopup() {
     this.showCompleteProfilePopup = false;
     this.showAwaitingApprovalPopup = false;
+    sessionStorage.setItem(this.PROFILE_DISMISSED_KEY, '1');
   }
 
   ngOnDestroy() {

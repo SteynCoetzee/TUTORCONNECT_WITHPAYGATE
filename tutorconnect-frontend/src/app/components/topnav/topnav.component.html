@@ -18,8 +18,14 @@
   <div class="topnav-right">
     <!-- User pill -->
     <div class="user-chip" routerLink="/dashboard/user-info" style="cursor:pointer">
-      <div class="user-avatar">{{ getInitials() }}</div>
-      <span class="user-name">{{ userName }}</span>
+      <div class="user-avatar">
+        @if (profilePictureUrl) {
+          <img [src]="profilePictureUrl" alt="Profile" class="avatar-img" />
+        } @else {
+          {{ getInitials() }}
+        }
+      </div>
+      <span class="user-name">{{ getDisplayName() }}</span>
     </div>
 
     <!-- Notifications -->

@@ -50,12 +50,14 @@
           @if (tutorOptions.length === 0) {
             <p class="no-options-hint">No tutors found for your enrolled modules.</p>
           } @else {
-            <select class="form-control" [(ngModel)]="selectedTutorId">
+            <select class="form-control" [class.input-error]="tutorFormErrors['tutor']" [(ngModel)]="selectedTutorId"
+                    (ngModelChange)="selectedTutorId && clearTutorError('tutor')">
               <option [ngValue]="null" disabled>— Choose a tutor —</option>
               @for (t of tutorOptions; track t.tutorId) {
                 <option [ngValue]="t.tutorId">{{ t.tutorName }} ({{ getTutorModuleLabel(t) }})</option>
               }
             </select>
+            @if (tutorFormErrors['tutor']) { <span class="field-error">{{ tutorFormErrors['tutor'] }}</span> }
           }
         </div>
         <div class="create-step">
@@ -91,12 +93,14 @@
           @if (sessionOptions.length === 0) {
             <p class="no-options-hint">No booked sessions found.</p>
           } @else {
-            <select class="form-control" [(ngModel)]="selectedBookingSlotId">
+            <select class="form-control" [class.input-error]="sessionFormErrors['session']" [(ngModel)]="selectedBookingSlotId"
+                    (ngModelChange)="selectedBookingSlotId && clearSessionError('session')">
               <option [ngValue]="null" disabled>— Choose a session —</option>
               @for (s of sessionOptions; track s.booking_ID) {
                 <option [ngValue]="s.booking_Slot_ID">{{ formatSessionLabel(s) }}</option>
               }
             </select>
+            @if (sessionFormErrors['session']) { <span class="field-error">{{ sessionFormErrors['session'] }}</span> }
           }
         </div>
         <div class="create-step">
@@ -112,8 +116,11 @@
         </div>
         <div class="create-step full-width">
           <div class="step-label"><span class="step-num">3</span> Description</div>
-          <textarea class="form-control" [(ngModel)]="sessionDescription"
+          <textarea class="form-control" [class.input-error]="sessionFormErrors['desc']"
+                    [(ngModel)]="sessionDescription"
+                    (ngModelChange)="validateSessionDescription($event)"
                     rows="3" placeholder="Describe your session experience..."></textarea>
+          @if (sessionFormErrors['desc']) { <span class="field-error">{{ sessionFormErrors['desc'] }}</span> }
         </div>
       </div>
       <div class="create-actions">

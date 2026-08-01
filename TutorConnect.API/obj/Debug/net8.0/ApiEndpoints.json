@@ -1202,6 +1202,37 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "TutorConnect.API.Controllers.BusinessRulesController",
+    "Method": "GetAll",
+    "RelativePath": "api/BusinessRules",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.BusinessRulesController",
+    "Method": "Update",
+    "RelativePath": "api/BusinessRules/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "TutorConnect.API.DTOs.BusinessRuleUpdateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "TutorConnect.API.Controllers.EnrollmentController",
     "Method": "CheckEnrollment",
     "RelativePath": "api/Enrollment/check/{studentId}/{moduleCode}",
@@ -1513,11 +1544,6 @@
     "Parameters": [
       {
         "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      },
-      {
-        "Name": "adminId",
         "Type": "System.Int32",
         "IsRequired": true
       }
@@ -1935,6 +1961,84 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "TutorConnect.API.Controllers.PayFastController",
+    "Method": "AdminProcess",
+    "RelativePath": "api/PayFast/admin/process/{paymentId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "paymentId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.PayFastController",
+    "Method": "Initiate",
+    "RelativePath": "api/PayFast/initiate",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "TutorConnect.API.Controllers.PayFastInitiateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.PayFastController",
+    "Method": "Notify",
+    "RelativePath": "api/PayFast/notify",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "form",
+        "Type": "Microsoft.AspNetCore.Http.IFormCollection",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.PayFastController",
+    "Method": "GetAllPayments",
+    "RelativePath": "api/PayFast/payments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.PayFastController",
+    "Method": "RedirectCancel",
+    "RelativePath": "api/PayFast/redirect-cancel",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.PayFastController",
+    "Method": "RedirectSuccess",
+    "RelativePath": "api/PayFast/redirect-success",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "TutorConnect.API.Controllers.PaymentsController",
     "Method": "MakePayment",
     "RelativePath": "api/Payments",
@@ -2247,6 +2351,37 @@
   },
   {
     "ContainingType": "TutorConnect.API.Controllers.ReportsController",
+    "Method": "GetModuleCatalogue",
+    "RelativePath": "api/Reports/module-catalogue",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.ReportsController",
+    "Method": "GetModuleEnrollments",
+    "RelativePath": "api/Reports/module-enrollments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "from",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "to",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.ReportsController",
     "Method": "GetMonthlyIncome",
     "RelativePath": "api/Reports/monthly-income",
     "HttpMethod": "GET",
@@ -2264,6 +2399,16 @@
         "IsRequired": false
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.ReportsController",
+    "Method": "GetMonthlyStudentEnrollments",
+    "RelativePath": "api/Reports/monthly-student-enrollments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -2310,6 +2455,27 @@
   },
   {
     "ContainingType": "TutorConnect.API.Controllers.ReportsController",
+    "Method": "GetRevenueDetail",
+    "RelativePath": "api/Reports/revenue-detail",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "from",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "to",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.ReportsController",
     "Method": "GetSessionsReport",
     "RelativePath": "api/Reports/sessions",
     "HttpMethod": "GET",
@@ -2324,6 +2490,11 @@
       {
         "Name": "to",
         "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "sessionType",
+        "Type": "System.String",
         "IsRequired": false
       }
     ],
@@ -2352,8 +2523,49 @@
   },
   {
     "ContainingType": "TutorConnect.API.Controllers.ReportsController",
+    "Method": "GetTutorHoursDetail",
+    "RelativePath": "api/Reports/tutor-hours-detail",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "from",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "to",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.ReportsController",
     "Method": "GetTutorRatingsReport",
     "RelativePath": "api/Reports/tutor-ratings",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.ReviewsController",
+    "Method": "GetAllSessionReviews",
+    "RelativePath": "api/Reviews/admin/session",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.ReviewsController",
+    "Method": "GetAllTutorReviews",
+    "RelativePath": "api/Reviews/admin/tutor",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -2868,6 +3080,75 @@
   },
   {
     "ContainingType": "TutorConnect.API.Controllers.UsersController",
+    "Method": "ArchiveUser",
+    "RelativePath": "api/Users/{id}/archive",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.UsersController",
+    "Method": "PermanentDeleteUser",
+    "RelativePath": "api/Users/{id}/permanent",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.UsersController",
+    "Method": "UploadProfilePicture",
+    "RelativePath": "api/Users/{id}/profile-picture",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.UsersController",
+    "Method": "RestoreDeleted",
+    "RelativePath": "api/Users/{id}/restore-deleted",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.UsersController",
     "Method": "ChangeUserRole",
     "RelativePath": "api/Users/{id}/role",
     "HttpMethod": "PUT",
@@ -2940,6 +3221,22 @@
       {
         "Name": "dto",
         "Type": "TutorConnect.API.DTOs.TutorProfileDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "TutorConnect.API.Controllers.UsersController",
+    "Method": "UnarchiveUser",
+    "RelativePath": "api/Users/{id}/unarchive",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
         "IsRequired": true
       }
     ],

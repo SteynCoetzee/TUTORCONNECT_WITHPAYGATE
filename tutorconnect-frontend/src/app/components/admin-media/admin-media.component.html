@@ -27,7 +27,10 @@
       }
       <div class="form-group">
         <label>Name *</label>
-        <input class="form-control" [(ngModel)]="createName" placeholder="e.g. Tutorial Video 1" />
+        <input class="form-control" [class.input-error]="createErrors['name']"
+               [(ngModel)]="createName" placeholder="e.g. Tutorial Video 1"
+               (ngModelChange)="validateCreateName($event)" />
+        @if (createErrors['name']) { <span class="field-error">{{ createErrors['name'] }}</span> }
       </div>
 
       <!-- File upload area -->
@@ -109,7 +112,10 @@
             }
             <div class="form-group">
               <label>Name *</label>
-              <input class="form-control" [(ngModel)]="editName" placeholder="Media name" />
+              <input class="form-control" [class.input-error]="editErrors['name']"
+                     [(ngModel)]="editName" placeholder="Media name"
+                     (ngModelChange)="validateEditNameField($event)" />
+              @if (editErrors['name']) { <span class="field-error">{{ editErrors['name'] }}</span> }
             </div>
 
             <div class="form-group">

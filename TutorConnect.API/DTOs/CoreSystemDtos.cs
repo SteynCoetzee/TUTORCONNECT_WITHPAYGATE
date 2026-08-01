@@ -1,10 +1,16 @@
-﻿namespace TutorConnect.API.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace TutorConnect.API.DTOs
 {
     // ─── ENROLLMENT ─────────────────────────────────────────────
     public class EnrollmentCreateDto
     {
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be selected.")]
         public int Student_ID { get; set; }
+
+        [Required(ErrorMessage = "Module code is required.")]
         public string Module_Code { get; set; } = string.Empty;
+
         public bool Can_Book_OneOnOne { get; set; } = true;
         public bool Can_Book_Group { get; set; } = true;
     }
@@ -76,19 +82,36 @@
     // ─── ANNOUNCEMENTS ───────────────────────────────────────────
     public class AnnouncementCreateDto
     {
+        [Required]
+        [StringLength(200)]
         public string Announcement_Name { get; set; } = string.Empty;
+
+        [StringLength(2000)]
         public string Announcement_Details { get; set; } = string.Empty;
+
+        [StringLength(50)]
         public string Announcement_Type { get; set; } = "Update";
+
         public int? Tutor_ID { get; set; }
         public int? Admin_ID { get; set; }
+
+        [StringLength(20)]
         public string Module_Code { get; set; } = string.Empty;
     }
 
     public class AnnouncementUpdateDto
     {
+        [Required]
+        [StringLength(200)]
         public string Announcement_Name { get; set; } = string.Empty;
+
+        [StringLength(2000)]
         public string Announcement_Details { get; set; } = string.Empty;
+
+        [StringLength(50)]
         public string Announcement_Type { get; set; } = "Update";
+
+        [StringLength(20)]
         public string Module_Code { get; set; } = string.Empty;
     }
 
@@ -96,63 +119,106 @@
     {
         public DateOnly Slot_Date { get; set; }
         public TimeOnly Slot_Time { get; set; }
+
+        [Required]
+        [StringLength(50)]
         public string Session_Type { get; set; } = string.Empty;
+
+        [StringLength(200)]
         public string Location { get; set; } = string.Empty;
+
         public int Tutor_ID { get; set; }
+
+        [Range(1, 1000, ErrorMessage = "Max capacity must be between 1 and 1000.")]
         public int? Max_Capacity { get; set; }
+
+        [StringLength(20)]
         public string? Module_Code { get; set; }
     }
 
     public class BookingCreateDto
     {
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be selected.")]
         public int Student_ID { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "A valid booking slot must be selected.")]
         public int Booking_Slot_ID { get; set; }
     }
 
     public class GradeSubmissionDto
     {
+        [Range(0, 100, ErrorMessage = "Grade must be between 0 and 100.")]
         public decimal? Grade { get; set; }
+
+        [StringLength(1000)]
         public string? Feedback { get; set; }
     }
 
     public class AssignmentCreateDto
     {
+        [Required(ErrorMessage = "Assignment name is required.")]
+        [StringLength(200, ErrorMessage = "Assignment name cannot exceed 200 characters.")]
         public string Assignment_Name { get; set; } = string.Empty;
+
         public DateTime Assignment_Date { get; set; }
+
+        [Required(ErrorMessage = "Module code is required.")]
         public string Module_Code { get; set; } = string.Empty;
+
         public string Assignment_URL { get; set; } = string.Empty;
     }
 
     public class QuizCreateDto
     {
+        [Required(ErrorMessage = "Quiz name is required.")]
+        [StringLength(200, ErrorMessage = "Quiz name cannot exceed 200 characters.")]
         public string Quiz_Name { get; set; } = string.Empty;
+
+        [StringLength(1000)]
         public string Quiz_Details { get; set; } = string.Empty;
+
         public DateTime Quiz_Date { get; set; }
+
+        [Required(ErrorMessage = "Module code is required.")]
         public string Module_Code { get; set; } = string.Empty;
     }
 
     public class QuizQuestionSaveDto
     {
+        [Required(ErrorMessage = "Question text is required.")]
+        [StringLength(1000, ErrorMessage = "Question text cannot exceed 1000 characters.")]
         public string Question_Text { get; set; } = string.Empty;
+
         public int Question_Order { get; set; }
+
+        [MinLength(2, ErrorMessage = "Each question must have at least 2 options.")]
         public List<QuizOptionSaveDto> Options { get; set; } = new();
     }
 
     public class QuizOptionSaveDto
     {
+        [Required(ErrorMessage = "Option text is required.")]
+        [StringLength(500, ErrorMessage = "Option text cannot exceed 500 characters.")]
         public string Option_Text { get; set; } = string.Empty;
+
         public bool Is_Correct { get; set; }
     }
 
     public class QuizSubmitDto
     {
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be selected.")]
         public int Student_ID { get; set; }
+
+        [MinLength(1, ErrorMessage = "At least one answer is required.")]
         public List<StudentAnswerDto> Answers { get; set; } = new();
     }
 
     public class StudentAnswerDto
     {
+        [Range(1, int.MaxValue, ErrorMessage = "A valid question must be selected.")]
         public int Question_ID { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "A valid answer option must be selected.")]
         public int Option_ID { get; set; }
     }
 }

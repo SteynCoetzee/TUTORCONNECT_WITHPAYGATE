@@ -50,6 +50,17 @@ export class AuthService {
 
   startInactivityTimer(minutes: number) {
     this.afkMinutes = minutes;
+    // Cap at remaining token life so the timer never fires after the token is already dead
+    const token = this.getToken();
+    if (token) {
+      const decoded = this.decodeToken(token);
+      if (decoded) {
+        const remainingMinutes = (decoded.exp * 1000 - Date.now()) / 60000;
+        if (remainingMinutes > 0 && remainingMinutes < this.afkMinutes) {
+          this.afkMinutes = remainingMinutes;
+        }
+      }
+    }
     this.resetInactivityTimer();
   }
 

@@ -37,7 +37,7 @@ interface PaymentView {
   styleUrl: './admin-users.component.css'
 })
 export class AdminUsersComponent implements OnInit {
-  activeTab: 'users' | 'pending' = 'users';
+  activeTab: 'users' | 'pending' | 'archive' | 'deleted' = 'users';
 
   users: UserProfile[] = [];
   filteredUsers: UserProfile[] = [];
@@ -51,6 +51,11 @@ export class AdminUsersComponent implements OnInit {
   deleteTargetUser: UserProfile | null = null;
 
   approvingId: number | null = null;
+  archivingId: number | null = null;
+  unarchivingId: number | null = null;
+  restoringDeletedId: number | null = null;
+  permDeletingId: number | null = null;
+  permDeleteTargetUser: UserProfile | null = null;
 
   // Edit user
   editingUser: UserProfile | null = null;
@@ -61,6 +66,7 @@ export class AdminUsersComponent implements OnInit {
   editBio = '';
   editRoleId: number | null = null;
   saving = false;
+  editFieldErrors: Record<string, string> = {};
 
   roles: Role[] = [
     { id: 1, name: 'Admin' },
@@ -106,7 +112,7 @@ export class AdminUsersComponent implements OnInit {
   }
 
   applyFilters() {
-    let result = this.users;
+    let result = this.users.filter(u => !u.is_Archived && !u.is_Deleted);
     if (this.filterRole !== 'All') {
       result = result.filter(u => u.roleName === this.filterRole);
     }
@@ -121,6 +127,39 @@ export class AdminUsersComponent implements OnInit {
     this.filteredUsers = result;
   }
 
+  get archivedUsers(): UserProfile[] {
+    return this.users.filter(u => u.is_Archived && !u.is_Deleted);
+  }
+
+  get deletedUsers(): UserProfile[] {
+    return this.users.filter(u => u.is_Deleted);
+  }
+
+  private nameRegex  = /^[a-zA-Z\s'\-]+$/;
+  private phoneRegex = /^(\+27|0)[6-8][0-9]{8}$/;
+
+  validateEditName(value: string, field: string) {
+    if (!value?.trim()) {
+      this.editFieldErrors[field] = 'This field is required.';
+    } else if (value.trim().length < 2) {
+      this.editFieldErrors[field] = 'Must be at least 2 characters.';
+    } else if (!this.nameRegex.test(value)) {
+      this.editFieldErrors[field] = 'Only letters, spaces, hyphens and apostrophes allowed.';
+    } else {
+      delete this.editFieldErrors[field];
+    }
+  }
+
+  validateEditPhone(value: string) {
+    if (!value?.trim()) { delete this.editFieldErrors['phone']; return; }
+    const clean = value.trim().replace(/\s/g, '');
+    if (!this.phoneRegex.test(clean)) {
+      this.editFieldErrors['phone'] = 'Use format: +27XXXXXXXXX or 0XXXXXXXXX (SA mobile number).';
+    } else {
+      delete this.editFieldErrors['phone'];
+    }
+  }
+
   openEdit(user: UserProfile) {
     this.editingUser = user;
     this.editFirstName = user.firstName;
@@ -129,18 +168,21 @@ export class AdminUsersComponent implements OnInit {
     this.editAddress = user.address ?? '';
     this.editBio = user.bio ?? '';
     this.editRoleId = user.user_Role_ID;
+    this.editFieldErrors = {};
     this.clearMessages();
   }
 
   closeEdit() {
     this.editingUser = null;
+    this.editFieldErrors = {};
   }
 
   saveEdit() {
-    if (!this.editingUser || !this.editFirstName.trim() || !this.editLastName.trim() || !this.editRoleId) {
-      this.errorMessage = 'First name, last name and role are required.';
-      return;
-    }
+    this.validateEditName(this.editFirstName, 'firstName');
+    this.validateEditName(this.editLastName, 'lastName');
+    this.validateEditPhone(this.editPhone);
+    if (!this.editRoleId) this.editFieldErrors['role'] = 'Please select a role.';
+    if (!this.editingUser || Object.keys(this.editFieldErrors).length > 0) return;
     this.saving = true;
     this.clearMessages();
     this.http.put(`${this.apiUrl}/Users/${this.editingUser.user_ID}/admin`, {
@@ -157,7 +199,7 @@ export class AdminUsersComponent implements OnInit {
         this.closeEdit();
         this.loadUsers();
       },
-      error: () => { this.saving = false; this.errorMessage = 'Failed to update user.'; }
+      error: () => { this.saving = false; this.errorMessage = 'Failed to update user. Please try again.'; }
     });
   }
 
@@ -240,13 +282,16 @@ export class AdminUsersComponent implements OnInit {
         this.detailEnrollments = data;
         this.detailLoading = false;
       },
-      error: () => { this.detailLoading = false; }
+      error: () => {
+        this.detailLoading = false;
+        this.enrollError = 'Could not load enrollments. Please close and try again.';
+      }
     });
 
     if (!this.allModules.length) {
       this.http.get<Module[]>(`${this.apiUrl}/Modules`).subscribe({
         next: (data) => { this.allModules = data; },
-        error: () => {}
+        error: () => { this.enrollError = 'Could not load modules list. Please close and reopen.'; }
       });
     }
   }
@@ -258,8 +303,30 @@ export class AdminUsersComponent implements OnInit {
   }
 
   get availableModulesToAdd(): Module[] {
-    const enrolled = new Set(this.detailEnrollments.map(e => e.module_Code));
-    return this.allModules.filter(m => !enrolled.has(m.module_Code));
+    // Show all modules — including partially-enrolled ones (admin can add the missing type)
+    return this.allModules;
+  }
+
+  get selectedModuleEnrollment(): EnrollmentView | undefined {
+    return this.detailEnrollments.find(e => e.module_Code === this.addModuleCode);
+  }
+
+  get addOneOnOneDisabled(): boolean { return this.selectedModuleEnrollment?.can_Book_OneOnOne ?? false; }
+  get addGroupDisabled(): boolean    { return this.selectedModuleEnrollment?.can_Book_Group    ?? false; }
+
+  moduleOptionLabel(m: Module): string {
+    const e = this.detailEnrollments.find(e => e.module_Code === m.module_Code);
+    if (!e) return `${m.module_Code} — ${m.module_Name}`;
+    const types = [e.can_Book_OneOnOne ? '1-on-1' : '', e.can_Book_Group ? 'Group' : ''].filter(Boolean).join(', ');
+    return `${m.module_Code} — ${m.module_Name} (enrolled: ${types})`;
+  }
+
+  onAddModuleChange() {
+    // Reset checkboxes when module changes; pre-disable already-enrolled types
+    this.addOneOnOne = false;
+    this.addGroup = false;
+    this.enrollError = '';
+    this.enrollSuccess = '';
   }
 
   enrollModule() {
@@ -291,12 +358,89 @@ export class AdminUsersComponent implements OnInit {
         // Reload enrollments
         this.http.get<EnrollmentView[]>(`${this.apiUrl}/enrollment/student/${this.detailStudent!.user_ID}`).subscribe({
           next: (data) => { this.detailEnrollments = data; },
-          error: () => {}
+          error: () => { this.enrollError = 'Enrollment saved, but could not refresh the list. Please close and reopen.'; }
         });
       },
       error: (err) => {
         this.enrolling = false;
-        this.enrollError = typeof err.error === 'string' ? err.error : 'Failed to enroll. The student may already be enrolled.';
+        this.enrollError = typeof err.error === 'string' ? err.error : 'Failed to enroll. Both session types may already be active for this module.';
+      }
+    });
+  }
+
+  archiveUser(user: UserProfile) {
+    this.archivingId = user.user_ID;
+    this.clearMessages();
+    this.http.post(`${this.apiUrl}/Users/${user.user_ID}/archive`, {}).subscribe({
+      next: () => {
+        this.archivingId = null;
+        this.successMessage = `${user.firstName} has been moved to the archive.`;
+        this.loadUsers();
+      },
+      error: (err) => {
+        this.archivingId = null;
+        this.errorMessage = typeof err.error === 'string' ? err.error : 'Failed to archive user.';
+      }
+    });
+  }
+
+  unarchiveUser(user: UserProfile) {
+    this.unarchivingId = user.user_ID;
+    this.clearMessages();
+    this.http.post(`${this.apiUrl}/Users/${user.user_ID}/unarchive`, {}).subscribe({
+      next: () => {
+        this.unarchivingId = null;
+        this.successMessage = `${user.firstName} has been restored to active users.`;
+        this.loadUsers();
+      },
+      error: () => {
+        this.unarchivingId = null;
+        this.errorMessage = 'Failed to restore user.';
+      }
+    });
+  }
+
+  restoreDeleted(user: UserProfile) {
+    this.restoringDeletedId = user.user_ID;
+    this.clearMessages();
+    this.http.post(`${this.apiUrl}/Users/${user.user_ID}/restore-deleted`, {}).subscribe({
+      next: () => {
+        this.restoringDeletedId = null;
+        this.successMessage = `${user.firstName} has been restored to active users.`;
+        this.loadUsers();
+      },
+      error: () => {
+        this.restoringDeletedId = null;
+        this.errorMessage = 'Failed to restore user.';
+      }
+    });
+  }
+
+  confirmPermDelete(user: UserProfile) {
+    this.permDeletingId = user.user_ID;
+    this.permDeleteTargetUser = user;
+    this.clearMessages();
+  }
+
+  cancelPermDelete() {
+    this.permDeletingId = null;
+    this.permDeleteTargetUser = null;
+  }
+
+  permanentDelete() {
+    if (!this.permDeletingId) return;
+    this.clearMessages();
+    this.http.delete(`${this.apiUrl}/Users/${this.permDeletingId}/permanent`).subscribe({
+      next: () => {
+        this.successMessage = `${this.permDeleteTargetUser?.firstName ?? 'User'} has been permanently deleted.`;
+        this.permDeletingId = null;
+        this.permDeleteTargetUser = null;
+        this.loadUsers();
+      },
+      error: (err: any) => {
+        this.errorMessage = typeof err.error === 'string' ? err.error : 'Permanent delete failed.';
+        this.permDeletingId = null;
+        this.permDeleteTargetUser = null;
       }
     });
   }

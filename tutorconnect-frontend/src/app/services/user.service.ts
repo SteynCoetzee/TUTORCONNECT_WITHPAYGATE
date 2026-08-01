@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { UserProfile, UserProfileUpdate } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private apiUrl = `${environment.apiUrl}/Users`;
+
+  readonly profileChanged$ = new Subject<void>();
 
   constructor(private http: HttpClient) {}
 
@@ -20,5 +22,9 @@ export class UserService {
 
   updateUser(id: number, data: UserProfileUpdate): Observable<string> {
     return this.http.put(`${this.apiUrl}/${id}`, data, { responseType: 'text' });
+  }
+
+  notifyProfileChanged(): void {
+    this.profileChanged$.next();
   }
 }

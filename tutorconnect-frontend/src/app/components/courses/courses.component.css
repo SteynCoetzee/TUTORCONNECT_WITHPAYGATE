@@ -162,6 +162,31 @@
 .module-footer { border-top: 1px solid var(--border); padding-top: 0.75rem; }
 .module-actions { display: flex; gap: 8px; }
 
+.unenrol-confirm-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  padding: 7px 12px;
+}
+.unenrol-confirm-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.unenrol-confirm-btns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .click-hint {
   display: flex; align-items: center; gap: 4px;
   font-size: 0.78rem; color: var(--text-muted);
@@ -332,6 +357,15 @@
 .session-option:hover { border-color: var(--primary); background: var(--primary-light); }
 .session-option.checked { border-color: var(--primary); background: var(--primary-light); }
 .session-option input[type="checkbox"] { display: none; }
+.session-option-disabled {
+  opacity: 0.5; cursor: not-allowed; pointer-events: none;
+  background: var(--bg-muted, #f3f4f6) !important; border-color: var(--border) !important;
+}
+.already-enrolled-tag {
+  display: inline-block; font-size: 10px; font-weight: 600; color: #fff;
+  background: var(--primary); border-radius: 4px; padding: 1px 6px;
+  margin-left: 6px; vertical-align: middle; letter-spacing: 0.3px;
+}
 .session-option-info {
   display: flex;
   align-items: center;

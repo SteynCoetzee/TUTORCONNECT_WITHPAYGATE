@@ -7,17 +7,52 @@
   </div>
 
   <!-- Filter bar -->
-  <div class="filter-bar card">
-    <select class="form-control" [(ngModel)]="filterType" (change)="loadLogs()" style="max-width:260px">
-      <option value="">All action types</option>
-      @for (t of transactionTypes; track t) {
-        <option [value]="t">{{ t }}</option>
-      }
-    </select>
-    <button class="btn btn-secondary btn-sm" (click)="filterType = ''; loadLogs()">
-      <span class="material-icons">refresh</span> Reset
-    </button>
-    <span class="log-count">{{ logs.length }} record{{ logs.length !== 1 ? 's' : '' }}</span>
+  <div class="audit-filter-card">
+    <div class="audit-filter-row">
+
+      <div class="audit-filter-group audit-filter-search">
+        <label class="audit-filter-label">Search</label>
+        <div class="audit-search-wrap">
+          <span class="material-icons audit-search-icon">search</span>
+          <input class="audit-input" type="text"
+                 placeholder="User, action, details or ID…"
+                 [(ngModel)]="searchQuery" />
+        </div>
+      </div>
+
+      <div class="audit-filter-group">
+        <label class="audit-filter-label">Action Type</label>
+        <select class="audit-select" [(ngModel)]="filterType">
+          <option value="">All types</option>
+          @for (t of transactionTypes; track t) {
+            <option [value]="t">{{ t }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="audit-filter-group">
+        <label class="audit-filter-label">Date From</label>
+        <input class="audit-date" type="date" [(ngModel)]="filterDateFrom"
+               [max]="filterDateTo || undefined" />
+      </div>
+
+      <div class="audit-filter-group">
+        <label class="audit-filter-label">Date To</label>
+        <input class="audit-date" type="date" [(ngModel)]="filterDateTo"
+               [min]="filterDateFrom || undefined" />
+      </div>
+
+      <div class="audit-filter-group audit-filter-actions">
+        <label class="audit-filter-label">&nbsp;</label>
+        <button class="btn btn-secondary btn-sm" (click)="resetFilters()">
+          <span class="material-icons">refresh</span> Reset
+        </button>
+      </div>
+
+    </div>
+    <div class="audit-filter-footer">
+      <span class="audit-count">{{ filteredLogs.length }} of {{ logs.length }} record{{ logs.length !== 1 ? 's' : '' }}</span>
+    </div>
   </div>
 
   @if (loading) {
@@ -41,16 +76,19 @@
           </tr>
         </thead>
         <tbody>
-          @for (log of logs; track log.audit_Log_ID) {
+          @if (filteredLogs.length === 0) {
+            <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">No records match your search.</td></tr>
+          }
+          @for (log of filteredLogs; track log.audit_Log_ID) {
             <tr>
-              <td style="font-size:0.82rem;color:var(--text-muted)">{{ log.audit_Date }}</td>
-              <td style="font-size:0.82rem;color:var(--text-muted)">{{ formatTime(log.audit_Time) }}</td>
+              <td style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap">{{ log.audit_Date }}</td>
+              <td style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap">{{ formatTime(log.audit_Time) }}</td>
               <td>
                 <div style="font-weight:600;font-size:0.88rem">{{ log.userName }}</div>
                 <div style="font-size:0.75rem;color:var(--text-muted)">ID: {{ log.user_ID }}</div>
               </td>
               <td>
-                <span class="action-badge" [class]="getBadgeClass(log.transaction_Type)">
+                <span [class]="getBadgeClass(log.transaction_Type)">
                   {{ log.transaction_Type }}
                 </span>
               </td>

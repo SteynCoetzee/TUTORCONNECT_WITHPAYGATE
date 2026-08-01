@@ -29,6 +29,7 @@ export class AdminHelpComponent implements OnInit {
   pageDescription = '';
   savingPage = false;
   deletePageId: number | null = null;
+  pageErrors: Record<string, string> = {};
 
   // Help resource form
   showResourceForm = false;
@@ -37,6 +38,7 @@ export class AdminHelpComponent implements OnInit {
   resourceUrl = '';
   savingResource = false;
   deleteResourceId: number | null = null;
+  resourceErrors: Record<string, string> = {};
 
   private apiUrl = environment.apiUrl;
 
@@ -58,17 +60,43 @@ export class AdminHelpComponent implements OnInit {
     });
   }
 
+  validatePageTitle(val: string) {
+    if (!val?.trim()) { this.pageErrors['title'] = 'Title is required.'; }
+    else if (val.trim().length < 3) { this.pageErrors['title'] = 'Title must be at least 3 characters.'; }
+    else { delete this.pageErrors['title']; }
+  }
+
+  validatePageDescription(val: string) {
+    if (!val?.trim()) { this.pageErrors['desc'] = 'Description is required.'; }
+    else if (val.trim().length < 10) { this.pageErrors['desc'] = 'Description must be at least 10 characters.'; }
+    else { delete this.pageErrors['desc']; }
+  }
+
+  validateResourceTitle(val: string) {
+    if (!val?.trim()) { this.resourceErrors['title'] = 'Title is required.'; }
+    else if (val.trim().length < 3) { this.resourceErrors['title'] = 'Title must be at least 3 characters.'; }
+    else { delete this.resourceErrors['title']; }
+  }
+
+  validateResourceUrl(val: string) {
+    if (!val?.trim()) { this.resourceErrors['url'] = 'Video URL is required.'; }
+    else { delete this.resourceErrors['url']; }
+  }
+
   // ─── Help Pages ─────────────────────────────────────────────────────────────
   openPageForm(page?: HelpPage) {
     this.editingPage = page ?? null;
     this.pageTitle = page?.help_Page_Title ?? '';
     this.pageDescription = page?.help_Page_Description ?? '';
+    this.pageErrors = {};
     this.showPageForm = true;
     this.clearMessages();
   }
 
   savePage() {
-    if (!this.pageTitle || !this.pageDescription) { this.errorMessage = 'Please fill in all fields.'; return; }
+    this.validatePageTitle(this.pageTitle);
+    this.validatePageDescription(this.pageDescription);
+    if (Object.keys(this.pageErrors).length > 0) return;
     this.savingPage = true;
     const payload = { help_Page_Title: this.pageTitle, help_Page_Description: this.pageDescription };
     const obs = this.editingPage
@@ -93,12 +121,15 @@ export class AdminHelpComponent implements OnInit {
     this.editingResource = res ?? null;
     this.resourceTitle = res?.video_Title ?? '';
     this.resourceUrl = res?.video_URL ?? '';
+    this.resourceErrors = {};
     this.showResourceForm = true;
     this.clearMessages();
   }
 
   saveResource() {
-    if (!this.resourceTitle || !this.resourceUrl) { this.errorMessage = 'Please fill in all fields.'; return; }
+    this.validateResourceTitle(this.resourceTitle);
+    this.validateResourceUrl(this.resourceUrl);
+    if (Object.keys(this.resourceErrors).length > 0) return;
     this.savingResource = true;
     const payload = { video_Title: this.resourceTitle, video_URL: this.resourceUrl };
     const obs = this.editingResource

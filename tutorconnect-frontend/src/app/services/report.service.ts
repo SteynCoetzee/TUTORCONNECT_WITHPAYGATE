@@ -15,24 +15,42 @@ export class ReportService {
     return p;
   }
 
+  // ── Simple List Reports ──────────────────────────────────────────────────────
   getTutorHoursReport(from?: string, to?: string): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/tutor-hours`, { params: this.params(from, to) });
-  }
-  getMonthlyIncome(from?: string, to?: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/monthly-income`, { params: this.params(from, to) });
   }
   getTutorRatingsReport(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/tutor-ratings`);
   }
-  getMonthlyStudentsReport(from?: string, to?: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/monthly-students`, { params: this.params(from, to) });
+  getModuleCatalogue(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/module-catalogue`);
   }
-  getSessionsReport(from?: string, to?: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/sessions`, { params: this.params(from, to) });
+  getSessionsReport(from?: string, to?: string, sessionType?: string): Observable<any[]> {
+    let p = this.params(from, to);
+    if (sessionType && sessionType !== 'All') p = p.set('sessionType', sessionType);
+    return this.http.get<any[]>(`${this.apiUrl}/sessions`, { params: p });
   }
-  getPopularModulesReport(from?: string, to?: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/popular-modules`, { params: this.params(from, to) });
+  getMonthlyStudentEnrollments(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/monthly-student-enrollments`);
   }
+
+  // ── Transactional Reports ────────────────────────────────────────────────────
+  getTutorHoursDetail(from?: string, to?: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/tutor-hours-detail`, { params: this.params(from, to) });
+  }
+  getRevenueDetail(from?: string, to?: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/revenue-detail`, { params: this.params(from, to) });
+  }
+
+  // ── Management / Chart Reports ───────────────────────────────────────────────
+  getModuleEnrollments(from?: string, to?: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/module-enrollments`, { params: this.params(from, to) });
+  }
+  getMonthlyIncome(from?: string, to?: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/monthly-income`, { params: this.params(from, to) });
+  }
+
+  // ── Custom Query ─────────────────────────────────────────────────────────────
   getCustomReport(entity: string, groupBy: string, from?: string, to?: string): Observable<any[]> {
     let p = new HttpParams().set('entity', entity).set('groupBy', groupBy);
     if (from) p = p.set('from', from);

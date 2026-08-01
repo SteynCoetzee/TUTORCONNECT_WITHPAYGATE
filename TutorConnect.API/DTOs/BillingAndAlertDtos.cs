@@ -1,15 +1,32 @@
-﻿namespace TutorConnect.API.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace TutorConnect.API.DTOs
 {
     // --- PAYMENT DTOs ---
     public class PaymentCreateDto
     {
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than zero.")]
         public decimal Amount { get; set; }
+
+        [StringLength(100)]
         public string? Account_Name { get; set; }
+
+        [StringLength(20)]
         public string? Account_Number { get; set; }
+
+        [StringLength(10)]
         public string? Branch_Code { get; set; }
+
+        [StringLength(50)]
         public string? Bank { get; set; }
+
+        [StringLength(100)]
         public string? Payment_Reference { get; set; }
+
         public int Student_ID { get; set; }
+
+        [Required]
+        [StringLength(20)]
         public string Module_Code { get; set; } = string.Empty;
     }
 

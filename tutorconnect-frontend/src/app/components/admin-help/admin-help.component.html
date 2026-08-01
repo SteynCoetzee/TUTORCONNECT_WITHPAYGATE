@@ -47,13 +47,19 @@
         <div class="inline-form mb-16">
           <h4 class="form-section-title">{{ editingPage ? 'Edit Help Page' : 'New Help Page' }}</h4>
           <div class="form-group">
-            <label>Title</label>
-            <input class="form-control" [(ngModel)]="pageTitle" name="pageTitle" placeholder="e.g. Getting Started" />
+            <label>Title *</label>
+            <input class="form-control" [class.input-error]="pageErrors['title']"
+                   [(ngModel)]="pageTitle" name="pageTitle" placeholder="e.g. Getting Started"
+                   (ngModelChange)="validatePageTitle($event)" />
+            @if (pageErrors['title']) { <span class="field-error">{{ pageErrors['title'] }}</span> }
           </div>
           <div class="form-group">
-            <label>Description</label>
-            <textarea class="form-control" rows="4" [(ngModel)]="pageDescription" name="pageDesc"
-                      placeholder="Describe what this help page covers..."></textarea>
+            <label>Description *</label>
+            <textarea class="form-control" [class.input-error]="pageErrors['desc']"
+                      rows="4" [(ngModel)]="pageDescription" name="pageDesc"
+                      placeholder="Describe what this help page covers..."
+                      (ngModelChange)="validatePageDescription($event)"></textarea>
+            @if (pageErrors['desc']) { <span class="field-error">{{ pageErrors['desc'] }}</span> }
           </div>
           <div class="form-actions">
             <button class="btn btn-secondary" (click)="showPageForm = false; editingPage = null">Cancel</button>
@@ -124,13 +130,19 @@
           <h4 class="form-section-title">{{ editingResource ? 'Edit Video Resource' : 'New Video Resource' }}</h4>
           <div class="form-group">
             <label>Title *</label>
-            <input class="form-control" [(ngModel)]="resourceTitle" name="resourceTitle"
-                   placeholder="e.g. Getting Started Tutorial" />
+            <input class="form-control" [class.input-error]="resourceErrors['title']"
+                   [(ngModel)]="resourceTitle" name="resourceTitle"
+                   placeholder="e.g. Getting Started Tutorial"
+                   (ngModelChange)="validateResourceTitle($event)" />
+            @if (resourceErrors['title']) { <span class="field-error">{{ resourceErrors['title'] }}</span> }
           </div>
           <div class="form-group">
             <label>Video URL *</label>
-            <input class="form-control" [(ngModel)]="resourceUrl" name="resourceUrl"
-                   placeholder="https://www.youtube.com/watch?v=..." />
+            <input class="form-control" [class.input-error]="resourceErrors['url']"
+                   [(ngModel)]="resourceUrl" name="resourceUrl"
+                   placeholder="https://www.youtube.com/watch?v=..."
+                   (ngModelChange)="validateResourceUrl($event)" />
+            @if (resourceErrors['url']) { <span class="field-error">{{ resourceErrors['url'] }}</span> }
           </div>
           <div class="form-actions">
             <button class="btn btn-secondary" (click)="showResourceForm = false; editingResource = null">Cancel</button>

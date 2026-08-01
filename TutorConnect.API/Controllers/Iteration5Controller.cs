@@ -98,7 +98,7 @@ namespace TutorConnect.API.Controllers
                 var url = await _cloudinary.UploadRawAsync(stream, fileName);
                 return Ok(url);
             }
-            catch (Exception ex) { return StatusCode(500, $"Upload failed: {ex.Message}"); }
+            catch { return StatusCode(500, "File upload failed. Please try again."); }
         }
 
 // GET: api/Assignments/submissions/{submissionId}/download
@@ -174,7 +174,7 @@ namespace TutorConnect.API.Controllers
                 var fileName = $"submission_{studentId}_{id}_{Guid.NewGuid()}{ext}";
                 fileUrl = await _cloudinary.UploadRawAsync(stream, fileName);
             }
-            catch (Exception ex) { return StatusCode(500, $"Upload failed: {ex.Message}"); }
+            catch { return StatusCode(500, "File upload failed. Please try again."); }
 
             if (existing != null)
             {
@@ -275,9 +275,9 @@ namespace TutorConnect.API.Controllers
                 await _context.SaveChangesAsync();
                 return Ok("Submission graded successfully.");
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException)
             {
-                return StatusCode(500, $"Failed to grade submission: {ex.Message}");
+                return StatusCode(500, "Failed to save grade. Please try again.");
             }
         }
 
@@ -297,9 +297,9 @@ namespace TutorConnect.API.Controllers
                 await _context.SaveChangesAsync();
                 return Ok("Assignment updated successfully.");
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException)
             {
-                return StatusCode(500, $"Failed to update assignment: {ex.Message}");
+                return StatusCode(500, "Failed to update assignment. Please try again.");
             }
         }
 
@@ -1281,9 +1281,11 @@ namespace TutorConnect.API.Controllers
                 .Select(tm => tm.Tutor_ID)
                 .ToListAsync();
 
+            var today = DateOnly.FromDateTime(DateTime.Today);
             var slots = await _context.Booking_Slots
                 .Where(s => !s.Is_Booked && tutorIds.Contains(s.Tutor_ID)
-                            && (s.Module_Code == moduleCode || s.Module_Code == null))
+                            && (s.Module_Code == moduleCode || s.Module_Code == null)
+                            && s.Slot_Date >= today)
                 .Include(s => s.Tutor)
                 .OrderBy(s => s.Slot_Date).ThenBy(s => s.Slot_Time)
                 .ToListAsync();
@@ -1374,6 +1376,18 @@ namespace TutorConnect.API.Controllers
         [HttpPost]
         public async Task<ActionResult> CreateSlot(BookingSlotCreateDto request)
         {
+            if (request.Slot_Date < DateOnly.FromDateTime(DateTime.Today))
+                return BadRequest("Cannot create a booking slot in the past.");
+            if (request.Max_Capacity.HasValue && request.Max_Capacity <= 0)
+                return BadRequest("Max capacity must be at least 1.");
+
+            var conflict = await _context.Booking_Slots.AnyAsync(s =>
+                s.Tutor_ID == request.Tutor_ID &&
+                s.Slot_Date == request.Slot_Date &&
+                s.Slot_Time == request.Slot_Time);
+            if (conflict)
+                return BadRequest("You already have a slot at that date and time. Please choose a different time.");
+
             var slot = new Booking_Slot
             {
                 Slot_Date = request.Slot_Date,
@@ -1394,9 +1408,22 @@ namespace TutorConnect.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateSlot(int id, BookingSlotCreateDto request)
         {
+            if (request.Slot_Date < DateOnly.FromDateTime(DateTime.Today))
+                return BadRequest("Cannot move a booking slot to the past.");
+            if (request.Max_Capacity.HasValue && request.Max_Capacity <= 0)
+                return BadRequest("Max capacity must be at least 1.");
+
             var slot = await _context.Booking_Slots.FindAsync(id);
             if (slot == null) return NotFound("Slot not found.");
             if (slot.Is_Booked) return BadRequest("Cannot edit a slot that is already booked.");
+
+            var conflict = await _context.Booking_Slots.AnyAsync(s =>
+                s.Booking_Slot_ID != id &&
+                s.Tutor_ID == request.Tutor_ID &&
+                s.Slot_Date == request.Slot_Date &&
+                s.Slot_Time == request.Slot_Time);
+            if (conflict)
+                return BadRequest("You already have a slot at that date and time. Please choose a different time.");
 
             slot.Slot_Date    = request.Slot_Date;
             slot.Slot_Time    = request.Slot_Time;
@@ -1572,6 +1599,8 @@ namespace TutorConnect.API.Controllers
         {
             var slot = await _context.Booking_Slots.FindAsync(request.Booking_Slot_ID);
             if (slot == null || slot.Is_Booked) return BadRequest("Slot is unavailable.");
+            if (slot.Slot_Date < DateOnly.FromDateTime(DateTime.Today))
+                return BadRequest("This session slot has already passed and cannot be booked.");
 
             // Prevent duplicate bookings by the same student
             var alreadyBooked = await _context.Bookings
@@ -1760,6 +1789,9 @@ namespace TutorConnect.API.Controllers
         [HttpPost]
         public async Task<ActionResult<Payment>> MakePayment(PaymentCreateDto request)
         {
+            if (request.Amount <= 0)
+                return BadRequest("Payment amount must be greater than zero.");
+
             var newPayment = new Payment
             {
                 Amount = request.Amount,
@@ -1831,7 +1863,28 @@ namespace TutorConnect.API.Controllers
                     && sm.IsActive);
 
             if (existingEnrollment != null)
-                return BadRequest("Student is already enrolled in this module.");
+            {
+                // Add the new session type(s) to the existing enrollment instead of rejecting
+                bool changed = false;
+                if (request.Can_Book_OneOnOne && !existingEnrollment.Can_Book_OneOnOne)
+                {
+                    existingEnrollment.Can_Book_OneOnOne = true;
+                    existingEnrollment.Sessions_Remaining_OneOnOne += 5;
+                    changed = true;
+                }
+                if (request.Can_Book_Group && !existingEnrollment.Can_Book_Group)
+                {
+                    existingEnrollment.Can_Book_Group = true;
+                    existingEnrollment.Sessions_Remaining_Group += 5;
+                    changed = true;
+                }
+                if (!changed)
+                    return BadRequest("Student is already enrolled in all selected session types for this module.");
+
+                await _context.SaveChangesAsync();
+                await _audit.LogAsync(request.Student_ID, "Session Type Added", $"Module_Code: {request.Module_Code}");
+                return Ok(new { message = "Session types added to existing enrollment.", enrollmentId = existingEnrollment.Enrollment_ID });
+            }
 
             // Create enrollment
             var enrollment = new Student_Module
@@ -2259,9 +2312,9 @@ namespace TutorConnect.API.Controllers
                     : await _cloudinary.UploadImageAsync(stream, fileName);
                 return Ok(publicUrl);
             }
-            catch (Exception ex)
+            catch
             {
-                return StatusCode(500, $"Upload failed: {ex.Message}");
+                return StatusCode(500, "File upload failed. Please try again.");
             }
         }
 

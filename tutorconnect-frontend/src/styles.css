@@ -101,6 +101,12 @@ a:hover { text-decoration: underline; }
 .btn-icon { padding: 6px; background: transparent; border: none; cursor: pointer; color: var(--text-muted); border-radius: 4px; }
 .btn-icon:hover { background: var(--body-bg); color: var(--text-dark); }
 
+/* ── Global field validation ───────────────────────────────────── */
+.input-error { border-color: #ef4444 !important; background: #fff5f5 !important; }
+.input-error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.15) !important; }
+.field-error { display: block; font-size: 12px; color: #ef4444; margin-top: 4px; }
+.field-hint  { display: block; font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
 /* ── Form Inputs ───────────────────────────────────────────────── */
 .form-group { margin-bottom: 18px; }
 .form-group label {
@@ -154,6 +160,7 @@ select.form-control { cursor: pointer; appearance: none; background-image: url("
 .badge-teal    { background: var(--primary-light); color: #0d7377; }
 .badge-purple  { background: #ede9fe; color: #5b21b6; }
 .badge-orange  { background: #ffedd5; color: #9a3412; }
+.badge-gray    { background: #f3f4f6; color: #4b5563; }
 
 /* ── Modals ────────────────────────────────────────────────────── */
 .modal-backdrop {

@@ -26,6 +26,9 @@ tutorconnect-frontend/.angular/
 TutorConnect.API/.vs/
 TutorConnect.API/TutorConnect.API.csproj.user
 TutorConnect.API/google-credentials.json.json
+
+# Local sandbox credentials — never pushed to GitHub
+TutorConnect.API/appsettings.Development.json
 node_modules
 
 **/google-credentials.json.json

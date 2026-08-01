@@ -1994,6 +1994,60 @@
         }
       }
     },
+    "/api/BusinessRules": {
+      "get": {
+        "tags": [
+          "BusinessRules"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/BusinessRules/{id}": {
+      "put": {
+        "tags": [
+          "BusinessRules"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessRuleUpdateDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessRuleUpdateDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessRuleUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/Enrollment/enroll": {
       "post": {
         "tags": [
@@ -2559,28 +2613,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "integer",
-                "format": "int32"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "type": "integer",
-                "format": "int32"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "type": "integer",
-                "format": "int32"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Success"
@@ -3192,6 +3224,130 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/PayFast/initiate": {
+      "post": {
+        "tags": [
+          "PayFast"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayFastInitiateDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayFastInitiateDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayFastInitiateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/PayFast/admin/process/{paymentId}": {
+      "post": {
+        "tags": [
+          "PayFast"
+        ],
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/PayFast/payments": {
+      "get": {
+        "tags": [
+          "PayFast"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/PayFast/redirect-success": {
+      "get": {
+        "tags": [
+          "PayFast"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/PayFast/redirect-cancel": {
+      "get": {
+        "tags": [
+          "PayFast"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/PayFast/notify": {
+      "post": {
+        "tags": [
+          "PayFast"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "form": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/StringStringValuesKeyValuePair"
+                    }
+                  }
+                }
+              },
+              "encoding": {
+                "form": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success"
@@ -3814,6 +3970,13 @@
               "type": "string",
               "format": "date-time"
             }
+          },
+          {
+            "name": "sessionType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3823,7 +3986,121 @@
         }
       }
     },
+    "/api/Reports/tutor-hours-detail": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Reports/revenue-detail": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Reports/monthly-student-enrollments": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Reports/module-catalogue": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/Reports/popular-modules": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Reports/module-enrollments": {
       "get": {
         "tags": [
           "Reports"
@@ -4138,6 +4415,30 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Reviews/admin/tutor": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Reviews/admin/session": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
         "responses": {
           "200": {
             "description": "Success"
@@ -4853,6 +5154,141 @@
           }
         }
       }
+    },
+    "/api/Users/{id}/archive": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Users/{id}/unarchive": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Users/{id}/profile-picture": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Users/{id}/restore-deleted": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/Users/{id}/permanent": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4861,10 +5297,14 @@
         "type": "object",
         "properties": {
           "staff_Number": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "job_Title": {
+            "maxLength": 100,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -4872,29 +5312,43 @@
         "additionalProperties": false
       },
       "AdminUserUpdateDto": {
+        "required": [
+          "firstName",
+          "lastName"
+        ],
         "type": "object",
         "properties": {
           "firstName": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
           },
           "lastName": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
           },
           "phone": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "address": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "bio": {
+            "maxLength": 500,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "roleId": {
+            "maximum": 4,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           }
@@ -4942,17 +5396,25 @@
         "additionalProperties": false
       },
       "AnnouncementCreateDto": {
+        "required": [
+          "announcement_Name"
+        ],
         "type": "object",
         "properties": {
           "announcement_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "announcement_Details": {
+            "maxLength": 2000,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "announcement_Type": {
+            "maxLength": 50,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
@@ -4967,6 +5429,8 @@
             "nullable": true
           },
           "module_Code": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -4974,21 +5438,31 @@
         "additionalProperties": false
       },
       "AnnouncementUpdateDto": {
+        "required": [
+          "announcement_Name"
+        ],
         "type": "object",
         "properties": {
           "announcement_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "announcement_Details": {
+            "maxLength": 2000,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "announcement_Type": {
+            "maxLength": 50,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "module_Code": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -5028,19 +5502,24 @@
         "additionalProperties": false
       },
       "AssignmentCreateDto": {
+        "required": [
+          "assignment_Name",
+          "module_Code"
+        ],
         "type": "object",
         "properties": {
           "assignment_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "assignment_Date": {
             "type": "string",
             "format": "date-time"
           },
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "minLength": 1,
+            "type": "string"
           },
           "assignment_URL": {
             "type": "string",
@@ -5095,10 +5574,14 @@
         "type": "object",
         "properties": {
           "student_ID": {
+            "maximum": 2147483647,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
           "booking_Slot_ID": {
+            "maximum": 2147483647,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           }
@@ -5106,6 +5589,9 @@
         "additionalProperties": false
       },
       "BookingSlotCreateDto": {
+        "required": [
+          "session_Type"
+        ],
         "type": "object",
         "properties": {
           "slot_Date": {
@@ -5117,10 +5603,13 @@
             "format": "time"
           },
           "session_Type": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
           },
           "location": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
@@ -5129,11 +5618,15 @@
             "format": "int32"
           },
           "max_Capacity": {
+            "maximum": 1000,
+            "minimum": 1,
             "type": "integer",
             "format": "int32",
             "nullable": true
           },
           "module_Code": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -5185,20 +5678,38 @@
         },
         "additionalProperties": false
       },
+      "BusinessRuleUpdateDto": {
+        "type": "object",
+        "properties": {
+          "rule_Value": {
+            "minimum": 0,
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
       "ChangePasswordDto": {
+        "required": [
+          "confirmPassword",
+          "currentPassword",
+          "newPassword"
+        ],
         "type": "object",
         "properties": {
           "currentPassword": {
-            "type": "string",
-            "nullable": true
+            "minLength": 1,
+            "type": "string"
           },
           "newPassword": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 8,
+            "type": "string"
           },
           "confirmPassword": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 8,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -5207,6 +5718,8 @@
         "type": "object",
         "properties": {
           "roleId": {
+            "maximum": 4,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           }
@@ -5214,15 +5727,20 @@
         "additionalProperties": false
       },
       "EnrollmentCreateDto": {
+        "required": [
+          "module_Code"
+        ],
         "type": "object",
         "properties": {
           "student_ID": {
+            "maximum": 2147483647,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "minLength": 1,
+            "type": "string"
           },
           "can_Book_OneOnOne": {
             "type": "boolean"
@@ -5287,25 +5805,35 @@
         "additionalProperties": false
       },
       "FAQCategoryCreateDto": {
+        "required": [
+          "category_Name"
+        ],
         "type": "object",
         "properties": {
           "category_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "FAQCreateDto": {
+        "required": [
+          "answer",
+          "question"
+        ],
         "type": "object",
         "properties": {
           "question": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
           },
           "answer": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
           },
           "faQ_Category_ID": {
             "type": "integer",
@@ -5315,15 +5843,21 @@
         "additionalProperties": false
       },
       "FAQUpdateDto": {
+        "required": [
+          "answer",
+          "question"
+        ],
         "type": "object",
         "properties": {
           "question": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
           },
           "answer": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
           },
           "faQ_Category_ID": {
             "type": "integer",
@@ -5333,15 +5867,21 @@
         "additionalProperties": false
       },
       "FolderVisibilityDto": {
+        "required": [
+          "folder_Name",
+          "module_Code"
+        ],
         "type": "object",
         "properties": {
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string"
           },
           "folder_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
           },
           "is_Visible": {
             "type": "boolean"
@@ -5350,11 +5890,16 @@
         "additionalProperties": false
       },
       "ForgotPasswordDto": {
+        "required": [
+          "email"
+        ],
         "type": "object",
         "properties": {
           "email": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
-            "nullable": true
+            "format": "email"
           }
         },
         "additionalProperties": false
@@ -5363,11 +5908,15 @@
         "type": "object",
         "properties": {
           "grade": {
+            "maximum": 100,
+            "minimum": 0,
             "type": "number",
             "format": "double",
             "nullable": true
           },
           "feedback": {
+            "maxLength": 1000,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -5413,29 +5962,41 @@
         "additionalProperties": false
       },
       "HelpPageCreateDto": {
+        "required": [
+          "help_Page_Description",
+          "help_Page_Title"
+        ],
         "type": "object",
         "properties": {
           "help_Page_Title": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "help_Page_Description": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "HelpResourceCreateDto": {
+        "required": [
+          "video_Title",
+          "video_URL"
+        ],
         "type": "object",
         "properties": {
           "video_Title": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "video_URL": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -5452,6 +6013,8 @@
             "format": "time"
           },
           "log_Hours_Amount": {
+            "maximum": 24,
+            "minimum": 0,01,
             "type": "number",
             "format": "double"
           },
@@ -5505,15 +6068,21 @@
         "additionalProperties": false
       },
       "MediaCreateDto": {
+        "required": [
+          "media_Address",
+          "media_Name"
+        ],
         "type": "object",
         "properties": {
           "media_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "media_Address": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -5545,25 +6114,35 @@
         "additionalProperties": false
       },
       "ModuleCreateDto": {
+        "required": [
+          "module_Code",
+          "module_Name"
+        ],
         "type": "object",
         "properties": {
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
           },
           "module_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
           },
           "module_Description": {
+            "maxLength": 500,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "module_Price_OneOnOne": {
+            "minimum": 0,
             "type": "number",
             "format": "double"
           },
           "module_Price_Group": {
+            "minimum": 0,
             "type": "number",
             "format": "double"
           }
@@ -5686,6 +6265,49 @@
         },
         "additionalProperties": false
       },
+      "PayFastInitiateDto": {
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayFastLineItem"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PayFastLineItem": {
+        "type": "object",
+        "properties": {
+          "moduleCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "moduleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "sessionType": {
+            "type": "string",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
       "Payment": {
         "type": "object",
         "properties": {
@@ -5725,6 +6347,10 @@
             "type": "string",
             "nullable": true
           },
+          "enrollment_Items_Json": {
+            "type": "string",
+            "nullable": true
+          },
           "student_ID": {
             "type": "integer",
             "format": "int32"
@@ -5743,29 +6369,43 @@
         "additionalProperties": false
       },
       "PaymentCreateDto": {
+        "required": [
+          "module_Code"
+        ],
         "type": "object",
         "properties": {
           "amount": {
+            "minimum": 0,01,
             "type": "number",
             "format": "double"
           },
           "account_Name": {
+            "maxLength": 100,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "account_Number": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "branch_Code": {
+            "maxLength": 10,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "bank": {
+            "maxLength": 50,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "payment_Reference": {
+            "maxLength": 100,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
@@ -5774,8 +6414,9 @@
             "format": "int32"
           },
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -5847,13 +6488,20 @@
         "additionalProperties": false
       },
       "QuizCreateDto": {
+        "required": [
+          "module_Code",
+          "quiz_Name"
+        ],
         "type": "object",
         "properties": {
           "quiz_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "quiz_Details": {
+            "maxLength": 1000,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
@@ -5862,18 +6510,22 @@
             "format": "date-time"
           },
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "QuizOptionSaveDto": {
+        "required": [
+          "option_Text"
+        ],
         "type": "object",
         "properties": {
           "option_Text": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
           },
           "is_Correct": {
             "type": "boolean"
@@ -5882,17 +6534,22 @@
         "additionalProperties": false
       },
       "QuizQuestionSaveDto": {
+        "required": [
+          "question_Text"
+        ],
         "type": "object",
         "properties": {
           "question_Text": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string"
           },
           "question_Order": {
             "type": "integer",
             "format": "int32"
           },
           "options": {
+            "minItems": 2,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/QuizOptionSaveDto"
@@ -5906,10 +6563,13 @@
         "type": "object",
         "properties": {
           "student_ID": {
+            "maximum": 2147483647,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
           "answers": {
+            "minItems": 1,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StudentAnswerDto"
@@ -5920,43 +6580,64 @@
         "additionalProperties": false
       },
       "ResetPasswordDto": {
+        "required": [
+          "email",
+          "newPassword",
+          "resetCode"
+        ],
         "type": "object",
         "properties": {
           "email": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
-            "nullable": true
+            "format": "email"
           },
           "resetCode": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 10,
+            "minLength": 0,
+            "type": "string"
           },
           "newPassword": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 8,
+            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "ResourceCreateDto": {
+        "required": [
+          "module_Code",
+          "module_Resource_Name",
+          "module_Resource_Type_ID",
+          "resource_URL"
+        ],
         "type": "object",
         "properties": {
           "module_Resource_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
           },
           "module_Resource_Type_ID": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 10,
+            "minLength": 0,
+            "type": "string"
           },
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string"
           },
           "resource_URL": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string"
           },
           "folder_Name": {
+            "maxLength": 100,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -5976,10 +6657,14 @@
         "type": "object",
         "properties": {
           "rating": {
+            "maximum": 5,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
           "description": {
+            "maxLength": 1000,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
@@ -6012,14 +6697,34 @@
         },
         "additionalProperties": false
       },
+      "StringStringValuesKeyValuePair": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "StudentAnswerDto": {
         "type": "object",
         "properties": {
           "question_ID": {
+            "maximum": 2147483647,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
           "option_ID": {
+            "maximum": 2147483647,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           }
@@ -6030,19 +6735,27 @@
         "type": "object",
         "properties": {
           "student_Number": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "faculty": {
+            "maxLength": 100,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "year_Of_Study": {
+            "maximum": 10,
+            "minimum": 1,
             "type": "integer",
             "format": "int32",
             "nullable": true
           },
           "degree_Program": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -6050,21 +6763,29 @@
         "additionalProperties": false
       },
       "TestimonialCategoryCreateDto": {
+        "required": [
+          "test_Category_Name"
+        ],
         "type": "object",
         "properties": {
           "test_Category_Name": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "TestimonialCreateDto": {
+        "required": [
+          "description"
+        ],
         "type": "object",
         "properties": {
           "description": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
           },
           "student_ID": {
             "type": "integer",
@@ -6078,11 +6799,15 @@
         "additionalProperties": false
       },
       "TestimonialUpdateDto": {
+        "required": [
+          "description"
+        ],
         "type": "object",
         "properties": {
           "description": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
           },
           "testimonial_Category_ID": {
             "type": "integer",
@@ -6092,15 +6817,20 @@
         "additionalProperties": false
       },
       "TutorModuleAssignDto": {
+        "required": [
+          "module_Code"
+        ],
         "type": "object",
         "properties": {
           "tutor_ID": {
+            "maximum": 2147483647,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
           "module_Code": {
-            "type": "string",
-            "nullable": true
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -6142,18 +6872,26 @@
         "type": "object",
         "properties": {
           "employee_Number": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "qualifications": {
+            "maxLength": 500,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "specialization": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "years_Of_Experience": {
+            "maximum": 60,
+            "minimum": 0,
             "type": "integer",
             "format": "int32",
             "nullable": true
@@ -6165,6 +6903,8 @@
         "type": "object",
         "properties": {
           "rating": {
+            "maximum": 5,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
@@ -6229,20 +6969,37 @@
           "bio": {
             "type": "string",
             "nullable": true
+          },
+          "is_Archived": {
+            "type": "boolean"
+          },
+          "is_Deleted": {
+            "type": "boolean"
+          },
+          "profile_Picture_Url": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
       },
       "UserLoginDto": {
+        "required": [
+          "email",
+          "password"
+        ],
         "type": "object",
         "properties": {
           "email": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
-            "nullable": true
+            "format": "email"
           },
           "password": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -6285,30 +7042,52 @@
           "roleName": {
             "type": "string",
             "nullable": true
+          },
+          "is_Archived": {
+            "type": "boolean"
+          },
+          "is_Deleted": {
+            "type": "boolean"
+          },
+          "profile_Picture_Url": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
       },
       "UserProfileUpdateDto": {
+        "required": [
+          "firstName",
+          "lastName"
+        ],
         "type": "object",
         "properties": {
           "firstName": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
           },
           "lastName": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
           },
           "phone": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "address": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "bio": {
+            "maxLength": 500,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }
@@ -6316,37 +7095,56 @@
         "additionalProperties": false
       },
       "UserRegisterDto": {
+        "required": [
+          "email",
+          "firstName",
+          "lastName",
+          "password"
+        ],
         "type": "object",
         "properties": {
           "firstName": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
           },
           "lastName": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
           },
           "email": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
-            "nullable": true
+            "format": "email"
           },
           "password": {
-            "type": "string",
-            "nullable": true
+            "maxLength": 100,
+            "minLength": 8,
+            "type": "string"
           },
           "roleId": {
+            "maximum": 4,
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           },
           "phone": {
+            "maxLength": 20,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "address": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           },
           "bio": {
+            "maxLength": 500,
+            "minLength": 0,
             "type": "string",
             "nullable": true
           }

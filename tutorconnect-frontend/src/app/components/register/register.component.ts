@@ -41,6 +41,7 @@ export class RegisterComponent {
     if (value.length < 8) { this.fieldErrors['password'] = 'Must be at least 8 characters.'; return; }
     if (!/[A-Z]/.test(value)) { this.fieldErrors['password'] = 'Must contain at least one uppercase letter.'; return; }
     if (!/[0-9]/.test(value)) { this.fieldErrors['password'] = 'Must contain at least one number.'; return; }
+    if (!/[^a-zA-Z0-9]/.test(value)) { this.fieldErrors['password'] = 'Must contain at least one special character.'; return; }
     delete this.fieldErrors['password'];
     if (this.confirmPassword) this.validateConfirm(this.confirmPassword);
   }

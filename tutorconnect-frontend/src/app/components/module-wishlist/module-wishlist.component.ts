@@ -29,6 +29,7 @@ export class ModuleWishlistComponent implements OnInit {
   formCode = '';
   formName = '';
   saving = false;
+  fieldErrors: Record<string, string> = {};
 
   confirmDeleteId: number | null = null;
 
@@ -50,11 +51,22 @@ export class ModuleWishlistComponent implements OnInit {
     });
   }
 
+  validateCode(val: string) {
+    if (!val?.trim()) { this.fieldErrors['code'] = 'Module code is required.'; }
+    else if (val.trim().length < 2) { this.fieldErrors['code'] = 'Module code must be at least 2 characters.'; }
+    else { delete this.fieldErrors['code']; }
+  }
+
+  validateName(val: string) {
+    if (!val?.trim()) { this.fieldErrors['name'] = 'Module name is required.'; }
+    else if (val.trim().length < 3) { this.fieldErrors['name'] = 'Module name must be at least 3 characters.'; }
+    else { delete this.fieldErrors['name']; }
+  }
+
   submit() {
-    if (!this.formCode.trim() || !this.formName.trim()) {
-      this.errorMessage = 'Please enter both a module code and module name.';
-      return;
-    }
+    this.validateCode(this.formCode);
+    this.validateName(this.formName);
+    if (Object.keys(this.fieldErrors).length > 0) return;
     this.saving = true;
     this.clearMessages();
     this.http.post<WishlistItem>(`${this.apiUrl}/ModuleWishlist`, {
@@ -67,11 +79,12 @@ export class ModuleWishlistComponent implements OnInit {
         this.successMessage = 'Module added to your wishlist!';
         this.formCode = '';
         this.formName = '';
+        this.fieldErrors = {};
         this.loadItems();
       },
       error: (err) => {
         this.saving = false;
-        this.errorMessage = err?.error || 'Failed to submit wishlist item.';
+        this.errorMessage = err?.error || 'Failed to submit wishlist item. Please try again.';
       }
     });
   }

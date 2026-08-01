@@ -39,12 +39,9 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("User_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("User_ID1")
-                        .HasColumnType("int");
-
                     b.HasKey("Admin_ID");
 
-                    b.HasIndex("User_ID1");
+                    b.HasIndex("User_ID");
 
                     b.ToTable("Admin_Profiles");
                 });
@@ -111,14 +108,11 @@ namespace TutorConnect.API.Migrations
 
                     b.Property<string>("Module_Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Module_Code1")
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Assignment_ID");
 
-                    b.HasIndex("Module_Code1");
+                    b.HasIndex("Module_Code");
 
                     b.ToTable("Assignments");
                 });
@@ -220,6 +214,8 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Audit_Log_ID");
 
+                    b.HasIndex("User_ID");
+
                     b.ToTable("Audit_Logs");
                 });
 
@@ -234,9 +230,6 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("Booking_Slot_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("StudentUser_ID")
-                        .HasColumnType("int");
-
                     b.Property<int>("Student_ID")
                         .HasColumnType("int");
 
@@ -244,7 +237,7 @@ namespace TutorConnect.API.Migrations
 
                     b.HasIndex("Booking_Slot_ID");
 
-                    b.HasIndex("StudentUser_ID");
+                    b.HasIndex("Student_ID");
 
                     b.ToTable("Bookings");
                 });
@@ -330,6 +323,8 @@ namespace TutorConnect.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("FAQ_ID");
+
+                    b.HasIndex("FAQ_Category_ID");
 
                     b.ToTable("FAQs");
                 });
@@ -497,9 +492,6 @@ namespace TutorConnect.API.Migrations
 
                     b.Property<string>("Module_Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Module_Code1")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Module_Resource_Name")
@@ -516,7 +508,7 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Module_Resource_ID");
 
-                    b.HasIndex("Module_Code1");
+                    b.HasIndex("Module_Code");
 
                     b.ToTable("Module_Resources");
                 });
@@ -545,6 +537,8 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Wishlist_ID");
 
+                    b.HasIndex("Student_ID");
+
                     b.ToTable("Module_Wishlists");
                 });
 
@@ -569,12 +563,9 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("User_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("User_ID1")
-                        .HasColumnType("int");
-
                     b.HasKey("Notification_ID");
 
-                    b.HasIndex("User_ID1");
+                    b.HasIndex("User_ID");
 
                     b.ToTable("Notifications");
                 });
@@ -607,9 +598,6 @@ namespace TutorConnect.API.Migrations
 
                     b.Property<string>("Module_Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Module_Code1")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("Payment_Date")
@@ -622,17 +610,14 @@ namespace TutorConnect.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("StudentUser_ID")
-                        .HasColumnType("int");
-
                     b.Property<int>("Student_ID")
                         .HasColumnType("int");
 
                     b.HasKey("Payment_ID");
 
-                    b.HasIndex("Module_Code1");
+                    b.HasIndex("Module_Code");
 
-                    b.HasIndex("StudentUser_ID");
+                    b.HasIndex("Student_ID");
 
                     b.ToTable("Payments");
                 });
@@ -650,9 +635,6 @@ namespace TutorConnect.API.Migrations
 
                     b.Property<string>("Module_Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Module_Code1")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("Quiz_Date")
@@ -668,7 +650,7 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Quiz_ID");
 
-                    b.HasIndex("Module_Code1");
+                    b.HasIndex("Module_Code");
 
                     b.ToTable("Quizzes");
                 });
@@ -693,6 +675,8 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Question_ID");
 
+                    b.HasIndex("Quiz_ID");
+
                     b.ToTable("Quiz_Questions");
                 });
 
@@ -715,6 +699,8 @@ namespace TutorConnect.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Option_ID");
+
+                    b.HasIndex("Question_ID");
 
                     b.ToTable("Quiz_Question_Options");
                 });
@@ -782,9 +768,6 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("Attendance_Status_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Attendance_Status_ID1")
-                        .HasColumnType("int");
-
                     b.Property<string>("Session_Attendance_Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -797,7 +780,7 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Session_Attendance_ID");
 
-                    b.HasIndex("Attendance_Status_ID1");
+                    b.HasIndex("Attendance_Status_ID");
 
                     b.ToTable("Session_Attendances");
                 });
@@ -824,6 +807,8 @@ namespace TutorConnect.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Session_Review_ID");
+
+                    b.HasIndex("Student_ID");
 
                     b.ToTable("Session_Reviews");
                 });
@@ -856,15 +841,14 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("Student_Group_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Student_Group_ID1")
-                        .HasColumnType("int");
-
                     b.Property<int>("Student_ID")
                         .HasColumnType("int");
 
                     b.HasKey("Allocation_ID");
 
-                    b.HasIndex("Student_Group_ID1");
+                    b.HasIndex("Student_Group_ID");
+
+                    b.HasIndex("Student_ID");
 
                     b.ToTable("Student_Group_Allocations");
                 });
@@ -931,15 +915,12 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("User_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("User_ID1")
-                        .HasColumnType("int");
-
                     b.Property<int?>("Year_Of_Study")
                         .HasColumnType("int");
 
                     b.HasKey("Student_ID");
 
-                    b.HasIndex("User_ID1");
+                    b.HasIndex("User_ID");
 
                     b.ToTable("Student_Profiles");
                 });
@@ -958,9 +939,6 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("Quiz_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Quiz_ID1")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("Quiz_Score")
                         .HasColumnType("decimal(18,2)");
 
@@ -975,7 +953,9 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Student_Quiz_ID");
 
-                    b.HasIndex("Quiz_ID1");
+                    b.HasIndex("Quiz_ID");
+
+                    b.HasIndex("Student_ID");
 
                     b.ToTable("Student_Quizzes");
                 });
@@ -999,6 +979,12 @@ namespace TutorConnect.API.Migrations
 
                     b.HasKey("Answer_ID");
 
+                    b.HasIndex("Option_ID");
+
+                    b.HasIndex("Question_ID");
+
+                    b.HasIndex("Student_Quiz_ID");
+
                     b.ToTable("Student_Quiz_Answers");
                 });
 
@@ -1017,9 +1003,6 @@ namespace TutorConnect.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<int?>("StudentUser_ID")
-                        .HasColumnType("int");
-
                     b.Property<int>("Student_ID")
                         .HasColumnType("int");
 
@@ -1033,7 +1016,7 @@ namespace TutorConnect.API.Migrations
 
                     b.HasIndex("Module_Code");
 
-                    b.HasIndex("StudentUser_ID");
+                    b.HasIndex("Student_ID");
 
                     b.ToTable("Student_Unenrollments");
                 });
@@ -1060,6 +1043,10 @@ namespace TutorConnect.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Testimonial_ID");
+
+                    b.HasIndex("Student_ID");
+
+                    b.HasIndex("Testimonial_Category_ID");
 
                     b.ToTable("Testimonials");
                 });
@@ -1131,15 +1118,12 @@ namespace TutorConnect.API.Migrations
                     b.Property<int>("User_ID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("User_ID1")
-                        .HasColumnType("int");
-
                     b.Property<int?>("Years_Of_Experience")
                         .HasColumnType("int");
 
                     b.HasKey("Tutor_ID");
 
-                    b.HasIndex("User_ID1");
+                    b.HasIndex("User_ID");
 
                     b.ToTable("Tutor_Profiles");
                 });
@@ -1162,6 +1146,10 @@ namespace TutorConnect.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Tutor_Review_ID");
+
+                    b.HasIndex("Student_ID");
+
+                    b.HasIndex("Tutor_ID");
 
                     b.ToTable("Tutor_Reviews");
                 });
@@ -1188,6 +1176,12 @@ namespace TutorConnect.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("Is_Archived")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Is_Deleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1203,6 +1197,9 @@ namespace TutorConnect.API.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Profile_Picture_Url")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("User_Role_ID")
@@ -1236,7 +1233,9 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("User_ID1");
+                        .HasForeignKey("User_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -1245,7 +1244,9 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.Module", "Module")
                         .WithMany()
-                        .HasForeignKey("Module_Code1");
+                        .HasForeignKey("Module_Code")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Module");
                 });
@@ -1261,12 +1262,21 @@ namespace TutorConnect.API.Migrations
                     b.HasOne("TutorConnect.API.Models.User", "Student")
                         .WithMany()
                         .HasForeignKey("Student_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Assignment");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Audit_Log", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("User_ID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Booking", b =>
@@ -1279,7 +1289,9 @@ namespace TutorConnect.API.Migrations
 
                     b.HasOne("TutorConnect.API.Models.User", "Student")
                         .WithMany()
-                        .HasForeignKey("StudentUser_ID");
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("Booking_Slot");
 
@@ -1291,10 +1303,19 @@ namespace TutorConnect.API.Migrations
                     b.HasOne("TutorConnect.API.Models.User", "Tutor")
                         .WithMany()
                         .HasForeignKey("Tutor_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Tutor");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.FAQ", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.FAQ_Category", null)
+                        .WithMany()
+                        .HasForeignKey("FAQ_Category_ID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Log_Hours", b =>
@@ -1302,7 +1323,7 @@ namespace TutorConnect.API.Migrations
                     b.HasOne("TutorConnect.API.Models.User", "Tutor")
                         .WithMany()
                         .HasForeignKey("Tutor_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Tutor");
@@ -1312,16 +1333,29 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.Module", "Module")
                         .WithMany()
-                        .HasForeignKey("Module_Code1");
+                        .HasForeignKey("Module_Code")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Module");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Module_Wishlist", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Notification", b =>
                 {
                     b.HasOne("TutorConnect.API.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("User_ID1");
+                        .HasForeignKey("User_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -1330,11 +1364,15 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.Module", "Module")
                         .WithMany()
-                        .HasForeignKey("Module_Code1");
+                        .HasForeignKey("Module_Code")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("TutorConnect.API.Models.User", "Student")
                         .WithMany()
-                        .HasForeignKey("StudentUser_ID");
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Module");
 
@@ -1345,25 +1383,64 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.Module", "Module")
                         .WithMany()
-                        .HasForeignKey("Module_Code1");
+                        .HasForeignKey("Module_Code")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Module");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Quiz_Question", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.Quiz", null)
+                        .WithMany()
+                        .HasForeignKey("Quiz_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Quiz_Question_Option", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.Quiz_Question", null)
+                        .WithMany()
+                        .HasForeignKey("Question_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Session_Attendance", b =>
                 {
                     b.HasOne("TutorConnect.API.Models.Attendance_Status", "Attendance_Status")
                         .WithMany()
-                        .HasForeignKey("Attendance_Status_ID1");
+                        .HasForeignKey("Attendance_Status_ID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Attendance_Status");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Session_Review", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Student_Group_Allocation", b =>
                 {
                     b.HasOne("TutorConnect.API.Models.Student_Group", "Student_Group")
                         .WithMany()
-                        .HasForeignKey("Student_Group_ID1");
+                        .HasForeignKey("Student_Group_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("Student_Group");
                 });
@@ -1379,7 +1456,7 @@ namespace TutorConnect.API.Migrations
                     b.HasOne("TutorConnect.API.Models.User", "Student")
                         .WithMany()
                         .HasForeignKey("Student_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Module");
@@ -1391,7 +1468,9 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("User_ID1");
+                        .HasForeignKey("User_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -1400,9 +1479,38 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.Quiz", "Quiz")
                         .WithMany()
-                        .HasForeignKey("Quiz_ID1");
+                        .HasForeignKey("Quiz_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("Quiz");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Student_Quiz_Answer", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.Quiz_Question_Option", null)
+                        .WithMany()
+                        .HasForeignKey("Option_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TutorConnect.API.Models.Quiz_Question", null)
+                        .WithMany()
+                        .HasForeignKey("Question_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TutorConnect.API.Models.Student_Quiz", null)
+                        .WithMany()
+                        .HasForeignKey("Student_Quiz_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Student_Unenrollment", b =>
@@ -1410,16 +1518,33 @@ namespace TutorConnect.API.Migrations
                     b.HasOne("TutorConnect.API.Models.Module", "Module")
                         .WithMany()
                         .HasForeignKey("Module_Code")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("TutorConnect.API.Models.User", "Student")
                         .WithMany()
-                        .HasForeignKey("StudentUser_ID");
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("Module");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Testimonial", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TutorConnect.API.Models.Testimonial_Category", null)
+                        .WithMany()
+                        .HasForeignKey("Testimonial_Category_ID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Tutor_Module", b =>
@@ -1433,7 +1558,7 @@ namespace TutorConnect.API.Migrations
                     b.HasOne("TutorConnect.API.Models.User", "Tutor")
                         .WithMany()
                         .HasForeignKey("Tutor_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Module");
@@ -1445,9 +1570,26 @@ namespace TutorConnect.API.Migrations
                 {
                     b.HasOne("TutorConnect.API.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("User_ID1");
+                        .HasForeignKey("User_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Tutor_Review", b =>
+                {
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("Student_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TutorConnect.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("Tutor_ID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.User", b =>
@@ -1455,7 +1597,7 @@ namespace TutorConnect.API.Migrations
                     b.HasOne("TutorConnect.API.Models.User_Role", "User_Role")
                         .WithMany("Users")
                         .HasForeignKey("User_Role_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("User_Role");

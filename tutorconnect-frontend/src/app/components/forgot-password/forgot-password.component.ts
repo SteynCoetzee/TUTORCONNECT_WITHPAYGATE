@@ -24,15 +24,53 @@ export class ForgotPasswordComponent {
   successMessage = '';
   showPassword = false;
   showConfirmPassword = false;
+  fieldErrors: Record<string, string> = {};
   private apiUrl = environment.apiUrl;
 
   constructor(private http: HttpClient, private router: Router) {}
 
-  requestReset() {
-    if (!this.email) {
-      this.errorMessage = 'Please enter your email address.';
-      return;
+  private emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  validateEmail(value: string) {
+    if (!value.trim()) {
+      this.fieldErrors['email'] = 'Email address is required.';
+    } else if (!this.emailRegex.test(value.trim())) {
+      this.fieldErrors['email'] = 'Please enter a valid email address (e.g. you@university.edu).';
+    } else {
+      delete this.fieldErrors['email'];
     }
+  }
+
+  validateNewPassword(value: string) {
+    if (!value) {
+      this.fieldErrors['password'] = 'New password is required.';
+    } else if (value.length < 8) {
+      this.fieldErrors['password'] = 'Password must be at least 8 characters long.';
+    } else if (!/[A-Z]/.test(value)) {
+      this.fieldErrors['password'] = 'Password must contain at least one uppercase letter.';
+    } else if (!/[0-9]/.test(value)) {
+      this.fieldErrors['password'] = 'Password must contain at least one number.';
+    } else if (!/[^a-zA-Z0-9]/.test(value)) {
+      this.fieldErrors['password'] = 'Password must contain at least one special character (e.g. !@#$%).';
+    } else {
+      delete this.fieldErrors['password'];
+    }
+    if (this.confirmPassword) this.validateConfirm(this.confirmPassword);
+  }
+
+  validateConfirm(value: string) {
+    if (!value) {
+      this.fieldErrors['confirm'] = 'Please confirm your new password.';
+    } else if (value !== this.newPassword) {
+      this.fieldErrors['confirm'] = 'Passwords do not match.';
+    } else {
+      delete this.fieldErrors['confirm'];
+    }
+  }
+
+  requestReset() {
+    this.validateEmail(this.email);
+    if (this.fieldErrors['email']) return;
 
     this.loading = true;
     this.errorMessage = '';
@@ -41,25 +79,22 @@ export class ForgotPasswordComponent {
     this.http.post(`${this.apiUrl}/Auth/forgot-password`, { email: this.email }).subscribe({
       next: (response: any) => {
         this.loading = false;
-        this.successMessage = response.message || 'Reset code sent to your email.';
-        // For development: show the reset code
-        if (response.resetCode) {
-          alert(`Development mode: Your reset code is ${response.resetCode}`);
-        }
+        this.successMessage = response.message || 'If this email is registered, a reset code has been sent.';
         this.step = 'code';
       },
-      error: (err) => {
+      error: () => {
         this.loading = false;
-        this.errorMessage = err.error || 'Failed to process request.';
+        this.errorMessage = 'Something went wrong. Please try again later.';
       }
     });
   }
 
   verifyCode() {
-    if (!this.resetCode) {
-      this.errorMessage = 'Please enter the OTP sent to your email.';
+    if (!this.resetCode || this.resetCode.length < 6) {
+      this.fieldErrors['code'] = 'Please enter the 6-character code from your email.';
       return;
     }
+    delete this.fieldErrors['code'];
 
     this.loading = true;
     this.errorMessage = '';
@@ -73,9 +108,9 @@ export class ForgotPasswordComponent {
         this.loading = false;
         this.step = 'password';
       },
-      error: (err) => {
+      error: () => {
         this.loading = false;
-        this.errorMessage = err.error || 'Incorrect OTP. Please check your email and try again.';
+        this.errorMessage = 'Incorrect or expired code. Please check your email and try again.';
       }
     });
   }
@@ -97,30 +132,9 @@ export class ForgotPasswordComponent {
   }
 
   resetPassword() {
-    if (!this.newPassword || !this.confirmPassword) {
-      this.errorMessage = 'Please fill in all password fields.';
-      return;
-    }
-    if (this.newPassword.length < 8) {
-      this.errorMessage = 'Password must be at least 8 characters.';
-      return;
-    }
-    if (!/[A-Z]/.test(this.newPassword)) {
-      this.errorMessage = 'Password must contain at least one uppercase letter.';
-      return;
-    }
-    if (!/[0-9]/.test(this.newPassword)) {
-      this.errorMessage = 'Password must contain at least one number.';
-      return;
-    }
-    if (!/[^a-zA-Z0-9]/.test(this.newPassword)) {
-      this.errorMessage = 'Password must contain at least one special character (e.g. !@#$%).';
-      return;
-    }
-    if (this.newPassword !== this.confirmPassword) {
-      this.errorMessage = 'Passwords do not match.';
-      return;
-    }
+    this.validateNewPassword(this.newPassword);
+    this.validateConfirm(this.confirmPassword);
+    if (this.fieldErrors['password'] || this.fieldErrors['confirm']) return;
 
     this.loading = true;
     this.errorMessage = '';
@@ -132,12 +146,12 @@ export class ForgotPasswordComponent {
     }).subscribe({
       next: () => {
         this.loading = false;
-        this.successMessage = 'Password successfully reset! Redirecting to login...';
+        this.successMessage = 'Password reset successfully! Redirecting to login...';
         setTimeout(() => this.router.navigate(['/login']), 2000);
       },
-      error: (err) => {
+      error: () => {
         this.loading = false;
-        this.errorMessage = err.error || 'Failed to reset password.';
+        this.errorMessage = 'Failed to reset password. Your code may have expired — please start again.';
       }
     });
   }
@@ -152,5 +166,11 @@ export class ForgotPasswordComponent {
       this.confirmPassword = '';
     }
     this.errorMessage = '';
+    this.fieldErrors = {};
+  }
+
+  onResetCodeChange(val: string) {
+    this.resetCode = val.toUpperCase();
+    if (this.resetCode.length >= 6) delete this.fieldErrors['code'];
   }
 }
