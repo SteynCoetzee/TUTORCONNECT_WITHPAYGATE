@@ -404,7 +404,11 @@ export class ReportsComponent implements OnInit, OnDestroy {
 
       // Detail rows
       const head = [rowKeys.map(k => this.humanKey(k))];
-      const body = group.rows.map(r => rowKeys.map(k => this.fmtPdf(r[k])));
+      const body = group.rows.map(r => rowKeys.map(k =>
+        (this.activeTx === 'revenue-detail' && k === 'amount')
+          ? `R ${Number(r[k]).toFixed(2)}`
+          : this.fmtPdf(r[k])
+      ));
       autoTable(doc, {
         startY: y,
         head,
