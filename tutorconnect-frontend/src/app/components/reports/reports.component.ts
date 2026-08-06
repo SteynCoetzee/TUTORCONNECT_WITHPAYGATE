@@ -106,8 +106,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
     } else if (this.activeSimple === 'module-catalogue') {
       if (q) data = data.filter(r =>
         String(r['moduleCode'] ?? '').toLowerCase().includes(q) ||
-        String(r['moduleName'] ?? '').toLowerCase().includes(q) ||
-        String(r['moduleDescription'] ?? '').toLowerCase().includes(q));
+        String(r['moduleName'] ?? '').toLowerCase().includes(q));
 
     } else if (this.activeSimple === 'monthly-enrollments') {
       if (q) data = data.filter(r =>

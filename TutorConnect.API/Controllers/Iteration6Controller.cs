@@ -222,18 +222,28 @@ namespace TutorConnect.API.Controllers
         public async Task<ActionResult> GetModuleCatalogue()
         {
             var modules = await _context.Modules.ToListAsync();
-            var enrolled = await _context.Student_Modules
+
+            // Count 1-on-1 and group enrolments separately per module
+            var enrollments = await _context.Student_Modules
                 .Where(sm => sm.IsActive)
+                .Select(sm => new { sm.Module_Code, sm.Can_Book_OneOnOne, sm.Can_Book_Group })
+                .ToListAsync();
+
+            var oneOnOneCounts = enrollments
+                .Where(sm => sm.Can_Book_OneOnOne)
                 .GroupBy(sm => sm.Module_Code)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count);
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var groupCounts = enrollments
+                .Where(sm => sm.Can_Book_Group)
+                .GroupBy(sm => sm.Module_Code)
+                .ToDictionary(g => g.Key, g => g.Count());
 
             return Ok(modules.Select(m => new {
-                ModuleCode      = m.Module_Code,
-                ModuleName      = m.Module_Name,
-                Price1On1       = m.Module_Price_OneOnOne,
-                PriceGroup      = m.Module_Price_Group,
-                EnrolledStudents = enrolled.GetValueOrDefault(m.Module_Code, 0)
+                ModuleCode         = m.Module_Code,
+                ModuleName         = m.Module_Name,
+                OneOnOneStudents   = oneOnOneCounts.GetValueOrDefault(m.Module_Code, 0),
+                GroupStudents      = groupCounts.GetValueOrDefault(m.Module_Code, 0)
             }).OrderBy(m => m.ModuleCode));
         }
 
