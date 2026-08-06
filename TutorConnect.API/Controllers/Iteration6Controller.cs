@@ -188,31 +188,32 @@ namespace TutorConnect.API.Controllers
         }
 
         // ── Monthly Student Enrollments (simple list) ────────────────────────
+        // Shows students who joined the system for the first time each month
         [HttpGet("monthly-student-enrollments")]
         public async Task<ActionResult> GetMonthlyStudentEnrollments()
         {
-            var all = await _context.Student_Modules
-                .Select(sm => new { sm.Enrollment_Date })
+            // Get each student's very first enrollment date (= when they joined)
+            var firstJoins = await _context.Student_Modules
+                .Include(sm => sm.Student)
+                .GroupBy(sm => sm.Student_ID)
+                .Select(g => new {
+                    FirstDate   = g.Min(sm => sm.Enrollment_Date),
+                    Student     = g.First().Student
+                })
                 .ToListAsync();
 
-            var months = all
-                .GroupBy(sm => new { sm.Enrollment_Date.Year, sm.Enrollment_Date.Month })
+            var result = firstJoins
+                .GroupBy(x => new { x.FirstDate.Year, x.FirstDate.Month })
                 .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
-                .ToList();
-
-            var result = months.Select(g =>
-            {
-                var cutoff = new DateTime(g.Key.Year, g.Key.Month,
-                    DateTime.DaysInMonth(g.Key.Year, g.Key.Month), 23, 59, 59);
-
-                var cumulativeTotal = all.Count(sm => sm.Enrollment_Date <= cutoff);
-
-                return new {
-                    Month            = $"{MonthName(g.Key.Month)} {g.Key.Year}",
-                    StudentsEnrolled = cumulativeTotal,
-                    NewEnrollments   = g.Count()
-                };
-            });
+                .Select(g => new {
+                    Month          = $"{MonthName(g.Key.Month)} {g.Key.Year}",
+                    NewStudents    = string.Join(", ", g
+                        .Select(x => x.Student != null
+                            ? x.Student.FirstName + " " + x.Student.LastName
+                            : "Unknown")
+                        .OrderBy(n => n)),
+                    Count          = g.Count()
+                });
 
             return Ok(result);
         }

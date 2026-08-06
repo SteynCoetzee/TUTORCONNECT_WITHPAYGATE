@@ -67,9 +67,8 @@
 .nav-avatar {
   width: 44px; height: 44px;
   border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  object-fit: cover;
   font-weight: 700; font-size: 16px;
 }
 .brand-text { display: flex; flex-direction: column; }

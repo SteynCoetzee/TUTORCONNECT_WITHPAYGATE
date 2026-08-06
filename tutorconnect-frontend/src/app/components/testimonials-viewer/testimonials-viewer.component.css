@@ -8,9 +8,7 @@
 .pub-brand { display: flex; align-items: center; gap: 12px; }
 .pub-avatar {
   width: 40px; height: 40px; border-radius: 50%;
-  background: var(--primary); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px; flex-shrink: 0;
+  background: transparent; object-fit: cover; flex-shrink: 0;
 }
 .pub-brand-text { display: flex; flex-direction: column; }
 .pub-brand-title { color: #fff; font-weight: 700; font-size: 15px; line-height: 1.2; }

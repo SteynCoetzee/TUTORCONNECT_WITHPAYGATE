@@ -29,8 +29,8 @@
 .brand-avatar {
   width: 38px; height: 38px;
   border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
+  background: transparent;
+  object-fit: cover;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 14px;
   flex-shrink: 0;

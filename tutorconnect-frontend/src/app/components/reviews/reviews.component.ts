@@ -216,7 +216,12 @@ export class ReviewsComponent implements OnInit {
         this.showTutorForm = false;
         this.loadTutorReviews();
       },
-      error: () => { this.savingTutor = false; this.errorMessage = 'Failed to submit review. You may have already reviewed this tutor.'; }
+      error: (err) => {
+        this.savingTutor = false;
+        this.errorMessage = err?.error && typeof err.error === 'string'
+          ? err.error
+          : 'Failed to submit review. You may have already reviewed this tutor.';
+      }
     });
   }
 

@@ -935,6 +935,15 @@ namespace TutorConnect.API.Controllers
         [HttpPost("tutor")]
         public async Task<ActionResult> CreateTutorReview(TutorReviewCreateDto request)
         {
+            // A student may only review a tutor they have booked at least one session with
+            var hasBooked = await _context.Bookings
+                .Include(b => b.Booking_Slot)
+                .AnyAsync(b => b.Student_ID == request.Student_ID
+                            && b.Booking_Slot!.Tutor_ID == request.Tutor_ID);
+
+            if (!hasBooked)
+                return BadRequest("You can only rate a tutor after booking your first session with them.");
+
             var review = new Tutor_Review
             {
                 Tutor_Rating = request.Rating,
@@ -958,17 +967,27 @@ namespace TutorConnect.API.Controllers
         }
 
         // GET: api/Reviews/tutors-for-student/{studentId}
-        // Returns distinct tutors assigned to the modules a student is enrolled in
+        // Returns tutors the student has booked at least one session with
         [HttpGet("tutors-for-student/{studentId}")]
         public async Task<ActionResult> GetTutorsForStudent(int studentId)
         {
+            // Only tutors the student has actually booked a session with
+            var bookedTutorIds = await _context.Bookings
+                .Include(b => b.Booking_Slot)
+                .Where(b => b.Student_ID == studentId)
+                .Select(b => b.Booking_Slot!.Tutor_ID)
+                .Distinct()
+                .ToListAsync();
+
             var moduleCodes = await _context.Student_Modules
                 .Where(sm => sm.Student_ID == studentId && sm.IsActive)
                 .Select(sm => sm.Module_Code)
                 .ToListAsync();
 
             var rows = await _context.Tutor_Modules
-                .Where(tm => moduleCodes.Contains(tm.Module_Code) && tm.IsActive)
+                .Where(tm => moduleCodes.Contains(tm.Module_Code)
+                          && tm.IsActive
+                          && bookedTutorIds.Contains(tm.Tutor_ID))
                 .Include(tm => tm.Tutor)
                 .Include(tm => tm.Module)
                 .ToListAsync();

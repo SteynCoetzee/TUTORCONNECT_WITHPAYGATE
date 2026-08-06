@@ -34,15 +34,15 @@
 .simple-filter-search {
   position: relative; display: flex; align-items: center;
 }
-.simple-filter-search .form-control-sm {
-  padding-left: 30px; min-width: 200px;
-}
 .simple-filter-icon {
   position: absolute; left: 7px; font-size: 17px;
   color: var(--text-muted); pointer-events: none;
 }
 .simple-filter-bar .form-control-sm {
   font-size: 12px; padding: 5px 8px;
+}
+.simple-filter-search .form-control-sm {
+  padding-left: 30px; min-width: 200px;
 }
 .simple-reset-btn {
   display: inline-flex; align-items: center; gap: 4px;
