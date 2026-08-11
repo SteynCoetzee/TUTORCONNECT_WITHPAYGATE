@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface BookingSlot {
   booking_Slot_ID: number;
@@ -78,7 +79,7 @@ export class BookingSlotsComponent implements OnInit {
           module_Name: m.module_Name
         }));
       },
-      error: () => { this.errorMessage = 'Could not load your assigned modules. Module selection may be unavailable.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Could not load your assigned modules. Module selection may be unavailable.'); }
     });
   }
 
@@ -86,7 +87,7 @@ export class BookingSlotsComponent implements OnInit {
     this.loading = true;
     this.http.get<BookingSlot[]>(`${this.apiUrl}/BookingSlots/tutor/${this.tutorId}`).subscribe({
       next: (data) => { this.slots = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load slots.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load slots.'); this.loading = false; }
     });
   }
 
@@ -161,7 +162,7 @@ export class BookingSlotsComponent implements OnInit {
         this.showForm = false;
         this.loadSlots();
       },
-      error: (err) => { this.saving = false; this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to create slot. Please try again.'; }
+      error: (err) => { this.saving = false; this.errorMessage = extractErrorMessage(err, 'Failed to create slot. Please try again.'); }
     });
   }
 
@@ -210,7 +211,7 @@ export class BookingSlotsComponent implements OnInit {
         this.editTargetId = null;
         this.loadSlots();
       },
-      error: (err) => { this.saving = false; this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to update slot. Please try again.'; }
+      error: (err) => { this.saving = false; this.errorMessage = extractErrorMessage(err, 'Failed to update slot. Please try again.'); }
     });
   }
 
@@ -226,7 +227,7 @@ export class BookingSlotsComponent implements OnInit {
         this.loadSlots();
       },
       error: (err) => {
-        this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Cannot delete a booked slot. It may already have bookings.';
+        this.errorMessage = extractErrorMessage(err, 'Cannot delete a booked slot. It may already have bookings.');
         this.deleteTargetId = null;
       }
     });

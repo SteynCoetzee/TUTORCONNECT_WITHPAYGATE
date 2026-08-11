@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { UserProfile, Module } from '../../models/models';
 import { AuthService } from '../../services/auth.service';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface Role { id: number; name: string; }
 
@@ -107,7 +108,7 @@ export class AdminUsersComponent implements OnInit {
     this.loading = true;
     this.http.get<UserProfile[]>(`${this.apiUrl}/Users`).subscribe({
       next: (data) => { this.users = data; this.applyFilters(); this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load users.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load users.'); this.loading = false; }
     });
   }
 
@@ -199,7 +200,7 @@ export class AdminUsersComponent implements OnInit {
         this.closeEdit();
         this.loadUsers();
       },
-      error: () => { this.saving = false; this.errorMessage = 'Failed to update user. Please try again.'; }
+      error: (err) => { this.saving = false; this.errorMessage = extractErrorMessage(err, 'Failed to update user. Please try again.'); }
     });
   }
 
@@ -220,7 +221,7 @@ export class AdminUsersComponent implements OnInit {
         this.loadUsers();
       },
       error: (err: any) => {
-        this.errorMessage = typeof err.error === 'string' ? err.error : 'Failed to delete user.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to delete user.');
         this.deleteTargetId = null;
         this.deleteTargetUser = null;
       }
@@ -245,7 +246,7 @@ export class AdminUsersComponent implements OnInit {
         this.successMessage = `${user.firstName} approved as Tutor.`;
         this.loadUsers();
       },
-      error: () => { this.approvingId = null; this.errorMessage = 'Failed to approve tutor.'; }
+      error: (err) => { this.approvingId = null; this.errorMessage = extractErrorMessage(err, 'Failed to approve tutor.'); }
     });
   }
 
@@ -363,7 +364,7 @@ export class AdminUsersComponent implements OnInit {
       },
       error: (err) => {
         this.enrolling = false;
-        this.enrollError = typeof err.error === 'string' ? err.error : 'Failed to enroll. Both session types may already be active for this module.';
+        this.enrollError = extractErrorMessage(err, 'Failed to enroll. Both session types may already be active for this module.');
       }
     });
   }
@@ -379,7 +380,7 @@ export class AdminUsersComponent implements OnInit {
       },
       error: (err) => {
         this.archivingId = null;
-        this.errorMessage = typeof err.error === 'string' ? err.error : 'Failed to archive user.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to archive user.');
       }
     });
   }
@@ -393,9 +394,9 @@ export class AdminUsersComponent implements OnInit {
         this.successMessage = `${user.firstName} has been restored to active users.`;
         this.loadUsers();
       },
-      error: () => {
+      error: (err) => {
         this.unarchivingId = null;
-        this.errorMessage = 'Failed to restore user.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to restore user.');
       }
     });
   }
@@ -409,9 +410,9 @@ export class AdminUsersComponent implements OnInit {
         this.successMessage = `${user.firstName} has been restored to active users.`;
         this.loadUsers();
       },
-      error: () => {
+      error: (err) => {
         this.restoringDeletedId = null;
-        this.errorMessage = 'Failed to restore user.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to restore user.');
       }
     });
   }
@@ -438,7 +439,7 @@ export class AdminUsersComponent implements OnInit {
         this.loadUsers();
       },
       error: (err: any) => {
-        this.errorMessage = typeof err.error === 'string' ? err.error : 'Permanent delete failed.';
+        this.errorMessage = extractErrorMessage(err, 'Permanent delete failed.');
         this.permDeletingId = null;
         this.permDeleteTargetUser = null;
       }

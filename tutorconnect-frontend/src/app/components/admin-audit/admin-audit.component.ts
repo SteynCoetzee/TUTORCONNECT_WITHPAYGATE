@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface AuditEntry {
   audit_Log_ID: number;
@@ -67,7 +68,7 @@ export class AdminAuditComponent implements OnInit {
     this.loading = true;
     this.http.get<AuditEntry[]>(`${this.apiUrl}/AuditLogs`).subscribe({
       next: (data) => { this.logs = data; this.loading = false; },
-      error: () => { this.loading = false; }
+      error: (_err) => { this.loading = false; }
     });
   }
 

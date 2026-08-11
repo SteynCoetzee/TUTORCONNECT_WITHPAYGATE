@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface PendingLog {
   log_Hours_ID: number;
@@ -62,7 +63,7 @@ export class AdminLogHoursComponent implements OnInit {
     this.loadingPending = true;
     this.http.get<PendingLog[]>(`${this.apiUrl}/LogHours/pending`).subscribe({
       next: (data) => { this.pendingLogs = data; this.loadingPending = false; },
-      error: () => { this.errorMessage = 'Failed to load pending logs.'; this.loadingPending = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load pending logs.'); this.loadingPending = false; }
     });
   }
 
@@ -102,7 +103,7 @@ export class AdminLogHoursComponent implements OnInit {
           this.loadPending();
           this.loadApproved();
         },
-        error: () => { this.errorMessage = 'Failed to approve hours.'; }
+        error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to approve hours.'); }
       });
     } else {
       this.http.delete(`${this.apiUrl}/LogHours/${id}/reject`).subscribe({
@@ -111,7 +112,7 @@ export class AdminLogHoursComponent implements OnInit {
           this.loadPending();
           this.loadApproved();
         },
-        error: () => { this.errorMessage = 'Failed to reject entry.'; }
+        error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to reject entry.'); }
       });
     }
   }

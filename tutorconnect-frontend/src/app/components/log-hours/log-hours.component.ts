@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface LogHour {
   log_Hours_ID: number;
@@ -54,7 +55,7 @@ export class LogHoursComponent implements OnInit {
     this.loading = true;
     this.http.get<LogHour[]>(`${this.apiUrl}/LogHours/tutor/${this.tutorId}`).subscribe({
       next: (data) => { this.logs = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load log entries.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load log entries.'); this.loading = false; }
     });
   }
 
@@ -134,9 +135,9 @@ export class LogHoursComponent implements OnInit {
         this.closeForm();
         this.loadLogs();
       },
-      error: () => {
+      error: (err) => {
         this.saving = false;
-        this.errorMessage = 'Failed to save log entry.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to save log entry.');
       }
     });
   }
@@ -157,7 +158,7 @@ export class LogHoursComponent implements OnInit {
         this.deleteTargetId = null;
         this.loadLogs();
       },
-      error: () => { this.errorMessage = 'Failed to delete log entry.'; this.deleteTargetId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete log entry.'); this.deleteTargetId = null; }
     });
   }
 

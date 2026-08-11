@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface FAQ { faq_ID: number; question: string; answer: string; faq_Category_ID: number; FAQ_ID?: number; }
 interface FAQCategory { faq_Category_ID: number; category_Name: string; }
@@ -126,7 +127,7 @@ export class AdminFaqComponent implements OnInit {
       : this.http.post(`${this.apiUrl}/AdminContent/faqs`, payload);
     obs.subscribe({
       next: () => { this.savingFaq = false; this.successMessage = 'FAQ saved.'; this.showFaqForm = false; this.loadAll(); },
-      error: () => { this.savingFaq = false; this.errorMessage = 'Failed to save FAQ.'; }
+      error: (err) => { this.savingFaq = false; this.errorMessage = extractErrorMessage(err, 'Failed to save FAQ.'); }
     });
   }
 
@@ -134,7 +135,7 @@ export class AdminFaqComponent implements OnInit {
     if (!this.deleteFaqId) return;
     this.http.delete(`${this.apiUrl}/AdminContent/faqs/${this.deleteFaqId}`).subscribe({
       next: () => { this.successMessage = 'FAQ deleted.'; this.deleteFaqId = null; this.loadAll(); },
-      error: () => { this.errorMessage = 'Failed to delete FAQ.'; this.deleteFaqId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete FAQ.'); this.deleteFaqId = null; }
     });
   }
 
@@ -157,7 +158,7 @@ export class AdminFaqComponent implements OnInit {
       : this.http.post(`${this.apiUrl}/AdminContent/faq-categories`, payload);
     obs.subscribe({
       next: () => { this.savingCat = false; this.successMessage = 'Category saved.'; this.showCatForm = false; this.loadAll(); },
-      error: () => { this.savingCat = false; this.errorMessage = 'Failed to save category.'; }
+      error: (err) => { this.savingCat = false; this.errorMessage = extractErrorMessage(err, 'Failed to save category.'); }
     });
   }
 
@@ -165,7 +166,7 @@ export class AdminFaqComponent implements OnInit {
     if (!this.deleteCatId) return;
     this.http.delete(`${this.apiUrl}/AdminContent/faq-categories/${this.deleteCatId}`).subscribe({
       next: () => { this.successMessage = 'Category deleted.'; this.deleteCatId = null; this.loadAll(); },
-      error: () => { this.errorMessage = 'Failed to delete category.'; this.deleteCatId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete category.'); this.deleteCatId = null; }
     });
   }
 

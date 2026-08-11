@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface BusinessRule {
   rule_ID: number;
@@ -54,7 +55,7 @@ export class BusinessLogicComponent implements OnInit {
         data.forEach(r => { this.editValues[r.rule_ID] = r.rule_Value; });
         this.loading = false;
       },
-      error: () => { this.errorMessage = 'Failed to load settings.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load settings.'); this.loading = false; }
     });
   }
 
@@ -78,9 +79,9 @@ export class BusinessLogicComponent implements OnInit {
         rule.rule_Value = val;
         setTimeout(() => { this.saved[rule.rule_ID] = false; }, 2500);
       },
-      error: () => {
+      error: (err) => {
         this.saving[rule.rule_ID] = false;
-        this.errorMessage = 'Failed to save. Please try again.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to save. Please try again.');
       }
     });
   }

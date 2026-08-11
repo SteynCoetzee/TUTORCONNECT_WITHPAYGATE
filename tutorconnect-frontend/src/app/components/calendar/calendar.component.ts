@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface CalendarBooking {
   booking_ID: number;
@@ -101,7 +102,7 @@ export class CalendarComponent implements OnInit {
         })).filter(b => b.slot_Date !== '');
         if (this.selectedDay) this.refreshDayView();
       },
-      error: () => { this.errorMessage = 'Failed to load bookings.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load bookings.'); }
     });
   }
 
@@ -130,7 +131,7 @@ export class CalendarComponent implements OnInit {
     this.loading = true;
     this.http.get<CalendarSlot[]>(`${this.apiUrl}/BookingSlots/tutor/${this.userId}`).subscribe({
       next: (data) => { this.slots = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load slots.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load slots.'); this.loading = false; }
     });
   }
 
@@ -138,7 +139,7 @@ export class CalendarComponent implements OnInit {
     this.loading = true;
     this.http.get<CalendarSlot[]>(`${this.apiUrl}/BookingSlots`).subscribe({
       next: (data) => { this.slots = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load slots.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load slots.'); this.loading = false; }
     });
   }
 
@@ -215,7 +216,7 @@ export class CalendarComponent implements OnInit {
       error: (err) => {
         this.cancelling = false;
         this.confirmCancelId = null;
-        this.errorMessage = err?.error || 'Failed to cancel booking.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to cancel booking.');
       }
     });
   }

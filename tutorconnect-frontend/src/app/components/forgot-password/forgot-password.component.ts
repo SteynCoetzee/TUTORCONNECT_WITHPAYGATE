@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 @Component({
   selector: 'app-forgot-password',
@@ -82,9 +83,9 @@ export class ForgotPasswordComponent {
         this.successMessage = response.message || 'If this email is registered, a reset code has been sent.';
         this.step = 'code';
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
-        this.errorMessage = 'Something went wrong. Please try again later.';
+        this.errorMessage = extractErrorMessage(err, 'Something went wrong. Please try again later.');
       }
     });
   }
@@ -108,9 +109,9 @@ export class ForgotPasswordComponent {
         this.loading = false;
         this.step = 'password';
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
-        this.errorMessage = 'Incorrect or expired code. Please check your email and try again.';
+        this.errorMessage = extractErrorMessage(err, 'Incorrect or expired code. Please check your email and try again.');
       }
     });
   }
@@ -149,9 +150,9 @@ export class ForgotPasswordComponent {
         this.successMessage = 'Password reset successfully! Redirecting to login...';
         setTimeout(() => this.router.navigate(['/login']), 2000);
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
-        this.errorMessage = 'Failed to reset password. Your code may have expired — please start again.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to reset password. Your code may have expired — please start again.');
       }
     });
   }

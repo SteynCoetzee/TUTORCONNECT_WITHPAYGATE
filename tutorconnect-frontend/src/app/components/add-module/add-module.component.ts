@@ -6,6 +6,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { Module } from '../../models/models';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 @Component({
   selector: 'app-add-module',
@@ -74,8 +75,8 @@ export class AddModuleComponent implements OnInit {
         }
         this.loading = false;
       },
-      error: () => {
-        this.errorMessage = 'Failed to load module details.';
+      error: (err) => {
+        this.errorMessage = extractErrorMessage(err, 'Failed to load module details.');
         this.loading = false;
       }
     });
@@ -153,7 +154,7 @@ export class AddModuleComponent implements OnInit {
           setTimeout(() => this.goBack(), 1500);
         },
         error: (err) => {
-          this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to update module. Please try again.';
+          this.errorMessage = extractErrorMessage(err, 'Failed to update module. Please try again.');
           this.saving = false;
         }
       });
@@ -165,7 +166,7 @@ export class AddModuleComponent implements OnInit {
           setTimeout(() => this.goBack(), 1500);
         },
         error: (err) => {
-          this.errorMessage = typeof err?.error === 'string' && err.error ? err.error : 'Failed to create module. Please try again.';
+          this.errorMessage = extractErrorMessage(err, 'Failed to create module. Please try again.');
           this.saving = false;
         }
       });

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 @Component({
   selector: 'app-register',
@@ -115,9 +116,7 @@ export class RegisterComponent {
       },
       error: (err: any) => {
         this.loading = false;
-        this.errorMessage = typeof err.error === 'string'
-          ? err.error
-          : 'Registration failed. The email may already be in use.';
+        this.errorMessage = extractErrorMessage(err, 'Registration failed. The email may already be in use.');
       }
     });
   }

@@ -7,6 +7,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { AuthService } from '../../services/auth.service';
 import { Module, ModuleResource, ModuleAssignment, ModuleQuiz, TutorModuleAssignment, UserProfile, Announcement } from '../../models/models';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface BuilderQuestion {
   question_Text: string;
@@ -193,7 +194,7 @@ export class ModuleDetailComponent implements OnInit {
         this.module = modules.find(m => m.module_Code === this.moduleCode) ?? null;
         this.loading = false;
       },
-      error: () => { this.errorMessage = 'Failed to load module.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load module.'); this.loading = false; }
     });
   }
 
@@ -382,7 +383,7 @@ export class ModuleDetailComponent implements OnInit {
         error: (err) => {
           this.resUploading = false;
           this.successMessage = '';
-          const msg = typeof err?.error === 'string' ? err.error : '';
+          const msg = extractErrorMessage(err, '');
           this.errorMessage = isVideo
             ? `Video upload failed${msg ? ': ' + msg : ''}. Check the file is .mp4/.webm/.mov and under 500 MB.`
             : `File upload failed${msg ? ': ' + msg : ''}.`;
@@ -409,7 +410,7 @@ export class ModuleDetailComponent implements OnInit {
         this.showResourceForm = false;
         this.loadResources();
       },
-      error: () => { this.savingResource = false; this.errorMessage = 'Failed to add resource.'; }
+      error: (err) => { this.savingResource = false; this.errorMessage = extractErrorMessage(err, 'Failed to add resource.'); }
     });
   }
 
@@ -490,7 +491,7 @@ export class ModuleDetailComponent implements OnInit {
         error: (err) => {
           this.editResUploading = false;
           this.successMessage = '';
-          const msg = typeof err?.error === 'string' ? err.error : '';
+          const msg = extractErrorMessage(err, '');
           this.errorMessage = isVideo
             ? `Video upload failed${msg ? ': ' + msg : ''}. Check the file is .mp4/.webm/.mov and under 500 MB.`
             : `File upload failed${msg ? ': ' + msg : ''}.`;
@@ -516,7 +517,7 @@ export class ModuleDetailComponent implements OnInit {
         this.successMessage = 'Resource updated!';
         this.loadResources();
       },
-      error: () => { this.savingEditResource = false; this.errorMessage = 'Failed to update resource.'; }
+      error: (err) => { this.savingEditResource = false; this.errorMessage = extractErrorMessage(err, 'Failed to update resource.'); }
     });
   }
 
@@ -541,7 +542,7 @@ export class ModuleDetailComponent implements OnInit {
         this.deleteResourceId = null;
         this.loadResources();
       },
-      error: () => { this.errorMessage = 'Failed to delete resource.'; this.deleteResourceId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete resource.'); this.deleteResourceId = null; }
     });
   }
 
@@ -623,7 +624,7 @@ export class ModuleDetailComponent implements OnInit {
         this.showQuizForm = false;
         this.loadQuizzes();
       },
-      error: () => { this.savingQuiz = false; this.errorMessage = 'Failed to add quiz.'; }
+      error: (err) => { this.savingQuiz = false; this.errorMessage = extractErrorMessage(err, 'Failed to add quiz.'); }
     });
   }
 
@@ -637,7 +638,7 @@ export class ModuleDetailComponent implements OnInit {
         this.deleteQuizId = null;
         this.loadQuizzes();
       },
-      error: () => { this.errorMessage = 'Failed to delete quiz.'; this.deleteQuizId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete quiz.'); this.deleteQuizId = null; }
     });
   }
 
@@ -684,7 +685,7 @@ export class ModuleDetailComponent implements OnInit {
     this.clearMessages();
     this.http.get<any[]>(`${this.apiUrl}/Quizzes/${quiz.quiz_ID}/submissions`).subscribe({
       next: (data) => { this.submissions = data; this.loadingSubmissions = false; },
-      error: () => { this.loadingSubmissions = false; this.errorMessage = 'Failed to load submissions.'; }
+      error: (err) => { this.loadingSubmissions = false; this.errorMessage = extractErrorMessage(err, 'Failed to load submissions.'); }
     });
   }
 
@@ -743,7 +744,7 @@ export class ModuleDetailComponent implements OnInit {
       }))
     ).subscribe({
       next: () => { this.savingQuestions = false; this.successMessage = 'Questions saved!'; this.closeBuilder(); },
-      error: () => { this.savingQuestions = false; this.errorMessage = 'Failed to save questions.'; }
+      error: (err) => { this.savingQuestions = false; this.errorMessage = extractErrorMessage(err, 'Failed to save questions.'); }
     });
   }
 
@@ -758,10 +759,10 @@ export class ModuleDetailComponent implements OnInit {
       next: (res) => {
         this.http.get<any>(`${this.apiUrl}/Quizzes/${quiz.quiz_ID}/questions`).subscribe({
           next: (data) => { this.takingQuiz = data; this.takingQuizId = quiz.quiz_ID; this.startingQuiz = false; },
-          error: () => { this.startingQuiz = false; this.errorMessage = 'Failed to load quiz questions.'; }
+          error: (err) => { this.startingQuiz = false; this.errorMessage = extractErrorMessage(err, 'Failed to load quiz questions.'); }
         });
       },
-      error: (err) => { this.startingQuiz = false; this.errorMessage = err?.error || 'Failed to start quiz.'; }
+      error: (err) => { this.startingQuiz = false; this.errorMessage = extractErrorMessage(err, 'Failed to start quiz.'); }
     });
   }
 
@@ -787,7 +788,7 @@ export class ModuleDetailComponent implements OnInit {
         this.successMessage = `Quiz submitted! Score: ${res.score}% (${res.correct}/${res.total} correct)`;
         this.loadQuizzes();
       },
-      error: (err) => { this.submittingQuiz = false; this.errorMessage = err?.error || 'Failed to submit quiz.'; }
+      error: (err) => { this.submittingQuiz = false; this.errorMessage = extractErrorMessage(err, 'Failed to submit quiz.'); }
     });
   }
 
@@ -925,7 +926,7 @@ export class ModuleDetailComponent implements OnInit {
       fd.append('file', this.assignmentBriefFile);
       this.http.post(`${this.apiUrl}/Assignments/upload-brief`, fd, { responseType: 'text' }).subscribe({
         next: (url) => { this.uploadingBrief = false; this.doSaveAssignment(this.parseUrl(url)); },
-        error: () => { this.uploadingBrief = false; this.errorMessage = 'Brief upload failed.'; }
+        error: (err) => { this.uploadingBrief = false; this.errorMessage = extractErrorMessage(err, 'Brief upload failed.'); }
       });
     } else {
       this.doSaveAssignment('');
@@ -947,7 +948,7 @@ export class ModuleDetailComponent implements OnInit {
         this.assignmentBriefFile = null;
         this.loadAssignments();
       },
-      error: () => { this.savingAssignment = false; this.errorMessage = 'Failed to create assignment.'; }
+      error: (err) => { this.savingAssignment = false; this.errorMessage = extractErrorMessage(err, 'Failed to create assignment.'); }
     });
   }
 
@@ -1000,7 +1001,7 @@ export class ModuleDetailComponent implements OnInit {
         this.gradingSubmissionId = null;
         this.successMessage = 'Grade saved!';
       },
-      error: () => { this.savingGrade = false; this.errorMessage = 'Failed to save grade.'; }
+      error: (err) => { this.savingGrade = false; this.errorMessage = extractErrorMessage(err, 'Failed to save grade.'); }
     });
   }
 
@@ -1048,7 +1049,7 @@ export class ModuleDetailComponent implements OnInit {
       },
       error: (err) => {
         this.submittingAssignmentId = null;
-        this.errorMessage = err?.error || 'Submission failed.';
+        this.errorMessage = extractErrorMessage(err, 'Submission failed.');
       }
     });
   }
@@ -1064,7 +1065,7 @@ export class ModuleDetailComponent implements OnInit {
         this.deleteAssignmentId = null;
         this.loadAssignments();
       },
-      error: () => { this.errorMessage = 'Failed to delete assignment.'; this.deleteAssignmentId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete assignment.'); this.deleteAssignmentId = null; }
     });
   }
 
@@ -1102,7 +1103,7 @@ export class ModuleDetailComponent implements OnInit {
         this.showAnnouncementCreateForm = false;
         this.loadAnnouncements();
       },
-      error: () => { this.savingAnnouncement = false; this.errorMessage = 'Failed to post announcement.'; }
+      error: (err) => { this.savingAnnouncement = false; this.errorMessage = extractErrorMessage(err, 'Failed to post announcement.'); }
     });
   }
 
@@ -1132,7 +1133,7 @@ export class ModuleDetailComponent implements OnInit {
         this.editingAnnouncement = null;
         this.loadAnnouncements();
       },
-      error: () => { this.updatingAnnouncement = false; this.errorMessage = 'Failed to update announcement.'; }
+      error: (err) => { this.updatingAnnouncement = false; this.errorMessage = extractErrorMessage(err, 'Failed to update announcement.'); }
     });
   }
 
@@ -1152,7 +1153,7 @@ export class ModuleDetailComponent implements OnInit {
         this.deleteAnnouncementId = null;
         this.loadAnnouncements();
       },
-      error: () => { this.deletingAnnouncement = false; this.errorMessage = 'Failed to delete announcement.'; }
+      error: (err) => { this.deletingAnnouncement = false; this.errorMessage = extractErrorMessage(err, 'Failed to delete announcement.'); }
     });
   }
 
@@ -1188,7 +1189,7 @@ export class ModuleDetailComponent implements OnInit {
       },
       error: (err) => {
         this.assigningTutor = false;
-        this.errorMessage = typeof err.error === 'string' ? err.error : 'Failed to assign tutor.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to assign tutor.');
       }
     });
   }
@@ -1199,7 +1200,7 @@ export class ModuleDetailComponent implements OnInit {
         this.successMessage = 'Tutor removed from module.';
         this.loadAssignedTutors();
       },
-      error: () => { this.errorMessage = 'Failed to remove tutor.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to remove tutor.'); }
     });
   }
 

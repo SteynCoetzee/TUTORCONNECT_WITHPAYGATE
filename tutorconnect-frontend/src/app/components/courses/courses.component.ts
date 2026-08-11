@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { Module, Enrollment, TutorModuleAssignment } from '../../models/models';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface EnrollmentWithSessions extends Enrollment {
   sessions_Remaining_Group: number;
@@ -123,7 +124,7 @@ export class CoursesComponent implements OnInit {
     this.loading = true;
     this.http.get<Module[]>(`${this.apiUrl}/Modules`).subscribe({
       next: (data) => { this.modules = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load modules.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load modules.'); this.loading = false; }
     });
   }
 
@@ -140,7 +141,7 @@ export class CoursesComponent implements OnInit {
         this.enrolledModules = data;
         this.enrolledModuleCodes = new Set(data.map(e => e.module_Code));
       },
-      error: (err) => { this.errorMessage = 'Failed to load your enrollments. Please refresh.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load your enrollments. Please refresh.'); }
     });
   }
 
@@ -178,7 +179,7 @@ export class CoursesComponent implements OnInit {
         this.successMessage = 'Wishlist item dismissed.';
         this.loadWishlist();
       },
-      error: () => { this.dismissingId = null; this.errorMessage = 'Failed to dismiss item.'; }
+      error: (err) => { this.dismissingId = null; this.errorMessage = extractErrorMessage(err, 'Failed to dismiss item.'); }
     });
   }
 
@@ -194,7 +195,7 @@ export class CoursesComponent implements OnInit {
         this.deleteModuleCode = null;
         this.loadModules();
       },
-      error: () => { this.errorMessage = 'Failed to delete module.'; this.deleteModuleCode = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete module.'); this.deleteModuleCode = null; }
     });
   }
 
@@ -315,10 +316,7 @@ export class CoursesComponent implements OnInit {
       },
       error: (err) => {
         this.enrollingAll = false;
-        const msg = err?.error;
-        this.errorMessage = typeof msg === 'string' && msg
-          ? msg
-          : 'Failed to initiate payment. Please try again.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to initiate payment. Please try again.');
       }
     });
   }
@@ -384,7 +382,7 @@ export class CoursesComponent implements OnInit {
         this.successMessage = 'Unenrolled successfully.';
         this.loadEnrollments();
       },
-      error: () => { this.unenrollingCode = ''; this.errorMessage = 'Failed to unenroll.'; }
+      error: (err) => { this.unenrollingCode = ''; this.errorMessage = extractErrorMessage(err, 'Failed to unenroll.'); }
     });
   }
 

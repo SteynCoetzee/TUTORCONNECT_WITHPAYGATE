@@ -3,6 +3,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface PaymentRow {
   payment_ID: number;
@@ -45,7 +46,7 @@ export class AdminPaymentsComponent implements OnInit {
     this.errorMessage = '';
     this.http.get<PaymentRow[]>(`${this.apiUrl}/PayFast/payments`).subscribe({
       next: (data) => { this.payments = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load payments.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load payments.'); this.loading = false; }
     });
   }
 
@@ -73,7 +74,7 @@ export class AdminPaymentsComponent implements OnInit {
       },
       error: (err) => {
         p.processing = false;
-        p.processError = typeof err.error === 'string' ? err.error : 'Failed to process enrollment.';
+        p.processError = extractErrorMessage(err, 'Failed to process enrollment.');
       }
     });
   }

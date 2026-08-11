@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
 import { UserProfile, UserProfileUpdate } from '../../models/models';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 @Component({
   selector: 'app-user-info',
@@ -65,7 +66,7 @@ export class UserInfoComponent implements OnInit {
           this.profile = data;
           this.loadRoleProfile(userId);
         },
-        error: () => { this.errorMessage = 'Failed to load profile.'; }
+        error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load profile.'); }
       });
     }
   }
@@ -76,7 +77,7 @@ export class UserInfoComponent implements OnInit {
         this.roleProfile = data;
         this.editRoleProfile = data ? { ...data } : {};
       },
-      error: () => { this.errorMessage = 'Could not load your role details. Some fields may be empty.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Could not load your role details. Some fields may be empty.'); }
     });
   }
 
@@ -256,7 +257,7 @@ export class UserInfoComponent implements OnInit {
         this.saveRoleProfile(userId);
         setTimeout(() => { this.successMessage = ''; }, 3000);
       },
-      error: () => { this.saving = false; this.errorMessage = 'Failed to save profile.'; }
+      error: (err) => { this.saving = false; this.errorMessage = extractErrorMessage(err, 'Failed to save profile.'); }
     });
   }
 
@@ -269,7 +270,7 @@ export class UserInfoComponent implements OnInit {
     if (!endpoint) return;
     this.http.put(endpoint, this.editRoleProfile, { responseType: 'text' }).subscribe({
       next: () => { this.roleProfile = { ...this.editRoleProfile }; },
-      error: () => { this.errorMessage = 'Profile saved, but some role-specific details could not be saved. Please try again.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Profile saved, but some role-specific details could not be saved. Please try again.'); }
     });
   }
 
@@ -370,9 +371,9 @@ export class UserInfoComponent implements OnInit {
       error: (err) => {
         this.savingPassword = false;
         if (err.status === 400) {
-          this.pwFieldErrors['currentPw'] = 'Current password is incorrect.';
+          this.pwFieldErrors['currentPw'] = extractErrorMessage(err, 'Current password is incorrect.');
         } else {
-          this.passwordError = typeof err.error === 'string' && err.error ? err.error : 'Failed to update password. Please try again.';
+          this.passwordError = extractErrorMessage(err, 'Failed to update password. Please try again.');
         }
       }
     });
@@ -451,7 +452,7 @@ export class UserInfoComponent implements OnInit {
       },
       error: (err) => {
         this.uploadingPicture = false;
-        this.pictureError = typeof err.error === 'string' ? err.error : 'Upload failed. Try again.';
+        this.pictureError = extractErrorMessage(err, 'Upload failed. Try again.');
         reset();
       }
     });

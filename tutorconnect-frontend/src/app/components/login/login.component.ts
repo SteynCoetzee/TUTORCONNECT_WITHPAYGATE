@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { CommonModule } from '@angular/common';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 @Component({
   selector: 'app-login',
@@ -67,14 +68,10 @@ export class LoginComponent implements OnInit {
       },
       error: (err: any) => {
         this.loading = false;
-        if (err.status === 0) {
-          this.errorMessage = 'Cannot connect to the server. Please check your internet connection or try again later.';
-        } else if (err.status === 401) {
+        if (err.status === 401) {
           this.errorMessage = 'Incorrect email or password. Please try again.';
-        } else if (typeof err.error === 'string' && err.error) {
-          this.errorMessage = err.error;
         } else {
-          this.errorMessage = 'Sign in failed. Please check your details and try again.';
+          this.errorMessage = extractErrorMessage(err, 'Sign in failed. Please check your details and try again.');
         }
       }
     });

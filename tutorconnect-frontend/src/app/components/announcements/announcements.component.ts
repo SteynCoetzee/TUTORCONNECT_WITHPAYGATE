@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AnnouncementService } from '../../services/announcement.service';
 import { AuthService } from '../../services/auth.service';
 import { Announcement, AnnouncementCreate, AnnouncementUpdate } from '../../models/models';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 @Component({
   selector: 'app-announcements',
@@ -58,15 +59,15 @@ export class AnnouncementsComponent implements OnInit {
     this.loading = true;
     this.announcementService.getWebsiteAnnouncements().subscribe({
       next: (data) => { this.websiteAnnouncements = data; this.loading = false; },
-      error: () => { this.loading = false; this.showError('Failed to load website announcements.'); }
+      error: (err) => { this.loading = false; this.showError(extractErrorMessage(err, 'Failed to load website announcements.')); }
     });
   }
 
   loadModule() {
     this.announcementService.getAnnouncements().subscribe({
       next: (data) => { this.moduleAnnouncements = data.filter(a => a.module_Code && a.module_Code.trim() !== ''); },
-      error: () => {
-        this.errorModalMessage = 'Could not load module announcements. Please refresh the page.';
+      error: (err) => {
+        this.errorModalMessage = extractErrorMessage(err, 'Could not load module announcements. Please refresh the page.');
         this.showErrorModal = true;
       }
     });
@@ -113,7 +114,7 @@ export class AnnouncementsComponent implements OnInit {
     this.creating = true;
     this.announcementService.createAnnouncement(this.createData).subscribe({
       next: () => { this.creating = false; this.showCreateForm = false; this.loadWebsite(); },
-      error: () => { this.creating = false; this.showError('Failed to post announcement. Please try again.'); }
+      error: (err) => { this.creating = false; this.showError(extractErrorMessage(err, 'Failed to post announcement. Please try again.')); }
     });
   }
 
@@ -139,7 +140,7 @@ export class AnnouncementsComponent implements OnInit {
     this.updating = true;
     this.announcementService.updateAnnouncement(this.editingAnnouncement.announcement_ID, this.editData).subscribe({
       next: () => { this.updating = false; this.editingAnnouncement = null; this.loadWebsite(); },
-      error: () => { this.updating = false; this.showError('Failed to update announcement. Please try again.'); }
+      error: (err) => { this.updating = false; this.showError(extractErrorMessage(err, 'Failed to update announcement. Please try again.')); }
     });
   }
 
@@ -152,7 +153,7 @@ export class AnnouncementsComponent implements OnInit {
     this.deleting = true;
     this.announcementService.deleteAnnouncement(this.deletingId).subscribe({
       next: () => { this.deleting = false; this.deletingId = null; this.loadWebsite(); },
-      error: () => { this.deleting = false; this.showError('Failed to delete announcement.'); }
+      error: (err) => { this.deleting = false; this.showError(extractErrorMessage(err, 'Failed to delete announcement.')); }
     });
   }
 

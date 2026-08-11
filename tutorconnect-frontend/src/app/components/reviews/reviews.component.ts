@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface TutorReview {
   tutor_Review_ID: number;
@@ -218,9 +219,7 @@ export class ReviewsComponent implements OnInit {
       },
       error: (err) => {
         this.savingTutor = false;
-        this.errorMessage = err?.error && typeof err.error === 'string'
-          ? err.error
-          : 'Failed to submit review. You may have already reviewed this tutor.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to submit review. You may have already reviewed this tutor.');
       }
     });
   }
@@ -247,7 +246,7 @@ export class ReviewsComponent implements OnInit {
         this.showSessionForm = false;
         this.loadSessionReviews();
       },
-      error: () => { this.savingSession = false; this.errorMessage = 'Failed to submit review. You may have already reviewed this session.'; }
+      error: (err) => { this.savingSession = false; this.errorMessage = extractErrorMessage(err, 'Failed to submit review. You may have already reviewed this session.'); }
     });
   }
 
@@ -260,7 +259,7 @@ export class ReviewsComponent implements OnInit {
     if (!this.confirmDeleteTutorId) return;
     this.http.delete(`${this.apiUrl}/Reviews/tutor/${this.confirmDeleteTutorId}`).subscribe({
       next: () => { this.confirmDeleteTutorId = null; this.successMessage = 'Review deleted.'; this.loadTutorReviews(); },
-      error: () => { this.errorMessage = 'Failed to delete review.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete review.'); }
     });
   }
 
@@ -268,7 +267,7 @@ export class ReviewsComponent implements OnInit {
     if (!this.confirmDeleteSessionId) return;
     this.http.delete(`${this.apiUrl}/Reviews/session/${this.confirmDeleteSessionId}`).subscribe({
       next: () => { this.confirmDeleteSessionId = null; this.successMessage = 'Review deleted.'; this.loadSessionReviews(); },
-      error: () => { this.errorMessage = 'Failed to delete review.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete review.'); }
     });
   }
 

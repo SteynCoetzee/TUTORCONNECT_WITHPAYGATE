@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { Testimonial, TestimonialCreate, TestimonialCategory } from '../../models/models';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 @Component({
   selector: 'app-admin-testimonials',
@@ -97,7 +98,7 @@ export class AdminTestimonialsComponent implements OnInit {
     this.clearMessages();
     this.http.put(`${this.apiUrl}/Testimonials/${id}/approve`, {}).subscribe({
       next: () => { this.successMessage = 'Testimonial approved.'; this.loadAll(); },
-      error: () => { this.errorMessage = 'Failed to approve testimonial.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to approve testimonial.'); }
     });
   }
 
@@ -113,7 +114,7 @@ export class AdminTestimonialsComponent implements OnInit {
         this.deleteTargetId = null;
         this.loadAll();
       },
-      error: () => { this.errorMessage = 'Failed to delete testimonial.'; this.deleteTargetId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete testimonial.'); this.deleteTargetId = null; }
     });
   }
 
@@ -162,7 +163,7 @@ export class AdminTestimonialsComponent implements OnInit {
         this.editingTestimonial = null;
         this.loadAll();
       },
-      error: () => { this.saving = false; this.errorMessage = 'Failed to update testimonial.'; }
+      error: (err) => { this.saving = false; this.errorMessage = extractErrorMessage(err, 'Failed to update testimonial.'); }
     });
   }
 
@@ -187,7 +188,7 @@ export class AdminTestimonialsComponent implements OnInit {
         this.submitErrors = {};
         this.loadAll();
       },
-      error: () => { this.submitting = false; this.errorMessage = 'Failed to submit testimonial.'; }
+      error: (err) => { this.submitting = false; this.errorMessage = extractErrorMessage(err, 'Failed to submit testimonial.'); }
     });
   }
 
@@ -210,7 +211,7 @@ export class AdminTestimonialsComponent implements OnInit {
       : this.http.post(`${this.apiUrl}/AdminContent/testimonial-categories`, payload);
     obs.subscribe({
       next: () => { this.savingCat = false; this.successMessage = 'Category saved.'; this.showCatForm = false; this.loadAll(); },
-      error: () => { this.savingCat = false; this.errorMessage = 'Failed to save category.'; }
+      error: (err) => { this.savingCat = false; this.errorMessage = extractErrorMessage(err, 'Failed to save category.'); }
     });
   }
 
@@ -221,7 +222,7 @@ export class AdminTestimonialsComponent implements OnInit {
     if (!this.deleteCatId) return;
     this.http.delete(`${this.apiUrl}/AdminContent/testimonial-categories/${this.deleteCatId}`).subscribe({
       next: () => { this.successMessage = 'Category deleted.'; this.deleteCatId = null; this.loadAll(); },
-      error: () => { this.errorMessage = 'Failed to delete category.'; this.deleteCatId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete category.'); this.deleteCatId = null; }
     });
   }
 

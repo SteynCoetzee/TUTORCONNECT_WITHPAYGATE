@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface EnrolledModule {
   module_Code: string;
@@ -94,9 +95,9 @@ export class BookingComponent implements OnInit {
         this.successMessage = 'Booking cancelled. A confirmation email has been sent.';
         this.loadMyBookings();
       },
-      error: () => {
+      error: (err) => {
         this.cancellingId = null;
-        this.errorMessage = 'Failed to cancel booking.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to cancel booking.');
       }
     });
   }
@@ -186,7 +187,7 @@ export class BookingComponent implements OnInit {
       },
       error: (err) => {
         this.booking = false;
-        const msg: string = err?.error ?? '';
+        const msg: string = typeof err?.error === 'string' ? err.error : '';
         if (msg === 'NO_SESSIONS_GROUP') {
           this.sessionOutType = 'Group';
           this.sessionOutModule = this.selectedModule;
@@ -196,7 +197,7 @@ export class BookingComponent implements OnInit {
           this.sessionOutModule = this.selectedModule;
           this.showSessionOutModal = true;
         } else {
-          this.errorMessage = msg || 'Failed to book session.';
+          this.errorMessage = extractErrorMessage(err, 'Failed to book session.');
         }
       }
     });
@@ -224,9 +225,9 @@ export class BookingComponent implements OnInit {
         this.resetForm();
         this.loadEnrolledModules();
       },
-      error: () => {
+      error: (err) => {
         this.unenrolling = false;
-        this.errorMessage = 'Failed to unenrol. Please try again.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to unenrol. Please try again.');
       }
     });
   }

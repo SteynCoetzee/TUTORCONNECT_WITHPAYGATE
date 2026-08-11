@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface AdminTutorReview {
   tutor_Review_ID: number;
@@ -60,14 +61,14 @@ export class AdminReviewsComponent implements OnInit {
     this.loading = true;
     this.http.get<AdminTutorReview[]>(`${this.apiUrl}/Reviews/admin/tutor`).subscribe({
       next: (data) => { this.tutorReviews = data; this.loading = false; },
-      error: () => { this.loading = false; this.errorMessage = 'Could not load tutor reviews. Please refresh.'; }
+      error: (err) => { this.loading = false; this.errorMessage = extractErrorMessage(err, 'Could not load tutor reviews. Please refresh.'); }
     });
   }
 
   loadSessionReviews() {
     this.http.get<AdminSessionReview[]>(`${this.apiUrl}/Reviews/admin/session`).subscribe({
       next: (data) => { this.sessionReviews = data; },
-      error: () => { this.errorMessage = 'Could not load session reviews. Please refresh.'; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Could not load session reviews. Please refresh.'); }
     });
   }
 

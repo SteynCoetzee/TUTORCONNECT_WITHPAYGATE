@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface HelpPage { help_Page_ID: number; help_Page_Title: string; help_Page_Description: string; }
 interface HelpResource { help_Video_ID: number; video_Title: string; video_URL: string; }
@@ -53,10 +54,10 @@ export class AdminHelpComponent implements OnInit {
         this.helpPages = pages;
         this.http.get<HelpResource[]>(`${this.apiUrl}/AdminContent/help-resources`).subscribe({
           next: (res) => { this.helpResources = res; this.loading = false; },
-          error: () => { this.loading = false; }
+          error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load help resources.'); this.loading = false; }
         });
       },
-      error: () => { this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load help pages.'); this.loading = false; }
     });
   }
 
@@ -104,7 +105,7 @@ export class AdminHelpComponent implements OnInit {
       : this.http.post(`${this.apiUrl}/AdminContent/help-pages`, payload);
     obs.subscribe({
       next: () => { this.savingPage = false; this.successMessage = 'Help page saved.'; this.showPageForm = false; this.loadAll(); },
-      error: () => { this.savingPage = false; this.errorMessage = 'Failed to save help page.'; }
+      error: (err) => { this.savingPage = false; this.errorMessage = extractErrorMessage(err, 'Failed to save help page.'); }
     });
   }
 
@@ -112,7 +113,7 @@ export class AdminHelpComponent implements OnInit {
     if (!this.deletePageId) return;
     this.http.delete(`${this.apiUrl}/AdminContent/help-pages/${this.deletePageId}`).subscribe({
       next: () => { this.successMessage = 'Help page deleted.'; this.deletePageId = null; this.loadAll(); },
-      error: () => { this.errorMessage = 'Failed to delete.'; this.deletePageId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete help page.'); this.deletePageId = null; }
     });
   }
 
@@ -137,7 +138,7 @@ export class AdminHelpComponent implements OnInit {
       : this.http.post(`${this.apiUrl}/AdminContent/help-resources`, payload);
     obs.subscribe({
       next: () => { this.savingResource = false; this.successMessage = 'Resource saved.'; this.showResourceForm = false; this.loadAll(); },
-      error: () => { this.savingResource = false; this.errorMessage = 'Failed to save resource.'; }
+      error: (err) => { this.savingResource = false; this.errorMessage = extractErrorMessage(err, 'Failed to save resource.'); }
     });
   }
 
@@ -145,7 +146,7 @@ export class AdminHelpComponent implements OnInit {
     if (!this.deleteResourceId) return;
     this.http.delete(`${this.apiUrl}/AdminContent/help-resources/${this.deleteResourceId}`).subscribe({
       next: () => { this.successMessage = 'Resource deleted.'; this.deleteResourceId = null; this.loadAll(); },
-      error: () => { this.errorMessage = 'Failed to delete.'; this.deleteResourceId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete resource.'); this.deleteResourceId = null; }
     });
   }
 

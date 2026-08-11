@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface MediaContent { media_ID: number; media_Name: string; media_Address: string; }
 
@@ -50,7 +51,7 @@ export class AdminMediaComponent implements OnInit {
     this.loading = true;
     this.http.get<MediaContent[]>(`${this.apiUrl}/AdminContent/media`).subscribe({
       next: (data) => { this.mediaItems = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load media.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load media.'); this.loading = false; }
     });
   }
 
@@ -136,7 +137,7 @@ export class AdminMediaComponent implements OnInit {
         this.successMessage = 'Media added.';
         this.loadMedia();
       },
-      error: () => { this.creating = false; this.errorMessage = 'Failed to add media.'; }
+      error: (err) => { this.creating = false; this.errorMessage = extractErrorMessage(err, 'Failed to add media.'); }
     });
   }
 
@@ -198,7 +199,7 @@ export class AdminMediaComponent implements OnInit {
         this.successMessage = 'Media updated.';
         this.loadMedia();
       },
-      error: () => { this.updating = false; this.errorMessage = 'Failed to update media.'; }
+      error: (err) => { this.updating = false; this.errorMessage = extractErrorMessage(err, 'Failed to update media.'); }
     });
   }
 
@@ -213,7 +214,7 @@ export class AdminMediaComponent implements OnInit {
     if (!this.deleteTargetId) return;
     this.http.delete(`${this.apiUrl}/AdminContent/media/${this.deleteTargetId}`).subscribe({
       next: () => { this.successMessage = 'Media deleted.'; this.deleteTargetId = null; this.loadMedia(); },
-      error: () => { this.errorMessage = 'Failed to delete media.'; this.deleteTargetId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete media.'); this.deleteTargetId = null; }
     });
   }
 
@@ -227,7 +228,7 @@ export class AdminMediaComponent implements OnInit {
       error: (err) => {
         this.creating = false;
         this.updating = false;
-        this.errorMessage = err?.error || err?.message || 'File upload failed.';
+        this.errorMessage = extractErrorMessage(err, 'File upload failed.');
       }
     });
   }

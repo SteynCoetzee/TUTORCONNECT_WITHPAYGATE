@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ReportService } from '../../services/report.service';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 import { AuthService } from '../../services/auth.service';
 import { Chart, registerables } from 'chart.js';
 import jsPDF from 'jspdf';
@@ -149,7 +150,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
     }
     obs$.subscribe({
       next:  (d) => { this.simpleData = d; this.loading = false; },
-      error: ()  => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load report.'); this.loading = false; }
     });
   }
 
@@ -194,7 +195,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
         this.buildGroups(d);
         this.loading = false;
       },
-      error: () => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load report.'); this.loading = false; }
     });
   }
 
@@ -252,7 +253,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
       this.criteriaType !== 'All' ? this.criteriaType : undefined
     ).subscribe({
       next:  (d) => { this.criteriaData = d; this.loading = false; },
-      error: ()  => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load report.'); this.loading = false; }
     });
   }
 
@@ -277,7 +278,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
         this.loading = false;
         setTimeout(() => this.buildMgmtChart(), 100);
       },
-      error: () => { this.errorMessage = 'Failed to load report.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load report.'); this.loading = false; }
     });
   }
 

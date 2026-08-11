@@ -231,6 +231,26 @@ namespace TutorConnect.API.Data
                 .HasOne<User>().WithMany()
                 .HasForeignKey(mw => mw.Student_ID)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ── Booking_Slot → Module (nullable — slot may not be tied to a module) ─
+            modelBuilder.Entity<Booking_Slot>()
+                .HasOne<Module>().WithMany()
+                .HasForeignKey(bs => bs.Module_Code)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // ── Log_Hours → User (approver, nullable) ─────────────────────────
+            modelBuilder.Entity<Log_Hours>()
+                .HasOne<User>().WithMany()
+                .HasForeignKey(l => l.ApprovedBy_Admin_ID)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // ── Session_Attendance → User (student) ───────────────────────────
+            modelBuilder.Entity<Session_Attendance>()
+                .HasOne<User>().WithMany()
+                .HasForeignKey(sa => sa.Student_ID)
+                .OnDelete(DeleteBehavior.NoAction);
         }
 
         public DbSet<User_Role> User_Roles { get; set; } = null!;

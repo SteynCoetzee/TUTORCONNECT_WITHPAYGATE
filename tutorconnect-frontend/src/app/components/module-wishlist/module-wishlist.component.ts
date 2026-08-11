@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { extractErrorMessage } from '../../interceptors/error.interceptor';
 
 interface WishlistItem {
   wishlist_ID: number;
@@ -47,7 +48,7 @@ export class ModuleWishlistComponent implements OnInit {
     this.loading = true;
     this.http.get<WishlistItem[]>(`${this.apiUrl}/ModuleWishlist/student/${this.userId}`).subscribe({
       next: (data) => { this.items = data; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load wishlist.'; this.loading = false; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to load wishlist.'); this.loading = false; }
     });
   }
 
@@ -84,7 +85,7 @@ export class ModuleWishlistComponent implements OnInit {
       },
       error: (err) => {
         this.saving = false;
-        this.errorMessage = err?.error || 'Failed to submit wishlist item. Please try again.';
+        this.errorMessage = extractErrorMessage(err, 'Failed to submit wishlist item. Please try again.');
       }
     });
   }
@@ -104,7 +105,7 @@ export class ModuleWishlistComponent implements OnInit {
         this.confirmDeleteId = null;
         this.loadItems();
       },
-      error: () => { this.errorMessage = 'Failed to remove item.'; this.confirmDeleteId = null; }
+      error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to remove item.'); this.confirmDeleteId = null; }
     });
   }
 
