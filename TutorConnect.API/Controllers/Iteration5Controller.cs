@@ -1283,8 +1283,9 @@ namespace TutorConnect.API.Controllers
         [HttpGet("available")]
         public async Task<ActionResult<IEnumerable<Booking_Slot>>> GetAvailableSlots()
         {
+            var today = DateOnly.FromDateTime(DateTime.Today);
             var slots = await _context.Booking_Slots
-                .Where(s => !s.Is_Booked)
+                .Where(s => !s.Is_Booked && s.Slot_Date >= today)
                 .OrderBy(s => s.Slot_Date)
                 .ThenBy(s => s.Slot_Time)
                 .ToListAsync();
@@ -1356,9 +1357,11 @@ namespace TutorConnect.API.Controllers
                 .Distinct()
                 .ToListAsync();
 
+            var today = DateOnly.FromDateTime(DateTime.Today);
             var slots = await _context.Booking_Slots
                 .Where(s => !s.Is_Booked && tutorIds.Contains(s.Tutor_ID)
-                            && (s.Module_Code == null || moduleCodes.Contains(s.Module_Code)))
+                            && (s.Module_Code == null || moduleCodes.Contains(s.Module_Code))
+                            && s.Slot_Date >= today)
                 .Include(s => s.Tutor)
                 .OrderBy(s => s.Slot_Date).ThenBy(s => s.Slot_Time)
                 .ToListAsync();
@@ -1490,6 +1493,7 @@ namespace TutorConnect.API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<Booking>>> GetBookings() => await _context.Bookings.Include(b => b.Booking_Slot).ToListAsync();
 
         // GET: api/Bookings/student/{studentId}
@@ -1529,6 +1533,10 @@ namespace TutorConnect.API.Controllers
             var slot = await _context.Booking_Slots
                 .Include(s => s.Tutor)
                 .FirstOrDefaultAsync(s => s.Booking_Slot_ID == booking.Booking_Slot_ID);
+
+            // Prevent cancellation of past sessions
+            if (slot != null && slot.Slot_Date < DateOnly.FromDateTime(DateTime.Today))
+                return BadRequest("Past sessions cannot be cancelled.");
 
             var student = await _context.Users.FindAsync(booking.Student_ID);
 

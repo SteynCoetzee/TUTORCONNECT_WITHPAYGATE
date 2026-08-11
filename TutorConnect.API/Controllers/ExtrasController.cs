@@ -28,6 +28,11 @@ namespace TutorConnect.API.Controllers
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<IEnumerable<NotificationReturnDto>>> GetUserNotifications(int userId)
         {
+            // Ownership check: users may only read their own notifications
+            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (callerId != userId && !User.IsInRole("Admin"))
+                return Forbid();
+
             var notifications = await _context.Notifications
                 .Where(n => n.User_ID == userId)
                 .OrderByDescending(n => n.Date_Sent) // Newest first!
@@ -209,8 +214,9 @@ namespace TutorConnect.API.Controllers
 
         public BusinessRulesController(AppDbContext context) { _context = context; }
 
-        // GET: api/BusinessRules
+        // GET: api/BusinessRules — Admin only; system configuration should not be visible to students
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> GetAll()
         {
             await EnsureDefaultsExistAsync();

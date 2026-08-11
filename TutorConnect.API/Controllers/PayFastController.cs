@@ -69,6 +69,15 @@ namespace TutorConnect.API.Controllers
             if (computedTotal <= 0)
                 return BadRequest("Payment amount is R0.00. Please ask an administrator to set module prices before enrolling.");
 
+            // Idempotency guard: block duplicate Pending payments for the same student + amount.
+            // computedTotal is derived from DB prices so equality is exact.
+            var hasPending = await _db.Payments.AnyAsync(p =>
+                p.Student_ID == dto.StudentId &&
+                p.Payment_Status == "Pending" &&
+                p.Amount == computedTotal);
+            if (hasPending)
+                return BadRequest("A pending payment of the same amount already exists for your account. Please wait for it to be processed, or contact support to resolve it.");
+
             var cfg = _config.GetSection("PayFast");
             var merchantId  = cfg["MerchantId"]!;
             var merchantKey = cfg["MerchantKey"]!;

@@ -80,14 +80,15 @@ namespace TutorConnect.API.Controllers
                 .Include(u => u.User_Role)
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
+            // Generic message to prevent email enumeration
             if (user == null)
             {
-                return BadRequest("User not found.");
+                return BadRequest("Invalid email or password.");
             }
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
-                return BadRequest("Wrong password.");
+                return BadRequest("Invalid email or password.");
             }
 
             // Deleted accounts cannot log in
@@ -252,6 +253,11 @@ namespace TutorConnect.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<UserProfileDto>> GetUser(int id)
         {
+            // Ownership check: students may only view their own profile; Admin can view any
+            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (callerId != id && !User.IsInRole("Admin") && !User.IsInRole("Tutor"))
+                return Forbid();
+
             var user = await _context.Users
                 .Include(u => u.User_Role)
                 .FirstOrDefaultAsync(u => u.User_ID == id);
