@@ -17,6 +17,7 @@ namespace TutorConnect.API.DTOs
 
     public class EnrollmentUnenrollDto
     {
+        [StringLength(1000, ErrorMessage = "Unenrol reason cannot exceed 1000 characters.")]
         public string? Unenroll_Reason { get; set; }
     }
 
@@ -36,8 +37,15 @@ namespace TutorConnect.API.DTOs
 
     public class SessionTopUpDto
     {
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be specified.")]
         public int Student_ID { get; set; }
+
+        [Required(ErrorMessage = "Module code is required.")]
+        [StringLength(20, ErrorMessage = "Module code cannot exceed 20 characters.")]
         public string Module_Code { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Session type is required.")]
+        [StringLength(50, ErrorMessage = "Session type cannot exceed 50 characters.")]
         public string Session_Type { get; set; } = string.Empty; // "Group" or "OneOnOne"
     }
 
@@ -127,6 +135,7 @@ namespace TutorConnect.API.DTOs
         [StringLength(200)]
         public string Location { get; set; } = string.Empty;
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid tutor must be specified.")]
         public int Tutor_ID { get; set; }
 
         [Range(1, 1000, ErrorMessage = "Max capacity must be between 1 and 1000.")]

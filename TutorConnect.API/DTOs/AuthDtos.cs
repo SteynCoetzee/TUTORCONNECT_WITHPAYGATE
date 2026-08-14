@@ -201,6 +201,7 @@ namespace TutorConnect.API.DTOs
     public class ChangePasswordDto
     {
         [Required]
+        [StringLength(100, ErrorMessage = "Current password cannot exceed 100 characters.")]
         public string CurrentPassword { get; set; } = string.Empty;
 
         [Required]

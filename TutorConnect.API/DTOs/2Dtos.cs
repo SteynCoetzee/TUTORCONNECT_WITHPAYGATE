@@ -51,6 +51,7 @@ namespace TutorConnect.API.DTOs
         [Range(0.01, 24, ErrorMessage = "Hours must be between 0.01 and 24.")]
         public decimal Log_Hours_Amount { get; set; }
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid tutor must be specified.")]
         public int Tutor_ID { get; set; }
     }
 }

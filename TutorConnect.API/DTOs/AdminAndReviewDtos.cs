@@ -5,8 +5,13 @@ namespace TutorConnect.API.DTOs
     // --- ATTENDANCE ---
     public class AttendanceCreateDto
     {
+        [Range(1, int.MaxValue, ErrorMessage = "A valid session must be specified.")]
         public int Session_ID { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be specified.")]
         public int Student_ID { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "A valid attendance status must be specified.")]
         public int Attendance_Status_ID { get; set; }
     }
 
@@ -21,6 +26,7 @@ namespace TutorConnect.API.DTOs
         [StringLength(2000)]
         public string Answer { get; set; } = string.Empty;
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid FAQ category must be specified.")]
         public int FAQ_Category_ID { get; set; }
     }
 
@@ -34,6 +40,7 @@ namespace TutorConnect.API.DTOs
         [StringLength(2000)]
         public string Answer { get; set; } = string.Empty;
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid FAQ category must be specified.")]
         public int FAQ_Category_ID { get; set; }
     }
 
@@ -93,6 +100,7 @@ namespace TutorConnect.API.DTOs
         [StringLength(2000)]
         public string Description { get; set; } = string.Empty;
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid testimonial category must be specified.")]
         public int Testimonial_Category_ID { get; set; }
     }
 
@@ -102,7 +110,10 @@ namespace TutorConnect.API.DTOs
         [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
         public int Rating { get; set; }
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be specified.")]
         public int Student_ID { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "A valid tutor must be specified.")]
         public int Tutor_ID { get; set; }
     }
 
@@ -114,7 +125,10 @@ namespace TutorConnect.API.DTOs
         [StringLength(1000)]
         public string Description { get; set; } = string.Empty;
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be specified.")]
         public int Student_ID { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "A valid session must be specified.")]
         public int Session_ID { get; set; }
     }
 
@@ -125,7 +139,10 @@ namespace TutorConnect.API.DTOs
         [StringLength(2000)]
         public string Description { get; set; } = string.Empty;
 
+        [Range(1, int.MaxValue, ErrorMessage = "A valid student must be specified.")]
         public int Student_ID { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "A valid testimonial category must be specified.")]
         public int Testimonial_Category_ID { get; set; }
     }
 

@@ -251,6 +251,23 @@ namespace TutorConnect.API.Data
                 .HasOne<User>().WithMany()
                 .HasForeignKey(sa => sa.Student_ID)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // ── Session_Attendance → Booking_Slot (session) ───────────────────
+            modelBuilder.Entity<Session_Attendance>()
+                .HasOne<Booking_Slot>().WithMany()
+                .HasForeignKey(sa => sa.Session_ID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ── Session_Review → Booking_Slot (session) ───────────────────────
+            modelBuilder.Entity<Session_Review>()
+                .HasOne<Booking_Slot>().WithMany()
+                .HasForeignKey(sr => sr.Session_ID)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // ── Unique index: one email per user ──────────────────────────────
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
         }
 
         public DbSet<User_Role> User_Roles { get; set; } = null!;
