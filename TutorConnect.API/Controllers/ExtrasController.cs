@@ -214,9 +214,9 @@ namespace TutorConnect.API.Controllers
 
         public BusinessRulesController(AppDbContext context) { _context = context; }
 
-        // GET: api/BusinessRules — Admin only; system configuration should not be visible to students
+        // GET: api/BusinessRules — readable by all authenticated roles (AFK timeout applies to everyone)
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<ActionResult> GetAll()
         {
             await EnsureDefaultsExistAsync();

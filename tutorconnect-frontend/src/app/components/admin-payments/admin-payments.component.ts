@@ -92,9 +92,9 @@ export class AdminPaymentsComponent implements OnInit {
   }
 
   badgeClass(status: string): string {
-    if (status === 'Paid')    return 'badge badge-green';
+    if (status === 'Paid')    return 'badge badge-success';
     if (status === 'Pending') return 'badge badge-warning';
-    if (status === 'Failed')  return 'badge badge-red';
+    if (status === 'Failed')  return 'badge badge-danger';
     return 'badge badge-gray';
   }
 }

@@ -778,7 +778,8 @@ namespace TutorConnect.API.Controllers
 
             _context.Modules.Add(newModule);
             await _context.SaveChangesAsync();
-            await _audit.LogAsync(1, "Module Created", $"Module_Code: {newModule.Module_Code}, Name: {newModule.Module_Name}");
+            var creatorId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _audit.LogAsync(creatorId, "Module Created", $"Module_Code: {newModule.Module_Code}, Name: {newModule.Module_Name}");
 
             return Ok("Module created successfully.");
         }
@@ -810,7 +811,8 @@ namespace TutorConnect.API.Controllers
 
             _context.Modules.Remove(module);
             await _context.SaveChangesAsync();
-            await _audit.LogAsync(1, "Module Deleted", $"Module_Code: {code}");
+            var deleterId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _audit.LogAsync(deleterId, "Module Deleted", $"Module_Code: {code}");
             return Ok("Module deleted successfully.");
         }
     }
@@ -1160,12 +1162,13 @@ namespace TutorConnect.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RejectLogHours(int id)
         {
+            var rejectingAdminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             var log = await _context.Log_Hours.FindAsync(id);
             if (log == null) return NotFound("Log entry not found.");
 
             _context.Log_Hours.Remove(log);
             await _context.SaveChangesAsync();
-            await _audit.LogAsync(1, "Hours Rejected", $"Log_ID: {id}, Tutor_ID: {log.Tutor_ID}");
+            await _audit.LogAsync(rejectingAdminId, "Hours Rejected", $"Log_ID: {id}, Tutor_ID: {log.Tutor_ID}");
             return Ok("Log entry rejected and removed.");
         }
     }

@@ -364,6 +364,11 @@ export class ModuleDetailComponent implements OnInit {
     if (!this.resUrl.trim() && !this.resFile) {
       this.errorMessage = 'Please provide a URL or upload a file.'; return;
     }
+    if (this.resType === 'Link' && this.resUrl.trim()) {
+      try { new URL(this.resUrl.trim()); } catch {
+        this.errorMessage = 'Please enter a valid URL including https:// (e.g. https://example.com).'; return;
+      }
+    }
     if (this.resFile) {
       this.resUploading = true;
       const isVideo = this.resType === 'Video';
@@ -919,6 +924,9 @@ export class ModuleDetailComponent implements OnInit {
   saveAssignment() {
     if (!this.assignmentName || !this.assignmentDate) {
       this.errorMessage = 'Assignment name and due date are required.'; return;
+    }
+    if (this.assignmentDate < new Date().toISOString().slice(0, 10)) {
+      this.errorMessage = 'Due date cannot be in the past.'; return;
     }
     if (this.assignmentBriefFile) {
       this.uploadingBrief = true;

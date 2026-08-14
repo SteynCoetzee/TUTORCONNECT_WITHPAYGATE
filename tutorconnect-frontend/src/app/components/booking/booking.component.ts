@@ -106,6 +106,11 @@ export class BookingComponent implements OnInit {
     return sessionType.toLowerCase().startsWith('group');
   }
 
+  isUpcoming(booking: any): boolean {
+    if (!booking?.slotDate) return true;
+    return booking.slotDate >= new Date().toISOString().slice(0, 10);
+  }
+
   loadEnrolledModules() {
     this.loadingModules = true;
     this.http.get<any[]>(`${this.apiUrl}/enrollment/student/${this.userId}`).subscribe({

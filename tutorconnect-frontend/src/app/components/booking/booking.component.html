@@ -42,7 +42,7 @@
     } @else {
       <div class="my-bookings-list">
         @for (b of myBookings; track b.booking_ID) {
-          @if (confirmCancelId === b.booking_ID) {
+          @if (confirmCancelId === b.booking_ID && isUpcoming(b)) {
             <div class="booking-card confirm-cancel">
               <span class="material-icons" style="color:#ef4444;font-size:28px">warning</span>
               <div style="flex:1">
@@ -90,9 +90,13 @@
                   </div>
                 </div>
               </div>
-              <button class="btn btn-danger btn-sm" (click)="confirmCancel(b.booking_ID)">
-                <span class="material-icons">cancel</span> Cancel
-              </button>
+              @if (isUpcoming(b)) {
+                <button class="btn btn-danger btn-sm" (click)="confirmCancel(b.booking_ID)">
+                  <span class="material-icons">cancel</span> Cancel
+                </button>
+              } @else {
+                <span class="badge badge-gray">Completed</span>
+              }
             </div>
           }
         }
