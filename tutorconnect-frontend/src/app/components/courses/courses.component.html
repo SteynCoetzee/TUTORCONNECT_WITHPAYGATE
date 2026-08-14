@@ -375,33 +375,17 @@
               </div>
 
               <div class="module-footer" (click)="$event.stopPropagation()">
-                @if (pendingUnenrolCode === enr.module_Code) {
-                  <div class="unenrol-confirm-inline">
-                    <span class="unenrol-confirm-text">
-                      <span class="material-icons" style="font-size:16px;color:#dc2626;vertical-align:middle">warning</span>
-                      Remove this module?
-                    </span>
-                    <div class="unenrol-confirm-btns">
-                      <button class="btn btn-secondary btn-sm" (click)="cancelUnenrol()">Cancel</button>
-                      <button class="btn btn-danger btn-sm" (click)="confirmUnenrol()"
-                              [disabled]="unenrollingCode === enr.module_Code">
-                        @if (unenrollingCode === enr.module_Code) { <span class="spinner-sm"></span> }
-                        Yes, Unenrol
-                      </button>
-                    </div>
-                  </div>
-                } @else {
-                  <div class="module-actions">
-                    <button class="btn btn-secondary btn-sm" (click)="openModule(enr.module_Code)">
-                      <span class="material-icons">open_in_new</span> View Materials
-                    </button>
-                    <button class="btn btn-danger btn-sm"
-                      (click)="requestUnenrol(enr.module_Code)"
-                      [disabled]="unenrollingCode === enr.module_Code">
-                      Unenrol
-                    </button>
-                  </div>
-                }
+                <div class="module-actions">
+                  <button class="btn btn-secondary btn-sm" (click)="openModule(enr.module_Code)">
+                    <span class="material-icons">open_in_new</span> View Materials
+                  </button>
+                  <button class="btn btn-danger btn-sm"
+                    (click)="requestUnenrol(enr.module_Code, enr.module_Name)"
+                    [disabled]="unenrollingCode === enr.module_Code">
+                    @if (unenrollingCode === enr.module_Code) { <span class="spinner-sm"></span> }
+                    Unenrol
+                  </button>
+                </div>
               </div>
             </div>
           }
@@ -518,28 +502,12 @@
                         }
                       </span>
                     }
-                    @if (pendingUnenrolCode === mod.module_Code) {
-                      <div class="unenrol-confirm-inline" (click)="$event.stopPropagation()">
-                        <span class="unenrol-confirm-text">
-                          <span class="material-icons" style="font-size:16px;color:#dc2626;vertical-align:middle">warning</span>
-                          Remove this module?
-                        </span>
-                        <div class="unenrol-confirm-btns">
-                          <button class="btn btn-secondary btn-sm" (click)="cancelUnenrol()">Cancel</button>
-                          <button class="btn btn-danger btn-sm" (click)="confirmUnenrol()"
-                                  [disabled]="unenrollingCode === mod.module_Code">
-                            @if (unenrollingCode === mod.module_Code) { <span class="spinner-sm"></span> }
-                            Yes, Unenrol
-                          </button>
-                        </div>
-                      </div>
-                    } @else {
-                      <button class="btn btn-danger btn-sm"
-                        (click)="$event.stopPropagation(); requestUnenrol(mod.module_Code)"
-                        [disabled]="unenrollingCode === mod.module_Code">
-                        Unenrol
-                      </button>
-                    }
+                    <button class="btn btn-danger btn-sm"
+                      (click)="$event.stopPropagation(); requestUnenrol(mod.module_Code, mod.module_Name)"
+                      [disabled]="unenrollingCode === mod.module_Code">
+                      @if (unenrollingCode === mod.module_Code) { <span class="spinner-sm"></span> }
+                      Unenrol
+                    </button>
                   } @else {
                     <span class="select-hint" (click)="toggleExpand(mod.module_Code)">
                       @if (isSelected(mod.module_Code)) {
@@ -560,6 +528,42 @@
     }
   }
 </div>
+
+<!-- ─── Unenrol Confirmation Modal ─────────────────────────────────────────── -->
+@if (pendingUnenrolCode) {
+  <div class="modal-overlay" (click)="cancelUnenrol()">
+    <div class="modal-card unenrol-modal-card" (click)="$event.stopPropagation()">
+
+      <div class="unenrol-modal-icon-wrap">
+        <span class="material-icons unenrol-modal-icon">logout</span>
+      </div>
+
+      <h2 class="unenrol-modal-title">Unenrol from Module?</h2>
+
+      <p class="unenrol-modal-module-name">{{ pendingUnenrolName || pendingUnenrolCode }}</p>
+
+      <div class="unenrol-modal-warning-box">
+        <span class="material-icons">warning_amber</span>
+        <span>
+          You will <strong>lose access</strong> to all materials, quizzes, and assignments for this module.
+          Any remaining sessions will also be forfeited. This action cannot be undone.
+        </span>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary unenrol-modal-btn" (click)="cancelUnenrol()">
+          <span class="material-icons">arrow_back</span> Keep Module
+        </button>
+        <button class="btn btn-danger unenrol-modal-btn" (click)="confirmUnenrol()"
+                [disabled]="!!unenrollingCode">
+          @if (unenrollingCode) { <span class="spinner-sm"></span> }
+          <span class="material-icons">logout</span> Yes, Unenrol
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
 
 <!-- ─── Pre-Confirm Modal (No-Refund Warning) ──────────────────────────────── -->
 @if (showPreConfirmModal) {

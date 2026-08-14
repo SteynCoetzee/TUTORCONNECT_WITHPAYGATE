@@ -72,16 +72,20 @@ export class CoursesComponent implements OnInit {
   enrollingAll = false;
   unenrollingCode = '';
   pendingUnenrolCode = '';
+  pendingUnenrolName = '';
 
-  requestUnenrol(code: string) {
+  requestUnenrol(code: string, name: string = '') {
     this.pendingUnenrolCode = code;
+    this.pendingUnenrolName = name;
   }
   cancelUnenrol() {
     this.pendingUnenrolCode = '';
+    this.pendingUnenrolName = '';
   }
   confirmUnenrol() {
     const code = this.pendingUnenrolCode;
     this.pendingUnenrolCode = '';
+    this.pendingUnenrolName = '';
     this.unenroll(code);
   }
 
