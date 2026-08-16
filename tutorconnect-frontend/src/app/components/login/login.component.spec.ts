@@ -9,6 +9,8 @@ describe('LoginComponent — Login Flow & Error Handling', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let authSpy: jasmine.SpyObj<AuthService>;
 
+  const validCredentials = { email: 'student@up.ac.za', password: 'Password1' };
+
   beforeEach(async () => {
     authSpy = jasmine.createSpyObj('AuthService', [
       'login', 'logout', 'isLoggedIn', 'getToken',
@@ -34,13 +36,14 @@ describe('LoginComponent — Login Flow & Error Handling', () => {
 
   it('should call authService.login with the entered credentials', () => {
     authSpy.login.and.returnValue(of('fake.jwt.token'));
-    component.loginObj = { email: 'student@up.ac.za', password: 'Password1' };
+    component.loginObj = { ...validCredentials };
     component.onLogin();
-    expect(authSpy.login).toHaveBeenCalledWith({ email: 'student@up.ac.za', password: 'Password1' });
+    expect(authSpy.login).toHaveBeenCalledWith(validCredentials);
   });
 
   it('should clear a previous error message before each new login attempt', () => {
     authSpy.login.and.returnValue(of('token'));
+    component.loginObj = { ...validCredentials };
     component.errorMessage = 'Previous error';
     component.onLogin();
     expect(component.errorMessage).toBe('');
@@ -48,31 +51,35 @@ describe('LoginComponent — Login Flow & Error Handling', () => {
 
   it('should show a connection error when the API is unreachable (status 0)', () => {
     authSpy.login.and.returnValue(throwError(() => ({ status: 0 })));
+    component.loginObj = { ...validCredentials };
     component.onLogin();
     expect(component.loading).toBeFalse();
     expect(component.errorMessage).toBe(
-      'Cannot connect to the server. Please ensure the API is running.'
+      'Unable to reach the server. Please check your connection.'
     );
   });
 
-  it('should display the server error message when a string error body is returned', () => {
+  it('should display a string server error message for a 400 Bad Request', () => {
     authSpy.login.and.returnValue(
-      throwError(() => ({ status: 401, error: 'Invalid email or password.' }))
+      throwError(() => ({ status: 400, error: 'Invalid email or password.' }))
     );
+    component.loginObj = { ...validCredentials };
     component.onLogin();
     expect(component.errorMessage).toBe('Invalid email or password.');
   });
 
-  it('should show a generic error message for a non-string error body', () => {
+  it('should show the incorrect credentials message for a 401 Unauthorised', () => {
     authSpy.login.and.returnValue(
-      throwError(() => ({ status: 401, error: { detail: 'unexpected' } }))
+      throwError(() => ({ status: 401, error: 'Unauthorised' }))
     );
+    component.loginObj = { ...validCredentials };
     component.onLogin();
-    expect(component.errorMessage).toBe('Login failed. Please check your credentials.');
+    expect(component.errorMessage).toBe('Incorrect email or password. Please try again.');
   });
 
   it('should set loading to false after a failed login attempt', () => {
     authSpy.login.and.returnValue(throwError(() => ({ status: 500, error: 'Server error' })));
+    component.loginObj = { ...validCredentials };
     component.onLogin();
     expect(component.loading).toBeFalse();
   });

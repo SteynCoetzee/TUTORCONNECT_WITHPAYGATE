@@ -55,7 +55,7 @@ describe('RegisterComponent — Registration Input Validation', () => {
   });
 
   it('should accept a password that satisfies all requirements', () => {
-    component.validatePassword('Password1');
+    component.validatePassword('Password1!');
     expect(component.fieldErrors['password']).toBeUndefined();
   });
 
