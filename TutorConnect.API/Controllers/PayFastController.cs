@@ -270,11 +270,32 @@ namespace TutorConnect.API.Controllers
                 return BadRequest("Invalid signature");
             }
 
-            // 2. Only act on COMPLETE payments
+            // 2. Handle payment status
             var paymentStatus = pfData.GetValueOrDefault("payment_status");
             _logger.LogInformation("[PayFast ITN] payment_status={Status}", paymentStatus);
-            if (paymentStatus != "COMPLETE")
+
+            // If payment failed (e.g. insufficient funds, card declined) — mark it Failed in DB
+            if (paymentStatus == "FAILED")
+            {
+                if (int.TryParse(pfData.GetValueOrDefault("m_payment_id"), out var failedPaymentId))
+                {
+                    var failedPayment = await _db.Payments.FindAsync(failedPaymentId);
+                    if (failedPayment != null && failedPayment.Payment_Status == "Pending")
+                    {
+                        failedPayment.Payment_Status = "Failed";
+                        await _db.SaveChangesAsync();
+                        _logger.LogWarning("[PayFast ITN] Payment {PaymentId} marked as Failed.", failedPaymentId);
+                    }
+                }
                 return Ok();
+            }
+
+            // Only enroll for COMPLETE payments — ignore PENDING or any other status
+            if (paymentStatus != "COMPLETE")
+            {
+                _logger.LogInformation("[PayFast ITN] Ignoring non-actionable status: {Status}", paymentStatus);
+                return Ok();
+            }
 
             // 3. Look up the payment record
             if (!int.TryParse(pfData.GetValueOrDefault("m_payment_id"), out var paymentId))

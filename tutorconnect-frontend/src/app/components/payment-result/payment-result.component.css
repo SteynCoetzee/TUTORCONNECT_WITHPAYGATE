@@ -32,6 +32,8 @@
 
 .success-icon { background: #dcfce7; color: #16a34a; }
 .cancel-icon  { background: #fee2e2; color: #dc2626; }
+.failed-icon  { background: #fee2e2; color: #dc2626; }
+.timeout-icon { background: #fff7ed; color: #c2410c; }
 .unknown-icon { background: #fef9c3; color: #ca8a04; }
 
 h1 { font-size: 1.6rem; font-weight: 700; margin: 0; }
@@ -47,13 +49,20 @@ h1 { font-size: 1.6rem; font-weight: 700; margin: 0; }
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
   border-radius: 0.6rem;
   padding: 0.85rem 1rem;
   font-size: 0.88rem;
-  color: #1e40af;
   text-align: left;
+}
+.info-box.info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+.info-box.warning {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
 }
 .info-box .material-icons { font-size: 1.1rem; margin-top: 1px; flex-shrink: 0; }
 
@@ -75,8 +84,9 @@ h1 { font-size: 1.6rem; font-weight: 700; margin: 0; }
 .btn-secondary:hover{ background: #e2e8f0; }
 
 @media (prefers-color-scheme: dark) {
-  .result-card  { background: #1e293b; }
-  .subtitle     { color: #94a3b8; }
-  .info-box     { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
-  .btn-secondary{ background: #334155; color: #e2e8f0; border-color: #475569; }
+  .result-card          { background: #1e293b; }
+  .subtitle             { color: #94a3b8; }
+  .info-box.info        { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+  .info-box.warning     { background: #431407; border-color: #9a3412; color: #fdba74; }
+  .btn-secondary        { background: #334155; color: #e2e8f0; border-color: #475569; }
 }

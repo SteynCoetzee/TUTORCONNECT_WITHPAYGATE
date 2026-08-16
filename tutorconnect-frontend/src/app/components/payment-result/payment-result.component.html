@@ -8,7 +8,7 @@
       </div>
       <h1>Payment Received!</h1>
       <p class="subtitle">Thank you — your payment was processed by PayFast.</p>
-      <div class="info-box">
+      <div class="info-box info">
         <span class="material-icons">info</span>
         <span>Your module enrollment is being confirmed. It may take a moment to reflect.
           If your modules don't appear immediately, please refresh the page in a minute.</span>
@@ -28,21 +28,63 @@
       </div>
       <h1>Payment Cancelled</h1>
       <p class="subtitle">You cancelled the payment. No charge was made to your account.</p>
-      <button class="btn-secondary" (click)="goToModules()">
+      <button class="btn-secondary" (click)="tryAgain()">
         <span class="material-icons">arrow_back</span>
         Back to Modules
       </button>
     </div>
   }
 
-  <!-- UNKNOWN -->
+  <!-- FAILED (e.g. insufficient funds, card declined) -->
+  @if (status === 'failed') {
+    <div class="result-card failed">
+      <div class="icon-wrap failed-icon">
+        <span class="material-icons">error</span>
+      </div>
+      <h1>Payment Failed</h1>
+      <p class="subtitle">Your payment could not be processed. This may be due to insufficient funds or a declined card.</p>
+      <div class="info-box warning">
+        <span class="material-icons">warning</span>
+        <span>No charge was made to your account. Please check your card details or try a different payment method.</span>
+      </div>
+      <button class="btn-primary" (click)="tryAgain()">
+        <span class="material-icons">refresh</span>
+        Try Again
+      </button>
+    </div>
+  }
+
+  <!-- TIMEOUT (PayFast session expired) -->
+  @if (status === 'timeout') {
+    <div class="result-card timeout">
+      <div class="icon-wrap timeout-icon">
+        <span class="material-icons">schedule</span>
+      </div>
+      <h1>Session Timed Out</h1>
+      <p class="subtitle">Your payment session expired before it could be completed.</p>
+      <div class="info-box warning">
+        <span class="material-icons">warning</span>
+        <span>No charge was made to your account. Please try again — payment sessions are active for 30 minutes.</span>
+      </div>
+      <button class="btn-primary" (click)="tryAgain()">
+        <span class="material-icons">refresh</span>
+        Try Again
+      </button>
+    </div>
+  }
+
+  <!-- UNKNOWN (fallback) -->
   @if (status === 'unknown') {
     <div class="result-card unknown">
       <div class="icon-wrap unknown-icon">
         <span class="material-icons">help</span>
       </div>
-      <h1>Checking Payment…</h1>
-      <p class="subtitle">We're not sure what happened. Check your enrolled modules — if payment was successful your enrollment will reflect shortly.</p>
+      <h1>Payment Status Unknown</h1>
+      <p class="subtitle">We could not confirm the outcome of your payment. Check your enrolled modules — if payment was successful your enrollment will reflect shortly.</p>
+      <div class="info-box info">
+        <span class="material-icons">info</span>
+        <span>If your modules don't appear within a few minutes, please contact support with your payment reference number.</span>
+      </div>
       <button class="btn-secondary" (click)="goToModules()">
         <span class="material-icons">menu_book</span>
         Check My Modules
