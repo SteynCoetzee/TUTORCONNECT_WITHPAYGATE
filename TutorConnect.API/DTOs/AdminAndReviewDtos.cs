@@ -28,6 +28,9 @@ namespace TutorConnect.API.DTOs
 
         [Range(1, int.MaxValue, ErrorMessage = "A valid FAQ category must be specified.")]
         public int FAQ_Category_ID { get; set; }
+
+        [StringLength(1000)]
+        public string? Applicable_Pages { get; set; }
     }
 
     public class FAQUpdateDto
@@ -42,6 +45,9 @@ namespace TutorConnect.API.DTOs
 
         [Range(1, int.MaxValue, ErrorMessage = "A valid FAQ category must be specified.")]
         public int FAQ_Category_ID { get; set; }
+
+        [StringLength(1000)]
+        public string? Applicable_Pages { get; set; }
     }
 
     public class FAQCategoryCreateDto
@@ -151,5 +157,11 @@ namespace TutorConnect.API.DTOs
     {
         [Range(0, double.MaxValue)]
         public decimal Rule_Value { get; set; }
+    }
+
+    // --- ROLE NAV PERMISSIONS ---
+    public class UpdateHiddenItemsDto
+    {
+        public List<string> HiddenItems { get; set; } = new();
     }
 }

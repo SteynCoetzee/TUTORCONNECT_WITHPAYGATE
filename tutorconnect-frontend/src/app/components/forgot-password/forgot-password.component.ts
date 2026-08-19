@@ -23,6 +23,7 @@ export class ForgotPasswordComponent {
   loading = false;
   errorMessage = '';
   successMessage = '';
+  resetCodeExpiryMinutes = 15;
   showPassword = false;
   showConfirmPassword = false;
   fieldErrors: Record<string, string> = {};
@@ -81,6 +82,7 @@ export class ForgotPasswordComponent {
       next: (response: any) => {
         this.loading = false;
         this.successMessage = response.message || 'If this email is registered, a reset code has been sent.';
+        if (response.expiresInMinutes) this.resetCodeExpiryMinutes = response.expiresInMinutes;
         this.step = 'code';
       },
       error: (err) => {
@@ -102,8 +104,7 @@ export class ForgotPasswordComponent {
 
     this.http.post(`${this.apiUrl}/Auth/verify-reset-code`, {
       email: this.email,
-      resetCode: this.resetCode,
-      newPassword: ''
+      resetCode: this.resetCode
     }, { responseType: 'text' }).subscribe({
       next: () => {
         this.loading = false;

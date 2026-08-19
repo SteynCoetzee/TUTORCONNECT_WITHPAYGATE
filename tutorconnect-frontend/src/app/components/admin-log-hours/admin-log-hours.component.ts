@@ -4,6 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface PendingLog {
   log_Hours_ID: number;
@@ -29,7 +30,7 @@ interface ApprovedLog {
 @Component({
   selector: 'app-admin-log-hours',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, HelpIconComponent],
   templateUrl: './admin-log-hours.component.html',
   styleUrl: './admin-log-hours.component.css'
 })

@@ -4,14 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { FaqService, Faq as FAQ } from '../../services/faq.service';
+import { HELP_PAGE_OPTIONS } from '../../shared/help-page-options';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
-interface FAQ { faq_ID: number; question: string; answer: string; faq_Category_ID: number; FAQ_ID?: number; }
 interface FAQCategory { faq_Category_ID: number; category_Name: string; }
 
 @Component({
   selector: 'app-admin-faq',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './admin-faq.component.html',
   styleUrl: './admin-faq.component.css'
 })
@@ -28,6 +30,8 @@ export class AdminFaqComponent implements OnInit {
   faqQuestion = '';
   faqAnswer = '';
   faqCategoryId: number | null = null;
+  faqApplicablePages: string[] = [];
+  helpPageOptions = HELP_PAGE_OPTIONS;
   savingFaq = false;
   deleteFaqId: number | null = null;
   faqErrors: Record<string, string> = {};
@@ -43,7 +47,7 @@ export class AdminFaqComponent implements OnInit {
   activeTab: 'faqs' | 'categories' = 'faqs';
   private apiUrl = environment.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private faqService: FaqService) {}
 
   ngOnInit() { this.loadAll(); }
 
@@ -52,7 +56,7 @@ export class AdminFaqComponent implements OnInit {
     this.http.get<FAQCategory[]>(`${this.apiUrl}/AdminContent/faq-categories`).subscribe({
       next: (cats) => {
         this.categories = cats;
-        this.http.get<FAQ[]>(`${this.apiUrl}/AdminContent/faqs`).subscribe({
+        this.faqService.getFaqs(true).subscribe({
           next: (f) => { this.faqs = f; this.loading = false; },
           error: () => { this.loading = false; }
         });
@@ -93,6 +97,7 @@ export class AdminFaqComponent implements OnInit {
     this.faqQuestion = '';
     this.faqAnswer = '';
     this.faqCategoryId = null;
+    this.faqApplicablePages = [];
     this.faqErrors = {};
   }
 
@@ -109,9 +114,16 @@ export class AdminFaqComponent implements OnInit {
     this.faqQuestion = faq?.question ?? '';
     this.faqAnswer = faq?.answer ?? '';
     this.faqCategoryId = faq?.faq_Category_ID ?? null;
+    this.faqApplicablePages = faq ? this.faqService.pagesOf(faq) : [];
     this.faqErrors = {};
     this.showFaqForm = true;
     this.clearMessages();
+  }
+
+  togglePage(key: string) {
+    const i = this.faqApplicablePages.indexOf(key);
+    if (i > -1) this.faqApplicablePages.splice(i, 1);
+    else this.faqApplicablePages.push(key);
   }
 
   saveFaq() {
@@ -121,10 +133,15 @@ export class AdminFaqComponent implements OnInit {
     else delete this.faqErrors['category'];
     if (Object.keys(this.faqErrors).length > 0) return;
     this.savingFaq = true;
-    const payload = { question: this.faqQuestion, answer: this.faqAnswer, FAQ_Category_ID: this.faqCategoryId };
+    const payload = {
+      question: this.faqQuestion,
+      answer: this.faqAnswer,
+      FAQ_Category_ID: this.faqCategoryId!,
+      Applicable_Pages: this.faqApplicablePages.join(',')
+    };
     const obs = this.editingFaq
-      ? this.http.put(`${this.apiUrl}/AdminContent/faqs/${this.editingFaq.faq_ID}`, payload)
-      : this.http.post(`${this.apiUrl}/AdminContent/faqs`, payload);
+      ? this.faqService.updateFaq(this.editingFaq.faq_ID, payload)
+      : this.faqService.createFaq(payload);
     obs.subscribe({
       next: () => { this.savingFaq = false; this.successMessage = 'FAQ saved.'; this.showFaqForm = false; this.loadAll(); },
       error: (err) => { this.savingFaq = false; this.errorMessage = extractErrorMessage(err, 'Failed to save FAQ.'); }
@@ -133,7 +150,7 @@ export class AdminFaqComponent implements OnInit {
 
   deleteFaq() {
     if (!this.deleteFaqId) return;
-    this.http.delete(`${this.apiUrl}/AdminContent/faqs/${this.deleteFaqId}`).subscribe({
+    this.faqService.deleteFaq(this.deleteFaqId).subscribe({
       next: () => { this.successMessage = 'FAQ deleted.'; this.deleteFaqId = null; this.loadAll(); },
       error: (err) => { this.errorMessage = extractErrorMessage(err, 'Failed to delete FAQ.'); this.deleteFaqId = null; }
     });

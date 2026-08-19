@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface AuditEntry {
   audit_Log_ID: number;
@@ -18,7 +19,7 @@ interface AuditEntry {
 @Component({
   selector: 'app-admin-audit',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './admin-audit.component.html',
   styleUrl: './admin-audit.component.css'
 })

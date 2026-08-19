@@ -32,3 +32,50 @@
 }
 
 .loading-msg { display: flex; align-items: center; gap: 8px; padding: 32px 0; color: var(--text-muted); }
+
+.faq-filter-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--primary-light); color: var(--text-dark);
+  border: 1px solid var(--primary); border-radius: 20px;
+  padding: 6px 14px; font-size: 13px; margin-bottom: 20px;
+  width: fit-content;
+}
+.faq-filter-chip button {
+  background: none; border: none; color: var(--primary);
+  font-size: 13px; font-weight: 600; cursor: pointer; padding: 0;
+}
+
+.faq-search-wrap {
+  position: relative;
+  margin-bottom: 20px;
+  max-width: 420px;
+}
+.faq-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 19px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.faq-search-input {
+  padding-left: 40px !important;
+  padding-right: 36px !important;
+  border-radius: 8px !important;
+}
+.faq-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+}
+.faq-search-clear:hover { color: var(--text-dark); background: #f3f4f6; }
+.faq-search-clear .material-icons { font-size: 17px; }

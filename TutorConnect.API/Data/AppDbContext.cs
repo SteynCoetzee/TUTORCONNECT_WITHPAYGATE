@@ -303,6 +303,7 @@ namespace TutorConnect.API.Data
         public DbSet<Student_Group_Allocation> Student_Group_Allocations { get; set; }
         public DbSet<Resource_Type> Resource_Types { get; set; }
         public DbSet<Business_Rule> Business_Rules { get; set; }
+        public DbSet<Role_Nav_Setting> Role_Nav_Settings { get; set; }
 
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Payment> Payments { get; set; }

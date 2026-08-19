@@ -1,0 +1,54 @@
+.help-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.help-q-icon {
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.help-icon-wrap:hover .help-q-icon { color: var(--primary); }
+
+.help-icon-wrap.light .help-q-icon { color: rgba(255, 255, 255, 0.75); }
+.help-icon-wrap.light:hover .help-q-icon { color: #fff; }
+
+.help-popup {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  max-width: 320px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  z-index: 100;
+  white-space: normal;
+  font-weight: normal;
+  text-transform: none;
+}
+
+.help-popup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 10px;
+  border: 6px solid transparent;
+  border-top-color: #1e293b;
+}
+
+.help-icon-wrap:hover .help-popup { display: block; }
+
+.help-popup-title { font-weight: 600; margin-bottom: 4px; }
+.help-popup-list { margin: 0; padding-left: 1.1rem; }
+.help-popup-list li { margin-bottom: 2px; }
+.help-popup-empty { color: #cbd5e1; }
+.help-popup-hint { margin-top: 6px; font-size: 0.74rem; color: #93c5fd; }

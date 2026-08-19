@@ -24,7 +24,10 @@ export class AddModuleComponent implements OnInit {
   formDescription = '';
   formPriceOneOnOne: number | null = null;
   formPriceGroup: number | null = null;
-  
+
+  maxPriceOneOnOne = 10000;
+  maxPriceGroup = 10000;
+
   loading = false;
   saving = false;
   errorMessage = '';
@@ -55,6 +58,20 @@ export class AddModuleComponent implements OnInit {
         this.editingModuleCode = params['moduleCode'];
         this.loadModule();
       }
+    });
+
+    this.loadPriceCaps();
+  }
+
+  private loadPriceCaps() {
+    this.http.get<any[]>(`${this.apiUrl}/BusinessRules`).subscribe({
+      next: (rules) => {
+        const oneOnOne = rules.find(r => r.rule_Name === 'module_max_price_oneonone');
+        const group = rules.find(r => r.rule_Name === 'module_max_price_group');
+        if (oneOnOne) this.maxPriceOneOnOne = Number(oneOnOne.rule_Value);
+        if (group) this.maxPriceGroup = Number(group.rule_Value);
+      },
+      error: () => { /* fall back to the defaults already set above */ }
     });
   }
 
@@ -114,13 +131,13 @@ export class AddModuleComponent implements OnInit {
     }
   }
 
-  validatePrice(val: number | null, field: string, label: string) {
+  validatePrice(val: number | null, field: string, label: string, max: number) {
     if (val === null || val === undefined || (val as any) === '') {
       this.fieldErrors[field] = `${label} is required.`;
     } else if (val < 0) {
       this.fieldErrors[field] = `${label} cannot be negative.`;
-    } else if (val > 10000) {
-      this.fieldErrors[field] = `${label} seems too high — maximum is R10,000.`;
+    } else if (val > max) {
+      this.fieldErrors[field] = `${label} seems too high — maximum is R${max.toLocaleString()}.`;
     } else {
       delete this.fieldErrors[field];
     }
@@ -130,8 +147,8 @@ export class AddModuleComponent implements OnInit {
     this.validateCode(this.formCode);
     this.validateName(this.formName);
     this.validateDescription(this.formDescription);
-    this.validatePrice(this.formPriceOneOnOne, 'price1on1', 'One-on-One price');
-    this.validatePrice(this.formPriceGroup, 'priceGroup', 'Group price');
+    this.validatePrice(this.formPriceOneOnOne, 'price1on1', 'One-on-One price', this.maxPriceOneOnOne);
+    this.validatePrice(this.formPriceGroup, 'priceGroup', 'Group price', this.maxPriceGroup);
     if (Object.keys(this.fieldErrors).length > 0) return;
 
     this.saving = true;

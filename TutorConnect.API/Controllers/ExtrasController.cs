@@ -210,6 +210,10 @@ namespace TutorConnect.API.Controllers
         private static readonly List<(string Name, decimal Default, string Description)> _defaults = new()
         {
             ("session_timeout_minutes", 30, "Minutes of inactivity before a user is automatically logged out"),
+            ("afk_warning_minutes", 2, "Minutes before the AFK sign-out that an \"Are you still there?\" warning is shown"),
+            ("password_reset_code_expiration_minutes", 15, "Minutes a password reset code stays valid after it is emailed to a user"),
+            ("module_max_price_oneonone", 10000, "Highest price (R) a module's one-on-one session price is allowed to be set to"),
+            ("module_max_price_group", 10000, "Highest price (R) a module's group session price is allowed to be set to"),
         };
 
         public BusinessRulesController(AppDbContext context) { _context = context; }
@@ -221,6 +225,11 @@ namespace TutorConnect.API.Controllers
         {
             await EnsureDefaultsExistAsync();
             var rules = await _context.Business_Rules.ToListAsync();
+            // Always display in the order rules are defined in _defaults, regardless of DB insertion order
+            var displayOrder = _defaults.Select((d, i) => (d.Name, i)).ToDictionary(x => x.Name, x => x.i);
+            rules = rules
+                .OrderBy(r => displayOrder.TryGetValue(r.Rule_Name, out var idx) ? idx : int.MaxValue)
+                .ToList();
             return Ok(rules.Select(r => new
             {
                 r.Rule_ID,
@@ -250,6 +259,71 @@ namespace TutorConnect.API.Controllers
                 if (!existing.Contains(name))
                 {
                     _context.Business_Rules.Add(new Business_Rule { Rule_Name = name, Rule_Value = def });
+                }
+            }
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ROLE NAV PERMISSIONS CONTROLLER
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Route("api/[controller]")]
+    [Authorize]
+    [ApiController]
+    public class RoleNavPermissionsController : ControllerBase
+    {
+        // Admin is configurable too, but the one hardcoded super-admin account (seeded in
+        // Program.cs, TutorConnect00@gmail.com) is always exempted from it client-side —
+        // see HARDCODED_ADMIN_EMAIL in the frontend's shared/nav-config.ts.
+        private static readonly string[] _roles = { "Admin", "Tutor", "Student" };
+
+        private readonly AppDbContext _context;
+        public RoleNavPermissionsController(AppDbContext context) { _context = context; }
+
+        // GET: api/RoleNavPermissions — readable by all authenticated roles (Tutor/Student read their own list on load)
+        [HttpGet]
+        [Authorize]
+        public async Task<ActionResult> GetAll()
+        {
+            await EnsureDefaultsExistAsync();
+            var settings = await _context.Role_Nav_Settings.ToListAsync();
+            return Ok(settings.Select(s => new
+            {
+                s.Role_Nav_Setting_ID,
+                s.Role,
+                HiddenItems = s.Hidden_Items.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            }));
+        }
+
+        // PUT: api/RoleNavPermissions/{role}
+        [HttpPut("{role}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(string role, [FromBody] UpdateHiddenItemsDto dto)
+        {
+            if (!_roles.Contains(role, StringComparer.OrdinalIgnoreCase))
+                return BadRequest("Role must be Tutor or Student.");
+
+            var setting = await _context.Role_Nav_Settings.FirstOrDefaultAsync(s => s.Role == role);
+            if (setting == null)
+            {
+                setting = new Role_Nav_Setting { Role = role };
+                _context.Role_Nav_Settings.Add(setting);
+            }
+            setting.Hidden_Items = string.Join(",", dto.HiddenItems ?? new List<string>());
+            await _context.SaveChangesAsync();
+            return Ok(new { setting.Role_Nav_Setting_ID, setting.Role, HiddenItems = dto.HiddenItems });
+        }
+
+        private async Task EnsureDefaultsExistAsync()
+        {
+            var existing = await _context.Role_Nav_Settings.Select(s => s.Role).ToListAsync();
+            foreach (var role in _roles)
+            {
+                if (!existing.Contains(role))
+                {
+                    _context.Role_Nav_Settings.Add(new Role_Nav_Setting { Role = role, Hidden_Items = "" });
                 }
             }
             await _context.SaveChangesAsync();

@@ -50,4 +50,19 @@ namespace TutorConnect.API.DTOs
         public DateTime Assigned_Date { get; set; }
         public bool IsActive { get; set; }
     }
+
+    public class ModuleBulkRowError
+    {
+        public int RowNumber { get; set; }
+        public string Field { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class ModuleBulkImportResult
+    {
+        public int TotalRowsProcessed { get; set; }
+        public int SuccessCount { get; set; }
+        public List<string> CreatedModuleCodes { get; set; } = new();
+        public List<ModuleBulkRowError> Errors { get; set; } = new();
+    }
 }

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface HelpPage { help_Page_ID: number; help_Page_Title: string; help_Page_Description: string; }
 interface HelpResource { help_Video_ID: number; video_Title: string; video_URL: string; }
@@ -11,7 +12,7 @@ interface HelpResource { help_Video_ID: number; video_Title: string; video_URL: 
 @Component({
   selector: 'app-admin-help',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './admin-help.component.html',
   styleUrl: './admin-help.component.css'
 })

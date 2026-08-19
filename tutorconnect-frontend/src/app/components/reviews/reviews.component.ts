@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface TutorReview {
   tutor_Review_ID: number;
@@ -47,7 +48,7 @@ interface SessionOption {
 @Component({
   selector: 'app-reviews',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './reviews.component.html',
   styleUrl: './reviews.component.css'
 })

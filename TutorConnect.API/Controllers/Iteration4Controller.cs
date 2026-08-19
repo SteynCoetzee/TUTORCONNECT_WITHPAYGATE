@@ -5,7 +5,10 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using BCrypt.Net;
+using ClosedXML.Excel;
 using TutorConnect.API.Data;
 using TutorConnect.API.DTOs;
 using TutorConnect.API.Models;
@@ -133,29 +136,35 @@ namespace TutorConnect.API.Controllers
         [HttpPost("forgot-password")]
         public async Task<ActionResult<object>> ForgotPassword(ForgotPasswordDto request)
         {
+            var expirationMinutes = await _context.Business_Rules
+                .Where(r => r.Rule_Name == "password_reset_code_expiration_minutes")
+                .Select(r => (double?)r.Rule_Value)
+                .FirstOrDefaultAsync() ?? 15;
+
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (user == null)
             {
-                return Ok(new { message = "If this email is registered, a reset code has been sent." });
+                return Ok(new { message = "If this email is registered, a reset code has been sent.", expiresInMinutes = expirationMinutes });
             }
 
             // Generate a 6-character alphanumeric reset code (uppercase letters + digits)
             const string otpChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             var rng = new Random();
             var resetCode = new string(Enumerable.Range(0, 6).Select(_ => otpChars[rng.Next(otpChars.Length)]).ToArray());
+
             user.PasswordResetCode = resetCode;
-            user.PasswordResetCodeExpiration = DateTime.Now.AddMinutes(15);
+            user.PasswordResetCodeExpiration = DateTime.Now.AddMinutes(expirationMinutes);
 
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
             await _emailService.SendResetCodeAsync(user.Email, resetCode);
-            return Ok(new { message = "If this email is registered, a reset code has been sent." });
+            return Ok(new { message = "If this email is registered, a reset code has been sent.", expiresInMinutes = expirationMinutes });
         }
 
         [HttpPost("verify-reset-code")]
-        public async Task<ActionResult> VerifyResetCode([FromBody] ResetPasswordDto request)
+        public async Task<ActionResult> VerifyResetCode([FromBody] VerifyResetCodeDto request)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null) return BadRequest("User not found.");
@@ -757,6 +766,17 @@ namespace TutorConnect.API.Controllers
             return Ok(modules);
         }
 
+        // Reads the admin-configurable price ceilings from Business_Rules (falls back to 10000 if not set yet).
+        private async Task<(decimal MaxOneOnOne, decimal MaxGroup)> GetPriceCapsAsync()
+        {
+            var rules = await _context.Business_Rules
+                .Where(r => r.Rule_Name == "module_max_price_oneonone" || r.Rule_Name == "module_max_price_group")
+                .ToDictionaryAsync(r => r.Rule_Name, r => r.Rule_Value);
+            var maxOneOnOne = rules.TryGetValue("module_max_price_oneonone", out var m1) ? m1 : 10000m;
+            var maxGroup = rules.TryGetValue("module_max_price_group", out var m2) ? m2 : 10000m;
+            return (maxOneOnOne, maxGroup);
+        }
+
         // POST: api/Modules (4.1 Create module - Admin only)
         [HttpPost]
         [Authorize(Roles = "Admin")]
@@ -766,6 +786,12 @@ namespace TutorConnect.API.Controllers
             {
                 return BadRequest("A module with this code already exists.");
             }
+
+            var (maxOneOnOne, maxGroup) = await GetPriceCapsAsync();
+            if (request.Module_Price_OneOnOne > maxOneOnOne)
+                return BadRequest($"One-on-one price cannot exceed R{maxOneOnOne:N0}.");
+            if (request.Module_Price_Group > maxGroup)
+                return BadRequest($"Group price cannot exceed R{maxGroup:N0}.");
 
             var newModule = new Module
             {
@@ -792,6 +818,12 @@ namespace TutorConnect.API.Controllers
             var module = await _context.Modules.FindAsync(code);
             if (module == null) return NotFound("Module not found.");
 
+            var (maxOneOnOne, maxGroup) = await GetPriceCapsAsync();
+            if (request.Module_Price_OneOnOne > maxOneOnOne)
+                return BadRequest($"One-on-one price cannot exceed R{maxOneOnOne:N0}.");
+            if (request.Module_Price_Group > maxGroup)
+                return BadRequest($"Group price cannot exceed R{maxGroup:N0}.");
+
             module.Module_Name = request.Module_Name;
             module.Module_Description = request.Module_Description;
             module.Module_Price_OneOnOne = request.Module_Price_OneOnOne;
@@ -809,11 +841,229 @@ namespace TutorConnect.API.Controllers
             var module = await _context.Modules.FindAsync(code);
             if (module == null) return NotFound("Module not found.");
 
-            _context.Modules.Remove(module);
-            await _context.SaveChangesAsync();
+            var enrolledCount = await _context.Student_Modules.CountAsync(sm => sm.Module_Code == code && sm.IsActive);
+            var assignedCount = await _context.Tutor_Modules.CountAsync(tm => tm.Module_Code == code && tm.IsActive);
+            if (enrolledCount > 0 || assignedCount > 0)
+            {
+                var parts = new List<string>();
+                if (enrolledCount > 0) parts.Add($"{enrolledCount} student{(enrolledCount == 1 ? "" : "s")} enrolled");
+                if (assignedCount > 0) parts.Add($"{assignedCount} tutor{(assignedCount == 1 ? "" : "s")} assigned");
+                return Conflict($"This module can't be deleted because it has {string.Join(" and ", parts)}. Unenrol the student(s) and/or remove the tutor(s) first, then try again.");
+            }
+
+            try
+            {
+                _context.Modules.Remove(module);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                return Conflict("This module can't be deleted because it has related records (payments, past enrollments, or booking slots) tied to it.");
+            }
+
             var deleterId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             await _audit.LogAsync(deleterId, "Module Deleted", $"Module_Code: {code}");
             return Ok("Module deleted successfully.");
+        }
+
+        // ─── BULK IMPORT ───────────────────────────────────────────────────────
+
+        private const string BulkExampleCode = "EXAMPLE-CODE-DO-NOT-USE";
+
+        // GET: api/Modules/bulk-template (downloads a blank Excel workbook to fill in)
+        [HttpGet("bulk-template")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DownloadBulkTemplate()
+        {
+            var (maxOneOnOne, maxGroup) = await GetPriceCapsAsync();
+            var brandTeal = XLColor.FromArgb(0x5B, 0xBF, 0xBA);
+
+            using var workbook = new XLWorkbook();
+
+            // Sheet 1: Instructions
+            var instructions = workbook.Worksheets.Add("Instructions");
+            instructions.Cell(1, 1).Value = "Column";
+            instructions.Cell(1, 2).Value = "Required?";
+            instructions.Cell(1, 3).Value = "Description / Format / Example";
+            var instrHeader = instructions.Range(1, 1, 1, 3);
+            instrHeader.Style.Font.Bold = true;
+            instrHeader.Style.Fill.BackgroundColor = brandTeal;
+            instrHeader.Style.Font.FontColor = XLColor.White;
+
+            var fieldDocs = new (string col, string required, string desc)[]
+            {
+                ("Module_Code", "Yes", "Unique code, 1-20 characters (letters, numbers, - and _). Must not already exist in the system."),
+                ("Module_Name", "Yes", "Display name, up to 100 characters."),
+                ("Module_Description", "No", "Up to 500 characters. Can be left blank."),
+                ("Module_Price_OneOnOne", "Yes", $"Price per one-on-one session, e.g. 350. Numbers only, no currency symbol, 0 to {maxOneOnOne:N0}."),
+                ("Module_Price_Group", "Yes", $"Price per group session, e.g. 150. Numbers only, no currency symbol, 0 to {maxGroup:N0}.")
+            };
+            int r = 2;
+            foreach (var (col, required, desc) in fieldDocs)
+            {
+                instructions.Cell(r, 1).Value = col;
+                instructions.Cell(r, 2).Value = required;
+                instructions.Cell(r, 3).Value = desc;
+                r++;
+            }
+            instructions.Cell(r + 1, 1).Value = "Fill in your modules on the \"Modules\" sheet — don't rename its columns.";
+            instructions.Cell(r + 2, 1).Value = $"Row 2 of the Modules sheet is an example — overwrite or delete it. Don't use \"{BulkExampleCode}\" as a real code.";
+            instructions.Column(1).Width = 26;
+            instructions.Column(2).Width = 12;
+            instructions.Column(3).Width = 75;
+            instructions.SheetView.FreezeRows(1);
+
+            // Sheet 2: Modules (the sheet the upload endpoint parses)
+            var sheet = workbook.Worksheets.Add("Modules");
+            string[] headers = { "Module_Code", "Module_Name", "Module_Description", "Module_Price_OneOnOne", "Module_Price_Group" };
+            for (int c = 0; c < headers.Length; c++) sheet.Cell(1, c + 1).Value = headers[c];
+            var headerRange = sheet.Range(1, 1, 1, headers.Length);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = brandTeal;
+            headerRange.Style.Font.FontColor = XLColor.White;
+
+            // Keep Module_Code as text so numeric-looking codes (e.g. "007") aren't coerced to numbers.
+            sheet.Column(1).Style.NumberFormat.Format = "@";
+
+            sheet.Cell(2, 1).Value = BulkExampleCode;
+            sheet.Cell(2, 2).Value = "Introduction to Computer Science";
+            sheet.Cell(2, 3).Value = "Covers programming fundamentals, data structures, and algorithms.";
+            sheet.Cell(2, 4).Value = 350;
+            sheet.Cell(2, 5).Value = 150;
+            sheet.Range(2, 1, 2, headers.Length).Style.Fill.BackgroundColor = XLColor.FromArgb(0xFF, 0xF3, 0xCD);
+
+            for (int c = 1; c <= headers.Length; c++) sheet.Column(c).Width = 28;
+            sheet.SheetView.FreezeRows(1);
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Module_Bulk_Import_Template.xlsx");
+        }
+
+        // POST: api/Modules/bulk (uploads a filled-in copy of the template, creates every valid row)
+        [HttpPost("bulk")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ModuleBulkImportResult>> BulkCreateModules(IFormFile file)
+        {
+            if (file == null || file.Length == 0) return BadRequest("No file provided.");
+            if (Path.GetExtension(file.FileName).ToLowerInvariant() != ".xlsx")
+                return BadRequest("Only .xlsx files are supported.");
+            if (file.Length > 5 * 1024 * 1024) return BadRequest("File must be under 5 MB.");
+
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream);
+            stream.Position = 0;
+
+            XLWorkbook workbook;
+            try { workbook = new XLWorkbook(stream); }
+            catch { return BadRequest("The uploaded file is not a valid Excel workbook."); }
+
+            using (workbook)
+            {
+                var sheet = workbook.Worksheets.FirstOrDefault(
+                    w => w.Name.Equals("Modules", StringComparison.OrdinalIgnoreCase));
+                if (sheet == null)
+                    return BadRequest("The uploaded file does not contain a sheet named 'Modules'. Please use the downloaded template.");
+
+                var result = new ModuleBulkImportResult();
+                var (maxOneOnOne, maxGroup) = await GetPriceCapsAsync();
+                var existingCodes = new HashSet<string>(
+                    await _context.Modules.Select(m => m.Module_Code).ToListAsync(),
+                    StringComparer.OrdinalIgnoreCase);
+                var seenInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var toInsert = new List<Module>();
+
+                var lastRow = sheet.LastRowUsed()?.RowNumber() ?? 1;
+                for (int rowNum = 2; rowNum <= lastRow; rowNum++)
+                {
+                    var row = sheet.Row(rowNum);
+                    var codeRaw = row.Cell(1).GetString().Trim();
+                    var nameRaw = row.Cell(2).GetString().Trim();
+                    var descRaw = row.Cell(3).GetString().Trim();
+                    var price1Raw = row.Cell(4).GetString().Trim();
+                    var price2Raw = row.Cell(5).GetString().Trim();
+
+                    // Silent skip: a truly empty spacer row (every cell blank)
+                    if (codeRaw.Length == 0 && nameRaw.Length == 0 && descRaw.Length == 0
+                        && price1Raw.Length == 0 && price2Raw.Length == 0) continue;
+
+                    // Silent skip: untouched example row
+                    if (codeRaw.Equals(BulkExampleCode, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    result.TotalRowsProcessed++;
+                    var rowErrors = new List<ModuleBulkRowError>();
+
+                    var dto = new ModuleCreateDto { Module_Code = codeRaw, Module_Name = nameRaw, Module_Description = descRaw };
+
+                    if (!TryReadPrice(price1Raw, out var p1, out var err1))
+                        rowErrors.Add(new ModuleBulkRowError { RowNumber = rowNum, Field = "Module_Price_OneOnOne", Message = err1! });
+                    else if (p1 > maxOneOnOne)
+                        rowErrors.Add(new ModuleBulkRowError { RowNumber = rowNum, Field = "Module_Price_OneOnOne", Message = $"Cannot exceed R{maxOneOnOne:N0}." });
+                    else dto.Module_Price_OneOnOne = p1;
+
+                    if (!TryReadPrice(price2Raw, out var p2, out var err2))
+                        rowErrors.Add(new ModuleBulkRowError { RowNumber = rowNum, Field = "Module_Price_Group", Message = err2! });
+                    else if (p2 > maxGroup)
+                        rowErrors.Add(new ModuleBulkRowError { RowNumber = rowNum, Field = "Module_Price_Group", Message = $"Cannot exceed R{maxGroup:N0}." });
+                    else dto.Module_Price_Group = p2;
+
+                    var validationResults = new List<ValidationResult>();
+                    Validator.TryValidateObject(dto, new ValidationContext(dto), validationResults, validateAllProperties: true);
+                    foreach (var vr in validationResults)
+                        rowErrors.Add(new ModuleBulkRowError { RowNumber = rowNum, Field = vr.MemberNames.FirstOrDefault() ?? "", Message = vr.ErrorMessage ?? "Invalid value." });
+
+                    if (existingCodes.Contains(dto.Module_Code))
+                        rowErrors.Add(new ModuleBulkRowError { RowNumber = rowNum, Field = "Module_Code", Message = "A module with this code already exists." });
+                    else if (!seenInFile.Add(dto.Module_Code))
+                        rowErrors.Add(new ModuleBulkRowError { RowNumber = rowNum, Field = "Module_Code", Message = "Duplicate Module_Code within this file." });
+
+                    if (rowErrors.Count > 0) { result.Errors.AddRange(rowErrors); continue; }
+
+                    toInsert.Add(new Module
+                    {
+                        Module_Code = dto.Module_Code,
+                        Module_Name = dto.Module_Name,
+                        Module_Description = dto.Module_Description,
+                        Module_Price_OneOnOne = dto.Module_Price_OneOnOne,
+                        Module_Price_Group = dto.Module_Price_Group
+                    });
+                }
+
+                if (toInsert.Count > 0)
+                {
+                    _context.Modules.AddRange(toInsert);
+                    try { await _context.SaveChangesAsync(); }
+                    catch (DbUpdateException ex)
+                    {
+                        return Conflict($"Bulk import failed while saving: {ex.InnerException?.Message ?? ex.Message}. No modules from this file were created — please retry.");
+                    }
+                }
+
+                result.SuccessCount = toInsert.Count;
+                result.CreatedModuleCodes = toInsert.Select(m => m.Module_Code).ToList();
+
+                var creatorId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var codesForLog = result.CreatedModuleCodes.Take(10).ToList();
+                var suffix = result.CreatedModuleCodes.Count > 10 ? $" and {result.CreatedModuleCodes.Count - 10} more" : "";
+                await _audit.LogAsync(creatorId, "Bulk Module Import",
+                    $"{result.SuccessCount} of {result.TotalRowsProcessed} modules created via bulk upload: {string.Join(", ", codesForLog)}{suffix}");
+
+                return Ok(result);
+            }
+        }
+
+        private static bool TryReadPrice(string raw, out decimal value, out string? error)
+        {
+            value = 0m; error = null;
+            if (raw.Length == 0) { error = "This field is required and must be a number."; return false; }
+            if (!decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
+            {
+                error = $"'{raw}' is not a valid number.";
+                return false;
+            }
+            return true;
         }
     }
 
@@ -1290,10 +1540,11 @@ namespace TutorConnect.API.Controllers
         {
             var faqs = await _context.FAQs.ToListAsync();
             return Ok(faqs.Select(f => new {
-                faq_ID          = f.FAQ_ID,
-                question        = f.Question,
-                answer          = f.Answer,
-                faq_Category_ID = f.FAQ_Category_ID
+                faq_ID           = f.FAQ_ID,
+                question         = f.Question,
+                answer           = f.Answer,
+                faq_Category_ID  = f.FAQ_Category_ID,
+                applicable_Pages = f.Applicable_Pages
             }));
         }
 
@@ -1304,7 +1555,8 @@ namespace TutorConnect.API.Controllers
             {
                 Question = request.Question,
                 Answer = request.Answer,
-                FAQ_Category_ID = request.FAQ_Category_ID
+                FAQ_Category_ID = request.FAQ_Category_ID,
+                Applicable_Pages = request.Applicable_Pages
             };
             _context.FAQs.Add(faq);
             await _context.SaveChangesAsync();
@@ -1319,6 +1571,7 @@ namespace TutorConnect.API.Controllers
             faq.Question = request.Question;
             faq.Answer = request.Answer;
             faq.FAQ_Category_ID = request.FAQ_Category_ID;
+            faq.Applicable_Pages = request.Applicable_Pages;
             await _context.SaveChangesAsync();
             return Ok("FAQ updated.");
         }

@@ -4,7 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { ReportService } from '../../services/report.service';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
 import { AuthService } from '../../services/auth.service';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 import { Chart, registerables } from 'chart.js';
+import { outsidePieLabelsPlugin } from './outside-pie-labels.plugin';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 Chart.register(...registerables);
@@ -16,7 +18,7 @@ type TransactionalReport = 'revenue-detail' | 'tutor-hours-detail';
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './reports.component.html',
   styleUrl: './reports.component.css'
 })
@@ -296,6 +298,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
     const isRadial = this.mgmtChartType === 'pie' || this.mgmtChartType === 'doughnut';
     this.mgmtChart = new Chart(canvas, {
       type: this.mgmtChartType,
+      plugins: isRadial ? [outsidePieLabelsPlugin] : [],
       data: {
         labels,
         datasets: [{
@@ -310,12 +313,12 @@ export class ReportsComponent implements OnInit, OnDestroy {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        // Leave room around the doughnut/pie for the outside callout labels & leader lines.
+        layout: isRadial ? { padding: { left: 100, right: 100, top: 30, bottom: 30 } } : undefined,
         plugins: {
-          legend: {
-            display: isRadial,
-            position: 'right',
-            labels: { color: '#374151', font: { size: 11 }, boxWidth: 14, padding: 10 }
-          },
+          // The outside callout labels already show name + value/%, so the legend would just
+          // duplicate them — only shown for the bar chart, which has no callouts.
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: isRadial
@@ -327,7 +330,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
         ...(isRadial ? {} : {
           scales: {
             x: { grid: { color: '#f0f0f0' }, ticks: { color: '#374151', font: { size: 11 } } },
-            y: { grid: { color: '#f0f0f0' }, ticks: { color: '#374151', font: { size: 11 } }, beginAtZero: true }
+            y: { grid: { color: '#f0f0f0' }, ticks: { color: '#374151', font: { size: 11 }, stepSize: 1, precision: 0 }, beginAtZero: true }
           }
         })
       }

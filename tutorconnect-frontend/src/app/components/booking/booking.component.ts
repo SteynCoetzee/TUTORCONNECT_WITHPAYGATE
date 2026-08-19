@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface EnrolledModule {
   module_Code: string;
@@ -31,7 +32,7 @@ interface AvailableSlot {
 @Component({
   selector: 'app-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './booking.component.html',
   styleUrl: './booking.component.css'
 })

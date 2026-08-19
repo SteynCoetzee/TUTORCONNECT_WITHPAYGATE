@@ -2,21 +2,26 @@
   <div class="page-header">
     <div>
       @if (role === 'Admin') {
-        <h1 class="page-title"><span class="material-icons">menu_book</span> Module Management</h1>
+        <h1 class="page-title"><span class="material-icons">menu_book</span> Module Management<app-help-icon pageKey="courses"></app-help-icon></h1>
         <p class="page-subtitle">Add, edit, and remove modules. Click Manage to view tutors and materials.</p>
       } @else if (role === 'Tutor') {
-        <h1 class="page-title"><span class="material-icons">menu_book</span> Modules</h1>
+        <h1 class="page-title"><span class="material-icons">menu_book</span> Modules<app-help-icon pageKey="courses"></app-help-icon></h1>
         <p class="page-subtitle">Click an assigned module to add materials, quizzes, and assignments.</p>
       } @else {
-        <h1 class="page-title"><span class="material-icons">menu_book</span> Modules</h1>
+        <h1 class="page-title"><span class="material-icons">menu_book</span> Modules<app-help-icon pageKey="courses"></app-help-icon></h1>
         <p class="page-subtitle">Browse and enrol in modules. Click an enrolled module to view materials.</p>
       }
     </div>
     @if (role === 'Admin') {
       @if (adminTab === 'modules') {
-        <button class="btn btn-primary" (click)="addNewModule()">
-          <span class="material-icons">add</span> Add Module
-        </button>
+        <div class="enrol-header-area">
+          <button class="btn btn-secondary" (click)="bulkAddModules()">
+            <span class="material-icons">upload_file</span> Bulk Add
+          </button>
+          <button class="btn btn-primary" (click)="addNewModule()">
+            <span class="material-icons">add</span> Add Module
+          </button>
+        </div>
       }
     }
     @if (role === 'Student' && studentTab === 'all') {

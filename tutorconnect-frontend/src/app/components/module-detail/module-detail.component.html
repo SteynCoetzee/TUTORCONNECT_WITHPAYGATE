@@ -463,7 +463,7 @@
               </div>
               <div class="form-group">
                 <label>Date *</label>
-                <input type="date" class="form-control" [(ngModel)]="quizDate" />
+                <input type="date" class="form-control" [(ngModel)]="quizDate" [min]="todayISO" />
               </div>
             </div>
             <div class="form-group">
@@ -571,6 +571,59 @@
                 @if (submittingQuiz) { <span class="spinner-sm"></span> } Submit Quiz
               </button>
             </div>
+          </div>
+        }
+
+        <!-- ── Student: reviewing a completed quiz ──────────────────────── -->
+        @if (reviewingQuizId) {
+          <div class="quiz-taking-card">
+            <div class="quiz-taking-header">
+              <span class="material-icons">fact_check</span>
+              <div>
+                <div class="quiz-taking-name">{{ quizReview?.quiz_Name || 'Quiz Review' }}</div>
+                @if (quizReview) {
+                  <div class="quiz-taking-sub">
+                    Score:
+                    <span class="score-badge" [ngClass]="getScoreClass(quizReview.quiz_Score)">{{ quizReview.quiz_Score }}%</span>
+                  </div>
+                }
+              </div>
+              <button class="btn btn-secondary btn-sm" style="margin-left:auto" (click)="closeQuizReview()">
+                <span class="material-icons">close</span> Close
+              </button>
+            </div>
+            @if (loadingReview) {
+              <div class="loading-state" style="padding:1.5rem">
+                <div class="spinner"></div><p>Loading review...</p>
+              </div>
+            } @else if (quizReview) {
+              @for (q of quizReview.questions; track q.question_ID; let qi = $index) {
+                <div class="quiz-take-question">
+                  <p class="quiz-take-q-text">
+                    <span class="quiz-q-num">{{ qi + 1 }}</span>
+                    {{ q.question_Text }}
+                    @if (q.isCorrect) {
+                      <span class="review-result-tag correct"><span class="material-icons">check_circle</span> Correct</span>
+                    } @else {
+                      <span class="review-result-tag incorrect"><span class="material-icons">cancel</span> Incorrect</span>
+                    }
+                  </p>
+                  <div class="quiz-take-options">
+                    @for (opt of q.options; track opt.option_ID) {
+                      <div class="quiz-review-option"
+                           [class.correct-answer]="opt.is_Correct"
+                           [class.your-wrong-answer]="opt.option_ID === q.selectedOptionId && !opt.is_Correct">
+                        <span class="material-icons review-opt-icon">
+                          {{ opt.is_Correct ? 'check_circle' : (opt.option_ID === q.selectedOptionId ? 'cancel' : 'radio_button_unchecked') }}
+                        </span>
+                        <span>{{ opt.option_Text }}</span>
+                        @if (opt.option_ID === q.selectedOptionId) { <span class="review-your-pick">Your answer</span> }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            }
           </div>
         }
 
@@ -708,9 +761,9 @@
                     </button>
                   }
                   @if (role === 'Student' && q.hasSubmitted) {
-                    <span class="quiz-done-badge">
+                    <button type="button" class="quiz-done-badge" (click)="openQuizReview(q)" title="Review your answers">
                       <span class="material-icons">check_circle</span> Done
-                    </span>
+                    </button>
                   }
                 </div>
               }
@@ -743,7 +796,7 @@
               </div>
               <div class="form-group">
                 <label>Due Date *</label>
-                <input type="date" class="form-control" [(ngModel)]="assignmentDate" />
+                <input type="date" class="form-control" [(ngModel)]="assignmentDate" [min]="todayISO" />
               </div>
             </div>
             <div class="form-group">

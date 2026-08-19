@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { Module, Enrollment, TutorModuleAssignment } from '../../models/models';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface EnrollmentWithSessions extends Enrollment {
   sessions_Remaining_Group: number;
@@ -25,7 +26,7 @@ interface PaymentItem {
 @Component({
   selector: 'app-courses',
   standalone: true,
-  imports: [CommonModule, FormsModule, DecimalPipe],
+  imports: [CommonModule, FormsModule, DecimalPipe, HelpIconComponent],
   templateUrl: './courses.component.html',
   styleUrl: './courses.component.css'
 })
@@ -165,6 +166,7 @@ export class CoursesComponent implements OnInit {
   // ─── Admin ───────────────────────────────────────────────────────────────────
 
   addNewModule() { this.router.navigate(['/dashboard/add-module']); }
+  bulkAddModules() { this.router.navigate(['/dashboard/bulk-add-modules']); }
 
   loadWishlist() {
     this.wishlistLoading = true;

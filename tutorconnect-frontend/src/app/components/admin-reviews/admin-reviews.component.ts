@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface AdminTutorReview {
   tutor_Review_ID: number;
@@ -31,7 +32,7 @@ interface AdminSessionReview {
 @Component({
   selector: 'app-admin-reviews',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './admin-reviews.component.html',
   styleUrl: './admin-reviews.component.css'
 })

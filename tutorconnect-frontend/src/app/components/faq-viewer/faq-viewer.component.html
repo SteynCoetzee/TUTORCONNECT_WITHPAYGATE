@@ -4,36 +4,66 @@
       <h1 class="page-title">
         <span class="material-icons">help_outline</span>
         Frequently Asked Questions
+        <app-help-icon pageKey="faqs"></app-help-icon>
       </h1>
       <p class="page-subtitle">Find answers to common questions about TutorConnect.</p>
     </div>
   </div>
 
+  @if (activePageFilter) {
+    <div class="faq-filter-chip">
+      Showing FAQs for: <strong>{{ activePageLabel }}</strong>
+      <button (click)="clearFilter()">Clear ×</button>
+    </div>
+  }
+
+  <div class="faq-search-wrap">
+    <span class="material-icons faq-search-icon">search</span>
+    <input
+      class="faq-search-input form-control"
+      type="text"
+      [(ngModel)]="searchTerm"
+      placeholder="Search questions, answers, or categories..."
+      autocomplete="off"
+    />
+    @if (searchTerm) {
+      <button class="faq-search-clear" (click)="clearSearch()">
+        <span class="material-icons">close</span>
+      </button>
+    }
+  </div>
+
   @if (loading) {
     <div class="loading-msg"><span class="material-icons spin">hourglass_top</span> Loading...</div>
-  } @else if (categories.length === 0) {
+  } @else if (!hasVisibleFaqs) {
     <div class="empty-state">
       <span class="material-icons">help_outline</span>
-      <p>No FAQs available yet. Check back soon.</p>
+      @if (searchTerm) {
+        <p>No FAQs match "{{ searchTerm }}".</p>
+      } @else if (activePageFilter) {
+        <p>No FAQs for this page yet.</p>
+      } @else {
+        <p>No FAQs available yet. Check back soon.</p>
+      }
     </div>
   } @else {
     @for (cat of categories; track cat.faq_Category_ID) {
-      @if (getFaqsByCategory(cat.faq_Category_ID).length > 0) {
+      @if (getFaqsByCategory(cat.faq_Category_ID, cat.category_Name).length > 0) {
         <div class="faq-section">
           <h2 class="faq-category-title">
             <span class="material-icons">folder_open</span>
             {{ cat.category_Name }}
           </h2>
           <div class="faq-list">
-            @for (faq of getFaqsByCategory(cat.faq_Category_ID); track faq.faq_ID) {
-              <div class="faq-item" [class.open]="expandedFaqId === faq.faq_ID">
+            @for (faq of getFaqsByCategory(cat.faq_Category_ID, cat.category_Name); track faq.faq_ID) {
+              <div class="faq-item" [class.open]="expandedFaqId === faq.faq_ID || searchTerm">
                 <button class="faq-question" (click)="toggle(faq.faq_ID)">
                   <span>{{ faq.question }}</span>
                   <span class="material-icons chevron">
-                    {{ expandedFaqId === faq.faq_ID ? 'expand_less' : 'expand_more' }}
+                    {{ expandedFaqId === faq.faq_ID || searchTerm ? 'expand_less' : 'expand_more' }}
                   </span>
                 </button>
-                @if (expandedFaqId === faq.faq_ID) {
+                @if (expandedFaqId === faq.faq_ID || searchTerm) {
                   <div class="faq-answer">{{ faq.answer }}</div>
                 }
               </div>

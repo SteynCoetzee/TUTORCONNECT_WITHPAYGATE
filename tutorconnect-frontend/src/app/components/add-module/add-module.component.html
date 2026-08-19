@@ -77,13 +77,14 @@
                   [(ngModel)]="formPriceOneOnOne"
                   placeholder="e.g., 350"
                   min="0"
+                  [max]="maxPriceOneOnOne"
                   step="50"
-                  (ngModelChange)="validatePrice($event, 'price1on1', 'One-on-One price')"
+                  (ngModelChange)="validatePrice($event, 'price1on1', 'One-on-One price', maxPriceOneOnOne)"
                 />
                 @if (fieldErrors['price1on1']) {
                   <span class="field-error">{{ fieldErrors['price1on1'] }}</span>
                 } @else {
-                  <small class="form-hint">Price per private 1-on-1 session</small>
+                  <small class="form-hint">Price per private 1-on-1 session (max R{{ maxPriceOneOnOne.toLocaleString() }})</small>
                 }
               </div>
               <div class="form-group">
@@ -96,13 +97,14 @@
                   [(ngModel)]="formPriceGroup"
                   placeholder="e.g., 150"
                   min="0"
+                  [max]="maxPriceGroup"
                   step="50"
-                  (ngModelChange)="validatePrice($event, 'priceGroup', 'Group price')"
+                  (ngModelChange)="validatePrice($event, 'priceGroup', 'Group price', maxPriceGroup)"
                 />
                 @if (fieldErrors['priceGroup']) {
                   <span class="field-error">{{ fieldErrors['priceGroup'] }}</span>
                 } @else {
-                  <small class="form-hint">Price per group session</small>
+                  <small class="form-hint">Price per group session (max R{{ maxPriceGroup.toLocaleString() }})</small>
                 }
               </div>
             </div>

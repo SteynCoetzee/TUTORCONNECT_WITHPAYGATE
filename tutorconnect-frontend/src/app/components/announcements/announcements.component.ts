@@ -5,11 +5,12 @@ import { AnnouncementService } from '../../services/announcement.service';
 import { AuthService } from '../../services/auth.service';
 import { Announcement, AnnouncementCreate, AnnouncementUpdate } from '../../models/models';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 @Component({
   selector: 'app-announcements',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, NgClass],
+  imports: [CommonModule, FormsModule, DatePipe, NgClass, HelpIconComponent],
   templateUrl: './announcements.component.html',
   styleUrl: './announcements.component.css'
 })

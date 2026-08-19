@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface CalendarBooking {
   booking_ID: number;
@@ -41,7 +42,7 @@ interface CalendarSlot {
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, HelpIconComponent],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.css'
 })

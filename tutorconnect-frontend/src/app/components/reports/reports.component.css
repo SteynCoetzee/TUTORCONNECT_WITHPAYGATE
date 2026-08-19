@@ -118,6 +118,8 @@
   border-radius: var(--radius); padding: 16px; box-sizing: border-box;
 }
 .mgmt-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+/* Pie/doughnut need extra height to fit the outside callout labels without crowding */
+.mgmt-chart-wrap--radial { height: 380px; }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 768px) {

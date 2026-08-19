@@ -1,6 +1,7 @@
 import { Component, ViewChild, ElementRef, OnInit, OnDestroy } from '@angular/core';
 import { RouterOutlet, Router, NavigationStart, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { TopnavComponent } from '../topnav/topnav.component';
 import { AuthService } from '../../services/auth.service';
@@ -21,10 +22,16 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
   showCompleteProfilePopup = false;
   showAwaitingApprovalPopup = false;
 
+  // "Are you still there?" AFK warning popup
+  showAfkWarningPopup = false;
+  afkSecondsLeft = 0;
+  private afkCountdownTimer: ReturnType<typeof setInterval> | null = null;
+
   // Mobile sidebar
   sidebarMobileOpen = false;
 
   private apiUrl = environment.apiUrl;
+  private afkSubscriptions: Subscription[] = [];
   private activityDebounce: ReturnType<typeof setTimeout> | null = null;
   private readonly activityEvents = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
   private readonly onActivity = () => {
@@ -50,6 +57,10 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.activityEvents.forEach(e => window.addEventListener(e, this.onActivity, { passive: true }));
     this.loadAfkTimeout();
+    this.afkSubscriptions.push(
+      this.authService.afkWarning$.subscribe(seconds => this.startAfkCountdown(seconds)),
+      this.authService.afkWarningDismissed$.subscribe(() => this.hideAfkWarning())
+    );
     const role = this.authService.getCurrentUserRole();
     const userId = this.authService.getCurrentUserId();
     if (!userId) return;
@@ -107,6 +118,8 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.activityEvents.forEach(e => window.removeEventListener(e, this.onActivity));
     if (this.activityDebounce) clearTimeout(this.activityDebounce);
+    this.stopAfkCountdown();
+    this.afkSubscriptions.forEach(s => s.unsubscribe());
     this.authService.stopInactivityTimer();
   }
 
@@ -114,11 +127,53 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
     this.http.get<any[]>(`${this.apiUrl}/BusinessRules`).subscribe({
       next: (rules) => {
         const rule = rules.find(r => r.rule_Name === 'session_timeout_minutes');
+        const warnRule = rules.find(r => r.rule_Name === 'afk_warning_minutes');
         const minutes = rule ? Math.max(1, Number(rule.rule_Value)) : 30;
-        this.authService.startInactivityTimer(minutes);
+        const warnMinutes = warnRule ? Math.max(0, Number(warnRule.rule_Value)) : 0;
+        this.authService.startInactivityTimer(minutes, warnMinutes);
       },
       error: () => { this.authService.startInactivityTimer(30); }
     });
+  }
+
+  // ── "Are you still there?" AFK warning ──────────────────────────────────
+  private startAfkCountdown(seconds: number) {
+    this.stopAfkCountdown();
+    this.afkSecondsLeft = seconds;
+    this.showAfkWarningPopup = true;
+    this.afkCountdownTimer = setInterval(() => {
+      this.afkSecondsLeft--;
+      if (this.afkSecondsLeft <= 0) this.stopAfkCountdown();
+    }, 1000);
+  }
+
+  private hideAfkWarning() {
+    this.showAfkWarningPopup = false;
+    this.stopAfkCountdown();
+  }
+
+  private stopAfkCountdown() {
+    if (this.afkCountdownTimer) {
+      clearInterval(this.afkCountdownTimer);
+      this.afkCountdownTimer = null;
+    }
+  }
+
+  get afkCountdownLabel(): string {
+    const m = Math.floor(this.afkSecondsLeft / 60);
+    const s = this.afkSecondsLeft % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  stayLoggedIn() {
+    this.hideAfkWarning();
+    this.authService.confirmStillActive();
+  }
+
+  signOutNow() {
+    this.hideAfkWarning();
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 
   toggleMobileSidebar() { this.sidebarMobileOpen = !this.sidebarMobileOpen; }

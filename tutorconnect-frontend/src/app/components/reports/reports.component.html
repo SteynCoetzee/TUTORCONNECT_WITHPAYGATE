@@ -1,7 +1,7 @@
 <div class="page-container">
   <div class="page-header">
     <div>
-      <h1 class="page-title"><span class="material-icons">description</span> Reports</h1>
+      <h1 class="page-title"><span class="material-icons">description</span> Reports<app-help-icon pageKey="reports"></app-help-icon></h1>
       <p class="page-subtitle">Generate and download professional PDF reports for business decisions.</p>
     </div>
   </div>
@@ -355,7 +355,7 @@
         </div>
 
         <!-- Chart -->
-        <div class="mgmt-chart-wrap">
+        <div class="mgmt-chart-wrap" [class.mgmt-chart-wrap--radial]="mgmtChartType !== 'bar'">
           <canvas #mgmtCanvas></canvas>
         </div>
 

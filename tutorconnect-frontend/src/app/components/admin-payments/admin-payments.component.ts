@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface PaymentRow {
   payment_ID: number;
@@ -24,7 +25,7 @@ interface PaymentRow {
 @Component({
   selector: 'app-admin-payments',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe],
+  imports: [CommonModule, FormsModule, DatePipe, HelpIconComponent],
   templateUrl: './admin-payments.component.html',
   styleUrl: './admin-payments.component.css'
 })

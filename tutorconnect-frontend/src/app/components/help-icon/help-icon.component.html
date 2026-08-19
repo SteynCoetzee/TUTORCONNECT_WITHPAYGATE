@@ -1,0 +1,18 @@
+<span class="help-icon-wrap" [class.light]="variant === 'light'">
+  <span class="material-icons help-q-icon" (click)="goToFaqs($event)" role="button" tabindex="0" aria-label="Help for this page">help_outline</span>
+  <span class="help-popup">
+    @if (loading) {
+      <div class="help-popup-empty">Loading…</div>
+    } @else if (faqs.length === 0) {
+      <div class="help-popup-empty">No FAQs for this page yet.</div>
+    } @else {
+      <div class="help-popup-title">FAQs for this page</div>
+      <ul class="help-popup-list">
+        @for (f of faqs; track f.faq_ID) {
+          <li>{{ f.question }}</li>
+        }
+      </ul>
+    }
+    <div class="help-popup-hint">Click for full answers →</div>
+  </span>
+</span>

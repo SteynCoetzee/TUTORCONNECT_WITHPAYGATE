@@ -5,6 +5,7 @@
       @if (userRole === 'Student') { My Calendar }
       @else if (userRole === 'Tutor') { My Session Slots }
       @else { All Booking Slots }
+      <app-help-icon pageKey="calendar"></app-help-icon>
     </h1>
     <p class="page-subtitle">
       @if (userRole === 'Student') { View your booked sessions and available sessions from your modules. }

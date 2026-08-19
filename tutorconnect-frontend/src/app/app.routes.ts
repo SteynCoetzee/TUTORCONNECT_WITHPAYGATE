@@ -9,6 +9,7 @@ import { HomeComponent } from './components/home/home.component';
 import { UserInfoComponent } from './components/user-info/user-info.component';
 import { CoursesComponent } from './components/courses/courses.component';
 import { AddModuleComponent } from './components/add-module/add-module.component';
+import { BulkAddModulesComponent } from './components/bulk-add-modules/bulk-add-modules.component';
 import { AnnouncementsComponent } from './components/announcements/announcements.component';
 import { BookingComponent } from './components/booking/booking.component';
 import { ReportsComponent } from './components/reports/reports.component';
@@ -57,6 +58,7 @@ export const routes: Routes = [
       { path: 'courses', component: CoursesComponent },
       { path: 'module/:code', component: ModuleDetailComponent },
       { path: 'add-module', component: AddModuleComponent },
+      { path: 'bulk-add-modules', component: BulkAddModulesComponent },
       { path: 'announcements', component: AnnouncementsComponent },
       { path: 'booking', component: BookingComponent },
       { path: 'calendar', component: CalendarComponent },

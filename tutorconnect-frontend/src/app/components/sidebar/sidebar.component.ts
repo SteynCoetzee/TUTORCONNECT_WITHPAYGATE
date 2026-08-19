@@ -2,17 +2,8 @@ import { Component, OnInit, Input, Output, EventEmitter, HostBinding } from '@an
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
-
-interface NavItem {
-  label: string;
-  icon: string;
-  route: string;
-}
-
-interface NavSection {
-  heading?: string;
-  items: NavItem[];
-}
+import { RoleNavPermissionsService } from '../../services/role-nav-permissions.service';
+import { NavItem, NavSection, ADMIN_SIDEBAR, STUDENT_SIDEBAR, TUTOR_SIDEBAR, HARDCODED_ADMIN_EMAIL } from '../../shared/nav-config';
 
 @Component({
   selector: 'app-sidebar',
@@ -31,141 +22,47 @@ export class SidebarComponent implements OnInit {
 
   @HostBinding('class.mobile-open') get isMobileOpen() { return this.mobileOpen; }
 
-  private studentSections: NavSection[] = [
-    {
-      heading: 'General',
-      items: [
-        { label: 'Home', icon: 'home', route: '/dashboard/home' },
-        { label: 'My Profile', icon: 'person', route: '/dashboard/user-info' },
-      ]
-    },
-    {
-      heading: 'Learning',
-      items: [
-        { label: 'Modules', icon: 'menu_book', route: '/dashboard/courses' },
-        { label: 'Announcements', icon: 'campaign', route: '/dashboard/announcements' },
-        { label: 'Calendar', icon: 'calendar_today', route: '/dashboard/calendar' },
-      ]
-    },
-    {
-      heading: 'Sessions',
-      items: [
-        { label: 'Book a Session', icon: 'schedule', route: '/dashboard/booking' },
-        { label: 'My Reviews', icon: 'star', route: '/dashboard/reviews' },
-        { label: 'Testimonials', icon: 'star_border', route: '/dashboard/testimonials' },
-      ]
-    },
-    {
-      heading: 'Support',
-      items: [
-        { label: 'FAQs', icon: 'help_outline', route: '/dashboard/faqs' },
-        { label: 'Module Wishlist', icon: 'favorite_border', route: '/dashboard/wishlist' },
-      ]
-    },
-  ];
-
-  private tutorSections: NavSection[] = [
-    {
-      heading: 'General',
-      items: [
-        { label: 'Home', icon: 'home', route: '/dashboard/home' },
-        { label: 'My Profile', icon: 'person', route: '/dashboard/user-info' },
-      ]
-    },
-    {
-      heading: 'Teaching',
-      items: [
-        { label: 'Modules', icon: 'menu_book', route: '/dashboard/courses' },
-        { label: 'Announcements', icon: 'campaign', route: '/dashboard/announcements' },
-        { label: 'Calendar', icon: 'calendar_today', route: '/dashboard/calendar' },
-      ]
-    },
-    {
-      heading: 'Sessions',
-      items: [
-        { label: 'My Booking Slots', icon: 'event_available', route: '/dashboard/slots' },
-        { label: 'Log Hours', icon: 'timer', route: '/dashboard/log-hours' },
-        { label: 'Reviews', icon: 'star', route: '/dashboard/reviews' },
-      ]
-    },
-    {
-      heading: 'Support',
-      items: [
-        { label: 'FAQs', icon: 'help_outline', route: '/dashboard/faqs' },
-      ]
-    },
-  ];
-
+  // AW-Tutor navigation is NOT configurable — stays exactly as it always has been.
   private awTutorSections: NavSection[] = [
     {
       heading: 'Account',
       items: [
-        { label: 'My Profile', icon: 'person', route: '/dashboard/user-info' },
+        { key: 'user-info', label: 'My Profile', icon: 'person', route: '/dashboard/user-info' },
       ]
     },
   ];
 
-  private adminSections: NavSection[] = [
-    {
-      heading: 'General',
-      items: [
-        { label: 'Home', icon: 'home', route: '/dashboard/home' },
-        { label: 'My Profile', icon: 'person', route: '/dashboard/user-info' },
-      ]
-    },
-    {
-      heading: 'Management',
-      items: [
-        { label: 'Users', icon: 'group', route: '/dashboard/users' },
-        { label: 'Modules', icon: 'menu_book', route: '/dashboard/courses' },
-        { label: 'Reports', icon: 'description', route: '/dashboard/reports' },
-        { label: 'Announcements', icon: 'campaign', route: '/dashboard/announcements' },
-      ]
-    },
-    {
-      heading: 'Content',
-      items: [
-        { label: 'FAQ', icon: 'help', route: '/dashboard/faq' },
-        { label: 'Media', icon: 'perm_media', route: '/dashboard/media' },
-        { label: 'Help Page', icon: 'support', route: '/dashboard/help' },
-        { label: 'Testimonials', icon: 'star_border', route: '/dashboard/testimonials' },
-      ]
-    },
-    {
-      heading: 'Reviews',
-      items: [
-        { label: 'Hours Review', icon: 'timer', route: '/dashboard/log-hours-review' },
-        { label: 'Tutor & Session Reviews', icon: 'rate_review', route: '/dashboard/admin-reviews' },
-      ]
-    },
-    {
-      heading: 'Payments',
-      items: [
-        { label: 'Payments', icon: 'payment', route: '/dashboard/admin-payments' },
-      ]
-    },
-    {
-      heading: 'System',
-      items: [
-        { label: 'Audit Log', icon: 'manage_search', route: '/dashboard/audit-log' },
-        { label: 'Business Logic', icon: 'tune', route: '/dashboard/business-logic' },
-      ]
-    },
-  ];
-
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private roleNavPermsService: RoleNavPermissionsService
+  ) {}
 
   ngOnInit() {
     this.role = this.authService.getCurrentUserRole();
-    if (this.role === 'Admin') {
-      this.sections = this.adminSections;
-    } else if (this.role === 'Tutor') {
-      this.sections = this.tutorSections;
-    } else if (this.role === 'AW-Tutor') {
+    if (this.role === 'AW-Tutor') {
       this.sections = this.awTutorSections;
-    } else {
-      this.sections = this.studentSections;
+      return;
     }
+
+    // The one hardcoded super-admin account is always exempt from Admin nav permissions —
+    // it always sees the full Admin nav, regardless of what's configured for other admins.
+    if (this.role === 'Admin' && this.authService.getCurrentUserEmail()?.toLowerCase() === HARDCODED_ADMIN_EMAIL.toLowerCase()) {
+      this.sections = ADMIN_SIDEBAR;
+      return;
+    }
+
+    const base = this.role === 'Admin' ? ADMIN_SIDEBAR : this.role === 'Tutor' ? TUTOR_SIDEBAR : STUDENT_SIDEBAR;
+    // Show the full nav immediately (no loading flicker; also the safe fail-open default if the
+    // permissions call errors), then narrow it once we know what's hidden for this role.
+    this.sections = base;
+    this.roleNavPermsService.getHiddenItemsForRole(this.role).subscribe({
+      next: (hidden) => {
+        this.sections = base
+          .map(section => ({ ...section, items: section.items.filter(i => !hidden.includes(i.key)) }))
+          .filter(section => section.items.length > 0);
+      },
+      error: () => { /* keep the full unfiltered nav shown */ }
+    });
   }
 
   toggle() {

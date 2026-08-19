@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TutorConnect.API.Data;
 using TutorConnect.API.DTOs;
 using TutorConnect.API.Models;
@@ -125,6 +126,8 @@ namespace TutorConnect.API.Controllers
         {
             if (string.IsNullOrEmpty(request.Assignment_Name) || string.IsNullOrEmpty(request.Module_Code))
                 return BadRequest("Assignment name and module code are required.");
+            if (request.Assignment_Date.Date < DateTime.UtcNow.Date)
+                return BadRequest("Due date cannot be in the past.");
 
             var assignment = new Assignment
             {
@@ -579,6 +582,8 @@ namespace TutorConnect.API.Controllers
         {
             if (string.IsNullOrEmpty(request.Quiz_Name) || string.IsNullOrEmpty(request.Module_Code))
                 return BadRequest("Quiz name and module code are required.");
+            if (request.Quiz_Date.Date < DateTime.UtcNow.Date)
+                return BadRequest("Quiz date cannot be in the past.");
 
             var quiz = new Quiz {
                 Quiz_Name = request.Quiz_Name,
@@ -735,6 +740,54 @@ namespace TutorConnect.API.Controllers
                 .FirstOrDefaultAsync(sq => sq.Quiz_ID == id && sq.Student_ID == studentId && sq.End_Time != null);
             if (result == null) return NotFound("No submission found.");
             return Ok(new { score = result.Quiz_Score, startTime = result.Start_Time, endTime = result.End_Time, submissionDate = result.Submission_Date });
+        }
+
+        // GET: api/Quizzes/{id}/student/{studentId}/review — full per-question breakdown for a completed attempt
+        [HttpGet("{id}/student/{studentId}/review")]
+        public async Task<ActionResult> GetQuizReview(int id, int studentId)
+        {
+            var requesterId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (!User.IsInRole("Tutor") && !User.IsInRole("Admin") && requesterId != studentId)
+                return Forbid();
+
+            var attempt = await _context.Student_Quizzes
+                .FirstOrDefaultAsync(sq => sq.Quiz_ID == id && sq.Student_ID == studentId && sq.End_Time != null);
+            if (attempt == null) return NotFound("No completed submission found for this quiz.");
+
+            var quiz = await _context.Quizzes.FindAsync(id);
+            if (quiz == null) return NotFound("Quiz not found.");
+
+            var questions = await _context.Quiz_Questions
+                .Where(q => q.Quiz_ID == id)
+                .OrderBy(q => q.Question_Order)
+                .ToListAsync();
+            var questionIds = questions.Select(q => q.Question_ID).ToList();
+
+            var options = await _context.Quiz_Question_Options
+                .Where(o => questionIds.Contains(o.Question_ID)).ToListAsync();
+            var myAnswers = await _context.Student_Quiz_Answers
+                .Where(a => a.Student_Quiz_ID == attempt.Student_Quiz_ID).ToListAsync();
+
+            return Ok(new
+            {
+                quiz.Quiz_ID,
+                quiz.Quiz_Name,
+                attempt.Quiz_Score,
+                attempt.Submission_Date,
+                Questions = questions.Select(q =>
+                {
+                    var selectedOptionId = myAnswers.FirstOrDefault(a => a.Question_ID == q.Question_ID)?.Option_ID;
+                    var qOptions = options.Where(o => o.Question_ID == q.Question_ID).ToList();
+                    return new
+                    {
+                        q.Question_ID,
+                        q.Question_Text,
+                        Options = qOptions.Select(o => new { o.Option_ID, o.Option_Text, o.Is_Correct }),
+                        SelectedOptionId = selectedOptionId,
+                        IsCorrect = selectedOptionId.HasValue && qOptions.Any(o => o.Option_ID == selectedOptionId && o.Is_Correct)
+                    };
+                })
+            });
         }
 
         [HttpPut("{id}")]

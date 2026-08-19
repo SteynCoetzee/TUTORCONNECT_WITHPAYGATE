@@ -8,6 +8,7 @@ import { ModuleService } from '../../services/module.service';
 import { AnnouncementService } from '../../services/announcement.service';
 import { Module, Announcement, Testimonial } from '../../models/models';
 import { environment } from '../../../environments/environment';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 Chart.register(...registerables);
 
@@ -17,7 +18,7 @@ interface WishlistItem { wishlist_ID: number; module_Code: string; module_Name: 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe, NgClass],
+  imports: [CommonModule, RouterLink, DatePipe, NgClass, HelpIconComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })

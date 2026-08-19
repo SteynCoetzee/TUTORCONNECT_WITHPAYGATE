@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface WishlistItem {
   wishlist_ID: number;
@@ -17,7 +18,7 @@ interface WishlistItem {
 @Component({
   selector: 'app-module-wishlist',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './module-wishlist.component.html',
   styleUrl: './module-wishlist.component.css'
 })

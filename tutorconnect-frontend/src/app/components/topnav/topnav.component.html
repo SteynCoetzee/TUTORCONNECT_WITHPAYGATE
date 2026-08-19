@@ -6,11 +6,14 @@
 
   <!-- Left: quick nav links -->
   <nav class="topnav-links">
-    <a routerLink="/dashboard/user-info" routerLinkActive="active-link" class="topnav-link">User Info</a>
-    <a routerLink="/dashboard/courses" routerLinkActive="active-link" class="topnav-link">Courses</a>
-    <a routerLink="/dashboard/calendar" routerLinkActive="active-link" class="topnav-link">Calendar</a>
-    @if (role === 'Student') {
-      <a routerLink="/dashboard/booking" routerLinkActive="active-link" class="topnav-link">Booking</a>
+    @if (role === 'AW-Tutor') {
+      <a routerLink="/dashboard/user-info" routerLinkActive="active-link" class="topnav-link">User Info</a>
+      <a routerLink="/dashboard/courses" routerLinkActive="active-link" class="topnav-link">Courses</a>
+      <a routerLink="/dashboard/calendar" routerLinkActive="active-link" class="topnav-link">Calendar</a>
+    } @else {
+      @for (link of topnavLinks; track link.key) {
+        <a [routerLink]="link.route" routerLinkActive="active-link" class="topnav-link">{{ link.label }}</a>
+      }
     }
   </nav>
 

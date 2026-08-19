@@ -1,0 +1,78 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <button class="back-button" (click)="goBack()">
+        <span class="material-icons">arrow_back</span>
+        Back to Modules
+      </button>
+      <h1 class="page-title">Bulk Add Modules</h1>
+      <p class="page-subtitle">Download the template, fill it in, then upload it to create many modules at once.</p>
+    </div>
+  </div>
+
+  @if (errorMessage) {
+    <div class="alert alert-error"><span class="material-icons">error</span> {{ errorMessage }}</div>
+  }
+
+  <div class="card bulk-step-card">
+    <h3 class="section-title">Step 1 — Download the Template</h3>
+    <p class="bulk-step-text">
+      The template has an "Instructions" sheet explaining every column, and a "Modules" sheet
+      (with an example row) where you fill in your modules.
+    </p>
+    <button class="btn btn-secondary" (click)="downloadTemplate()" [disabled]="downloading">
+      @if (downloading) { <span class="spinner-sm"></span> }
+      <span class="material-icons">download</span> Download Template
+    </button>
+  </div>
+
+  <div class="card bulk-step-card">
+    <h3 class="section-title">Step 2 — Upload Your Completed File</h3>
+    <p class="bulk-step-text">Choose the filled-in .xlsx file to import. Max size 5MB.</p>
+    <input type="file" accept=".xlsx" (change)="onFileSelected($event)" />
+    @if (selectedFile) {
+      <p class="bulk-selected-file">
+        Selected: <strong>{{ selectedFile.name }}</strong>
+        <button class="btn btn-secondary btn-sm" (click)="clearFile()">Clear</button>
+      </p>
+    }
+    <button class="btn btn-primary" (click)="upload()" [disabled]="!selectedFile || uploading">
+      @if (uploading) { <span class="spinner-sm"></span> }
+      <span class="material-icons">upload_file</span> Upload &amp; Import
+    </button>
+  </div>
+
+  @if (result) {
+    <div class="card">
+      <div class="alert" [class.alert-success]="result.successCount > 0" [class.alert-error]="result.successCount === 0">
+        <span class="material-icons">{{ result.successCount > 0 ? 'check_circle' : 'error' }}</span>
+        {{ result.successCount }} of {{ result.totalRowsProcessed }} row{{ result.totalRowsProcessed === 1 ? '' : 's' }} created successfully.
+      </div>
+
+      @if (result.errors.length > 0) {
+        <h3 class="section-title">Rows With Problems ({{ result.errors.length }})</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Row</th><th>Field</th><th>Problem</th></tr>
+            </thead>
+            <tbody>
+              @for (e of result.errors; track e.rowNumber + e.field) {
+                <tr>
+                  <td>{{ e.rowNumber }}</td>
+                  <td>{{ e.field }}</td>
+                  <td>{{ e.message }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <div class="bulk-result-actions">
+        <button class="btn btn-secondary" (click)="startOver()">Import Another File</button>
+        <button class="btn btn-primary" (click)="goBack()">Done — Back to Modules</button>
+      </div>
+    </div>
+  }
+</div>

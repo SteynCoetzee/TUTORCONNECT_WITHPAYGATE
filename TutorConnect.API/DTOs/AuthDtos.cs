@@ -192,6 +192,18 @@ namespace TutorConnect.API.DTOs
         public string NewPassword { get; set; } = string.Empty;
     }
 
+    public class VerifyResetCodeDto
+    {
+        [Required]
+        [EmailAddress]
+        [StringLength(200)]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(10)]
+        public string ResetCode { get; set; } = string.Empty;
+    }
+
     public class ChangeRoleDto
     {
         [Range(1, 4)]

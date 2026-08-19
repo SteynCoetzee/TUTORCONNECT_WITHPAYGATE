@@ -44,6 +44,19 @@ export interface Module {
   module_Price_Group: number;
 }
 
+export interface ModuleBulkRowError {
+  rowNumber: number;
+  field: string;
+  message: string;
+}
+
+export interface ModuleBulkImportResult {
+  totalRowsProcessed: number;
+  successCount: number;
+  createdModuleCodes: string[];
+  errors: ModuleBulkRowError[];
+}
+
 export interface ModuleResource {
   module_Resource_ID: number;
   module_Resource_Name: string;

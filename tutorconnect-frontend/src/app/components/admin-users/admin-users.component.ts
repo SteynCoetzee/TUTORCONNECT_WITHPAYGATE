@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { UserProfile, Module } from '../../models/models';
 import { AuthService } from '../../services/auth.service';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface Role { id: number; name: string; }
 
@@ -33,7 +34,7 @@ interface PaymentView {
 @Component({
   selector: 'app-admin-users',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './admin-users.component.html',
   styleUrl: './admin-users.component.css'
 })

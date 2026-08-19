@@ -6,11 +6,12 @@ import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { Testimonial, TestimonialCreate, TestimonialCategory } from '../../models/models';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 @Component({
   selector: 'app-admin-testimonials',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './admin-testimonials.component.html',
   styleUrl: './admin-testimonials.component.css'
 })

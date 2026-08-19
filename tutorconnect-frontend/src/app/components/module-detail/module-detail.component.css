@@ -603,8 +603,36 @@
 .quiz-done-badge {
   display: flex; align-items: center; gap: 4px;
   font-size: 0.82rem; font-weight: 600; color: #16a34a;
+  background: none; border: none; padding: 0; cursor: pointer;
 }
 .quiz-done-badge .material-icons { font-size: 1rem; }
+.quiz-done-badge:hover { text-decoration: underline; }
+
+/* ── Quiz review (student) ────────────────────────────────── */
+.review-result-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem;
+  padding: 1px 8px; border-radius: 10px;
+}
+.review-result-tag .material-icons { font-size: 0.9rem; }
+.review-result-tag.correct { color: #16a34a; background: #dcfce7; }
+.review-result-tag.incorrect { color: #dc2626; background: #fee2e2; }
+
+.quiz-review-option {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.5rem 0.75rem; border: 1.5px solid var(--border); border-radius: 8px;
+  color: var(--text-muted);
+}
+.quiz-review-option .review-opt-icon { color: var(--border); flex-shrink: 0; }
+.quiz-review-option.correct-answer {
+  border-color: #16a34a; background: #f0fdf4; color: var(--text-dark); font-weight: 600;
+}
+.quiz-review-option.correct-answer .review-opt-icon { color: #16a34a; }
+.quiz-review-option.your-wrong-answer {
+  border-color: #dc2626; background: #fef2f2; color: var(--text-dark); font-weight: 600;
+}
+.quiz-review-option.your-wrong-answer .review-opt-icon { color: #dc2626; }
+.review-your-pick { margin-left: auto; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
 /* ── Submissions panel ─────────────────────────────────────── */
 .submissions-panel {

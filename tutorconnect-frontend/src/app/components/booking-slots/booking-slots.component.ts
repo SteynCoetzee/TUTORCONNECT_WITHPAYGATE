@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface BookingSlot {
   booking_Slot_ID: number;
@@ -26,7 +27,7 @@ interface TutorModule {
 @Component({
   selector: 'app-booking-slots',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './booking-slots.component.html',
   styleUrl: './booking-slots.component.css'
 })

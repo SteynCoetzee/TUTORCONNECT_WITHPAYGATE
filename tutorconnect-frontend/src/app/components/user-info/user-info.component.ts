@@ -7,11 +7,12 @@ import { UserService } from '../../services/user.service';
 import { UserProfile, UserProfileUpdate } from '../../models/models';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 @Component({
   selector: 'app-user-info',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './user-info.component.html',
   styleUrl: './user-info.component.css'
 })

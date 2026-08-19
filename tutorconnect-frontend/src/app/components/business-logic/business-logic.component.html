@@ -1,7 +1,7 @@
 <div class="page-container">
   <div class="page-header">
     <div>
-      <h1 class="page-title">Business Logic</h1>
+      <h1 class="page-title">Business Logic<app-help-icon pageKey="business-logic"></app-help-icon></h1>
       <p class="page-subtitle">Configure system-wide rules and behaviour</p>
     </div>
   </div>
@@ -16,54 +16,214 @@
   @if (loading) {
     <div class="loading-state"><div class="spinner"></div><p>Loading settings...</p></div>
   } @else {
-    <div class="rules-list">
-      @for (rule of rules; track rule.rule_ID) {
-        @let meta = getMeta(rule.rule_Name);
-        <div class="rule-card" [class.rule-dirty]="isDirty(rule)">
-          <div class="rule-icon-wrap">
-            <span class="material-icons rule-icon">{{ meta.icon }}</span>
-          </div>
-          <div class="rule-body">
-            <div class="rule-label">{{ meta.label }}</div>
-            @if (meta.hint) {
-              <p class="rule-hint">{{ meta.hint }}</p>
-            }
-            <div class="rule-control">
-              <div class="rule-input-wrap">
-                <input
-                  type="number"
-                  class="rule-input"
-                  [(ngModel)]="editValues[rule.rule_ID]"
-                  [min]="meta.min"
-                  [max]="meta.max"
-                  step="1"
-                />
-                @if (meta.unit) {
-                  <span class="rule-unit">{{ meta.unit }}</span>
-                }
-              </div>
-              <div class="rule-actions">
-                <button
-                  class="btn btn-primary btn-sm rule-save-btn"
-                  (click)="saveRule(rule)"
-                  [disabled]="saving[rule.rule_ID] || !isDirty(rule)"
-                >
-                  @if (saving[rule.rule_ID]) {
-                    <span class="spinner-sm"></span> Saving...
-                  } @else if (saved[rule.rule_ID]) {
-                    <span class="material-icons">check</span> Saved
-                  } @else {
-                    <span class="material-icons">save</span> Save
+    @for (group of groupedRules; track group.section) {
+      <h2 class="rules-section-title">{{ group.section }}</h2>
+      <div class="rules-grid">
+        @for (rule of group.rules; track rule.rule_ID) {
+          @let meta = getMeta(rule.rule_Name);
+          <div class="rule-card" [class.rule-dirty]="isDirty(rule)">
+            <div class="rule-icon-wrap">
+              <span class="material-icons rule-icon">{{ meta.icon }}</span>
+            </div>
+            <div class="rule-body">
+              <div class="rule-label">{{ meta.label }}</div>
+              @if (meta.hint) {
+                <p class="rule-hint">{{ meta.hint }}</p>
+              }
+              <div class="rule-control">
+                <div class="rule-input-wrap">
+                  <input
+                    type="number"
+                    class="rule-input"
+                    [(ngModel)]="editValues[rule.rule_ID]"
+                    [min]="meta.min"
+                    [max]="meta.max"
+                    step="1"
+                  />
+                  @if (meta.unit) {
+                    <span class="rule-unit">{{ meta.unit }}</span>
                   }
-                </button>
+                </div>
+                <div class="rule-actions">
+                  <button
+                    class="btn btn-primary btn-sm rule-save-btn"
+                    (click)="saveRule(rule)"
+                    [disabled]="saving[rule.rule_ID] || !isDirty(rule)"
+                  >
+                    @if (saving[rule.rule_ID]) {
+                      <span class="spinner-sm"></span> Saving...
+                    } @else if (saved[rule.rule_ID]) {
+                      <span class="material-icons">check</span> Saved
+                    } @else {
+                      <span class="material-icons">save</span> Save
+                    }
+                  </button>
+                </div>
+              </div>
+              <div class="rule-current">
+                Current value: <strong>{{ rule.rule_Value }} {{ meta.unit }}</strong>
               </div>
             </div>
-            <div class="rule-current">
-              Current value: <strong>{{ rule.rule_Value }} {{ meta.unit }}</strong>
+          </div>
+        }
+      </div>
+    }
+
+    <h2 class="rules-section-title">Navigation Permissions</h2>
+    <p class="perms-intro">Choose what each role sees in the sidebar and top navigation bar. The original admin account always has full access.</p>
+
+    @if (permsLoading) {
+      <div class="loading-state"><div class="spinner"></div><p>Loading permissions...</p></div>
+    } @else {
+      <div class="perms-grid">
+        <!-- Admin -->
+        <div class="perms-panel">
+          <div class="perms-panel-header">
+            <span class="material-icons">admin_panel_settings</span>
+            <div>
+              <div class="perms-panel-title">Admin</div>
+              @if (isHardcodedAdmin) {
+                <div class="perms-panel-sub">Applies to other admins — your own access never changes</div>
+              } @else {
+                <div class="perms-panel-sub">Only the original admin account can edit this</div>
+              }
             </div>
           </div>
+          @for (section of adminSidebar; track section.heading) {
+            <div class="perms-section">
+              @if (section.heading) { <div class="perms-section-heading">{{ section.heading }}</div> }
+              @for (item of section.items; track item.key) {
+                <label class="perms-check-row" [class.perms-disabled]="!isHardcodedAdmin">
+                  <input
+                    type="checkbox"
+                    [checked]="isItemVisible('Admin', item.key)"
+                    [disabled]="!isHardcodedAdmin"
+                    (change)="toggleItem('Admin', item.key)"
+                  />
+                  {{ item.label }}
+                </label>
+              }
+            </div>
+          }
+          <div class="perms-section">
+            <div class="perms-section-heading">Top Navbar</div>
+            @for (item of adminTopbar; track item.key) {
+              <label class="perms-check-row" [class.perms-disabled]="!isHardcodedAdmin">
+                <input
+                  type="checkbox"
+                  [checked]="isItemVisible('Admin', item.key)"
+                  [disabled]="!isHardcodedAdmin"
+                  (change)="toggleItem('Admin', item.key)"
+                />
+                {{ item.label }}
+              </label>
+            }
+          </div>
+          @if (isHardcodedAdmin) {
+            <button
+              class="btn btn-primary btn-sm perms-save-btn"
+              (click)="savePerms('Admin')"
+              [disabled]="savingPerms['Admin'] || !isPermsDirty('Admin')"
+            >
+              @if (savingPerms['Admin']) {
+                <span class="spinner-sm"></span> Saving...
+              } @else if (savedPerms['Admin']) {
+                <span class="material-icons">check</span> Saved
+              } @else {
+                <span class="material-icons">save</span> Save
+              }
+            </button>
+          }
         </div>
-      }
-    </div>
+
+        <!-- Tutor -->
+        <div class="perms-panel">
+          <div class="perms-panel-header">
+            <span class="material-icons">school</span>
+            <div>
+              <div class="perms-panel-title">Tutor</div>
+              <div class="perms-panel-sub">Uncheck to hide from Tutor accounts</div>
+            </div>
+          </div>
+          @for (section of tutorSidebar; track section.heading) {
+            <div class="perms-section">
+              @if (section.heading) { <div class="perms-section-heading">{{ section.heading }}</div> }
+              @for (item of section.items; track item.key) {
+                <label class="perms-check-row">
+                  <input type="checkbox" [checked]="isItemVisible('Tutor', item.key)" (change)="toggleItem('Tutor', item.key)" />
+                  {{ item.label }}
+                </label>
+              }
+            </div>
+          }
+          <div class="perms-section">
+            <div class="perms-section-heading">Top Navbar</div>
+            @for (item of tutorTopbar; track item.key) {
+              <label class="perms-check-row">
+                <input type="checkbox" [checked]="isItemVisible('Tutor', item.key)" (change)="toggleItem('Tutor', item.key)" />
+                {{ item.label }}
+              </label>
+            }
+          </div>
+          <button
+            class="btn btn-primary btn-sm perms-save-btn"
+            (click)="savePerms('Tutor')"
+            [disabled]="savingPerms['Tutor'] || !isPermsDirty('Tutor')"
+          >
+            @if (savingPerms['Tutor']) {
+              <span class="spinner-sm"></span> Saving...
+            } @else if (savedPerms['Tutor']) {
+              <span class="material-icons">check</span> Saved
+            } @else {
+              <span class="material-icons">save</span> Save
+            }
+          </button>
+        </div>
+
+        <!-- Student -->
+        <div class="perms-panel">
+          <div class="perms-panel-header">
+            <span class="material-icons">school</span>
+            <div>
+              <div class="perms-panel-title">Student</div>
+              <div class="perms-panel-sub">Uncheck to hide from Student accounts</div>
+            </div>
+          </div>
+          @for (section of studentSidebar; track section.heading) {
+            <div class="perms-section">
+              @if (section.heading) { <div class="perms-section-heading">{{ section.heading }}</div> }
+              @for (item of section.items; track item.key) {
+                <label class="perms-check-row">
+                  <input type="checkbox" [checked]="isItemVisible('Student', item.key)" (change)="toggleItem('Student', item.key)" />
+                  {{ item.label }}
+                </label>
+              }
+            </div>
+          }
+          <div class="perms-section">
+            <div class="perms-section-heading">Top Navbar</div>
+            @for (item of studentTopbar; track item.key) {
+              <label class="perms-check-row">
+                <input type="checkbox" [checked]="isItemVisible('Student', item.key)" (change)="toggleItem('Student', item.key)" />
+                {{ item.label }}
+              </label>
+            }
+          </div>
+          <button
+            class="btn btn-primary btn-sm perms-save-btn"
+            (click)="savePerms('Student')"
+            [disabled]="savingPerms['Student'] || !isPermsDirty('Student')"
+          >
+            @if (savingPerms['Student']) {
+              <span class="spinner-sm"></span> Saving...
+            } @else if (savedPerms['Student']) {
+              <span class="material-icons">check</span> Saved
+            } @else {
+              <span class="material-icons">save</span> Save
+            }
+          </button>
+        </div>
+      </div>
+    }
   }
 </div>

@@ -95,6 +95,11 @@ export class ModuleDetailComponent implements OnInit {
   submittingQuiz = false;
   quizResult: { score: number; correct: number; total: number } | null = null;
 
+  // Quiz review (student)
+  reviewingQuizId: number | null = null;
+  quizReview: any = null;
+  loadingReview = false;
+
   // Assignment form (inline)
   showAssignmentForm = false;
   assignmentName = '';
@@ -616,6 +621,7 @@ export class ModuleDetailComponent implements OnInit {
 
   saveQuiz() {
     if (!this.quizName || !this.quizDate) { this.errorMessage = 'Quiz name and date are required.'; return; }
+    if (this.quizDate < this.todayISO) { this.errorMessage = 'Quiz date cannot be in the past.'; return; }
     this.savingQuiz = true;
     this.http.post(`${this.apiUrl}/Quizzes`, {
       quiz_Name: this.quizName,
@@ -797,7 +803,23 @@ export class ModuleDetailComponent implements OnInit {
     });
   }
 
+  openQuizReview(quiz: ModuleQuiz) {
+    this.loadingReview = true;
+    this.quizReview = null;
+    this.reviewingQuizId = quiz.quiz_ID;
+    this.clearMessages();
+    this.http.get<any>(`${this.apiUrl}/Quizzes/${quiz.quiz_ID}/student/${this.userId}/review`).subscribe({
+      next: (data) => { this.quizReview = data; this.loadingReview = false; },
+      error: (err) => { this.loadingReview = false; this.reviewingQuizId = null; this.errorMessage = extractErrorMessage(err, 'Failed to load quiz review.'); }
+    });
+  }
+
+  closeQuizReview() { this.reviewingQuizId = null; this.quizReview = null; }
+
   objectKeys(obj: object): string[] { return Object.keys(obj); }
+
+  // Used as the [min] on the quiz/assignment date pickers so past dates can't be picked at all.
+  get todayISO(): string { return new Date().toISOString().slice(0, 10); }
 
   private get authHeader(): HeadersInit {
     const token = localStorage.getItem('auth_token') ?? '';
@@ -925,7 +947,7 @@ export class ModuleDetailComponent implements OnInit {
     if (!this.assignmentName || !this.assignmentDate) {
       this.errorMessage = 'Assignment name and due date are required.'; return;
     }
-    if (this.assignmentDate < new Date().toISOString().slice(0, 10)) {
+    if (this.assignmentDate < this.todayISO) {
       this.errorMessage = 'Due date cannot be in the past.'; return;
     }
     if (this.assignmentBriefFile) {

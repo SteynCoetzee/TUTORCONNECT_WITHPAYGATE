@@ -4,13 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface MediaContent { media_ID: number; media_Name: string; media_Address: string; }
 
 @Component({
   selector: 'app-admin-media',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './admin-media.component.html',
   styleUrl: './admin-media.component.css'
 })

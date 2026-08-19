@@ -128,6 +128,8 @@ namespace TutorConnect.API.Models
         public string Question { get; set; } = string.Empty;
         public string Answer { get; set; } = string.Empty;
         public int FAQ_Category_ID { get; set; }
+        // Comma-separated dashboard page keys this FAQ is relevant to, e.g. "reports,courses"
+        public string? Applicable_Pages { get; set; }
     }
 
     public class Testimonial

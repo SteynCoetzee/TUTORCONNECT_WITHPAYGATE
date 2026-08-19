@@ -6,7 +6,9 @@ import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
 import { NotificationService } from '../../services/notification.service';
+import { RoleNavPermissionsService } from '../../services/role-nav-permissions.service';
 import { Notification } from '../../models/models';
+import { NavItem, ADMIN_TOPNAV, STUDENT_TOPNAV, TUTOR_TOPNAV, HARDCODED_ADMIN_EMAIL } from '../../shared/nav-config';
 import { environment } from '../../../environments/environment';
 
 interface AnnouncementNotif {
@@ -34,6 +36,7 @@ export class TopnavComponent implements OnInit, OnDestroy {
   announcements: AnnouncementNotif[] = [];
   unreadCount = 0;
   showNotifications = false;
+  topnavLinks: NavItem[] = [];
 
   private apiUrl = environment.apiUrl;
   private seenKey = '';
@@ -43,6 +46,7 @@ export class TopnavComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private userService: UserService,
     private notificationService: NotificationService,
+    private roleNavPermsService: RoleNavPermissionsService,
     private http: HttpClient,
     private router: Router
   ) {}
@@ -66,6 +70,23 @@ export class TopnavComponent implements OnInit, OnDestroy {
     this.role = this.authService.getCurrentUserRole();
     const userId = this.authService.getCurrentUserId();
     this.seenKey = `seen_announcements_${userId}`;
+
+    // AW-Tutor quick-links stay hardcoded in the template — its nav is minimal, never configurable.
+    // Admin/Tutor/Student are data-driven and filtered by the admin-configurable Navigation
+    // Permissions, EXCEPT the one hardcoded super-admin account, which always sees the full set.
+    const isHardcodedAdmin = this.role === 'Admin'
+      && this.authService.getCurrentUserEmail()?.toLowerCase() === HARDCODED_ADMIN_EMAIL.toLowerCase();
+
+    if ((this.role === 'Admin' || this.role === 'Tutor' || this.role === 'Student') && !isHardcodedAdmin) {
+      const base = this.role === 'Admin' ? ADMIN_TOPNAV : this.role === 'Tutor' ? TUTOR_TOPNAV : STUDENT_TOPNAV;
+      this.topnavLinks = base;
+      this.roleNavPermsService.getHiddenItemsForRole(this.role).subscribe({
+        next: (hidden) => { this.topnavLinks = base.filter(l => !hidden.includes(l.key)); },
+        error: () => { /* keep the full unfiltered links shown */ }
+      });
+    } else if (isHardcodedAdmin) {
+      this.topnavLinks = ADMIN_TOPNAV;
+    }
 
     if (userId) {
       this.loadProfile(userId);

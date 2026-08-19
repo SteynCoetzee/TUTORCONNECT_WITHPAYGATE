@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { HelpIconComponent } from '../help-icon/help-icon.component';
 
 interface LogHour {
   log_Hours_ID: number;
@@ -19,7 +20,7 @@ interface LogHour {
 @Component({
   selector: 'app-log-hours',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpIconComponent],
   templateUrl: './log-hours.component.html',
   styleUrl: './log-hours.component.css'
 })

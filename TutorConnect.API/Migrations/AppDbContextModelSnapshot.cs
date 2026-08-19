@@ -315,6 +315,9 @@ namespace TutorConnect.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Applicable_Pages")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("FAQ_Category_ID")
                         .HasColumnType("int");
 
@@ -757,6 +760,27 @@ namespace TutorConnect.API.Migrations
                     b.HasKey("Resource_Type_ID");
 
                     b.ToTable("Resource_Types");
+                });
+
+            modelBuilder.Entity("TutorConnect.API.Models.Role_Nav_Setting", b =>
+                {
+                    b.Property<int>("Role_Nav_Setting_ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Role_Nav_Setting_ID"));
+
+                    b.Property<string>("Hidden_Items")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Role_Nav_Setting_ID");
+
+                    b.ToTable("Role_Nav_Settings");
                 });
 
             modelBuilder.Entity("TutorConnect.API.Models.Session_Attendance", b =>
