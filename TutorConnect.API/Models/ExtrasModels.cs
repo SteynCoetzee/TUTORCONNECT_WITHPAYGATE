@@ -45,14 +45,24 @@ namespace TutorConnect.API.Models
         public decimal Rule_Value { get; set; }
     }
 
-    // Per-role sidebar/navbar visibility — only "Tutor" and "Student" rows ever exist;
-    // Admin and AW-Tutor navigation stays hardcoded and is never stored here.
+    // Per-role sidebar/navbar visibility — "Admin", "Tutor", and "Student" rows exist.
+    // AW-Tutor navigation stays hardcoded and is never stored here.
     public class Role_Nav_Setting
     {
         [Key]
         public int Role_Nav_Setting_ID { get; set; }
         public string Role { get; set; } = string.Empty;
         public string Hidden_Items { get; set; } = string.Empty; // CSV of hidden item keys; "" = everything visible
+    }
+
+    // Per-user sidebar/navbar visibility override — a row here takes precedence over the user's
+    // Role_Nav_Setting default. Most users never get a row; only ones an admin has customized.
+    public class User_Nav_Setting
+    {
+        [Key]
+        public int User_Nav_Setting_ID { get; set; }
+        public int User_ID { get; set; }
+        public string Hidden_Items { get; set; } = string.Empty; // CSV of hidden item keys
     }
 
     public class Module_Wishlist

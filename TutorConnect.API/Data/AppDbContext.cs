@@ -232,6 +232,12 @@ namespace TutorConnect.API.Data
                 .HasForeignKey(mw => mw.Student_ID)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // ── User_Nav_Setting → User ────────────────────────────────────────
+            modelBuilder.Entity<User_Nav_Setting>()
+                .HasOne<User>().WithMany()
+                .HasForeignKey(uns => uns.User_ID)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // ── Booking_Slot → Module (nullable — slot may not be tied to a module) ─
             modelBuilder.Entity<Booking_Slot>()
                 .HasOne<Module>().WithMany()
@@ -304,6 +310,7 @@ namespace TutorConnect.API.Data
         public DbSet<Resource_Type> Resource_Types { get; set; }
         public DbSet<Business_Rule> Business_Rules { get; set; }
         public DbSet<Role_Nav_Setting> Role_Nav_Settings { get; set; }
+        public DbSet<User_Nav_Setting> User_Nav_Settings { get; set; }
 
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Payment> Payments { get; set; }

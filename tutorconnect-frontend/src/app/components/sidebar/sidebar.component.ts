@@ -1,8 +1,10 @@
 import { Component, OnInit, Input, Output, EventEmitter, HostBinding } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { forkJoin } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { RoleNavPermissionsService } from '../../services/role-nav-permissions.service';
+import { UserNavPermissionsService } from '../../services/user-nav-permissions.service';
 import { NavItem, NavSection, ADMIN_SIDEBAR, STUDENT_SIDEBAR, TUTOR_SIDEBAR, HARDCODED_ADMIN_EMAIL } from '../../shared/nav-config';
 
 @Component({
@@ -34,7 +36,8 @@ export class SidebarComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private roleNavPermsService: RoleNavPermissionsService
+    private roleNavPermsService: RoleNavPermissionsService,
+    private userNavPermsService: UserNavPermissionsService
   ) {}
 
   ngOnInit() {
@@ -53,10 +56,16 @@ export class SidebarComponent implements OnInit {
 
     const base = this.role === 'Admin' ? ADMIN_SIDEBAR : this.role === 'Tutor' ? TUTOR_SIDEBAR : STUDENT_SIDEBAR;
     // Show the full nav immediately (no loading flicker; also the safe fail-open default if the
-    // permissions call errors), then narrow it once we know what's hidden for this role.
+    // permissions calls error), then narrow it once we know what's hidden — a personal override
+    // (if this specific user has been individually customized) takes precedence over the role default.
     this.sections = base;
-    this.roleNavPermsService.getHiddenItemsForRole(this.role).subscribe({
-      next: (hidden) => {
+    const userId = this.authService.getCurrentUserId();
+    forkJoin([
+      this.roleNavPermsService.getHiddenItemsForRole(this.role),
+      userId ? this.userNavPermsService.get(userId) : Promise.resolve({ hasOverride: false, hiddenItems: [] as string[] })
+    ]).subscribe({
+      next: ([roleHidden, userSetting]) => {
+        const hidden = userSetting.hasOverride ? userSetting.hiddenItems : roleHidden;
         this.sections = base
           .map(section => ({ ...section, items: section.items.filter(i => !hidden.includes(i.key)) }))
           .filter(section => section.items.length > 0);

@@ -207,13 +207,15 @@ namespace TutorConnect.API.Controllers
     {
         private readonly AppDbContext _context;
 
-        private static readonly List<(string Name, decimal Default, string Description)> _defaults = new()
+        // Min/Max mirror the frontend's RULE_META bounds — kept in sync by hand, same as the
+        // frontend, since these are just sanity bounds, not sensitive config.
+        private static readonly List<(string Name, decimal Default, string Description, decimal Min, decimal Max)> _defaults = new()
         {
-            ("session_timeout_minutes", 30, "Minutes of inactivity before a user is automatically logged out"),
-            ("afk_warning_minutes", 2, "Minutes before the AFK sign-out that an \"Are you still there?\" warning is shown"),
-            ("password_reset_code_expiration_minutes", 15, "Minutes a password reset code stays valid after it is emailed to a user"),
-            ("module_max_price_oneonone", 10000, "Highest price (R) a module's one-on-one session price is allowed to be set to"),
-            ("module_max_price_group", 10000, "Highest price (R) a module's group session price is allowed to be set to"),
+            ("session_timeout_minutes", 30, "Minutes of inactivity before a user is automatically logged out", 1, 480),
+            ("afk_warning_minutes", 2, "Minutes before the AFK sign-out that an \"Are you still there?\" warning is shown", 0, 60),
+            ("password_reset_code_expiration_minutes", 15, "Minutes a password reset code stays valid after it is emailed to a user", 1, 1440),
+            ("module_max_price_oneonone", 10000, "Highest price (R) a module's one-on-one session price is allowed to be set to", 0, 1000000),
+            ("module_max_price_group", 10000, "Highest price (R) a module's group session price is allowed to be set to", 0, 1000000),
         };
 
         public BusinessRulesController(AppDbContext context) { _context = context; }
@@ -246,6 +248,26 @@ namespace TutorConnect.API.Controllers
         {
             var rule = await _context.Business_Rules.FindAsync(id);
             if (rule == null) return NotFound("Rule not found.");
+
+            var bounds = _defaults.FirstOrDefault(d => d.Name == rule.Rule_Name);
+            if (bounds.Name != null && (dto.Rule_Value < bounds.Min || dto.Rule_Value > bounds.Max))
+                return BadRequest($"Value must be between {bounds.Min} and {bounds.Max}.");
+
+            // The AFK warning must fire strictly before the AFK sign-out, or it's meaningless —
+            // keep the two rules mutually consistent no matter which one is saved.
+            if (rule.Rule_Name == "afk_warning_minutes")
+            {
+                var timeout = await _context.Business_Rules.FirstOrDefaultAsync(r => r.Rule_Name == "session_timeout_minutes");
+                if (timeout != null && dto.Rule_Value >= timeout.Rule_Value)
+                    return BadRequest($"AFK Warning Popup must be less than the AFK Session Timeout (currently {timeout.Rule_Value} minutes).");
+            }
+            else if (rule.Rule_Name == "session_timeout_minutes")
+            {
+                var warning = await _context.Business_Rules.FirstOrDefaultAsync(r => r.Rule_Name == "afk_warning_minutes");
+                if (warning != null && dto.Rule_Value <= warning.Rule_Value)
+                    return BadRequest($"AFK Session Timeout must be greater than the AFK Warning Popup time (currently {warning.Rule_Value} minutes).");
+            }
+
             rule.Rule_Value = dto.Rule_Value;
             await _context.SaveChangesAsync();
             return Ok(new { rule.Rule_ID, rule.Rule_Name, rule.Rule_Value });
@@ -254,7 +276,7 @@ namespace TutorConnect.API.Controllers
         private async Task EnsureDefaultsExistAsync()
         {
             var existing = await _context.Business_Rules.Select(r => r.Rule_Name).ToListAsync();
-            foreach (var (name, def, _) in _defaults)
+            foreach (var (name, def, _, _, _) in _defaults)
             {
                 if (!existing.Contains(name))
                 {
@@ -303,7 +325,7 @@ namespace TutorConnect.API.Controllers
         public async Task<IActionResult> Update(string role, [FromBody] UpdateHiddenItemsDto dto)
         {
             if (!_roles.Contains(role, StringComparer.OrdinalIgnoreCase))
-                return BadRequest("Role must be Tutor or Student.");
+                return BadRequest("Role must be Admin, Tutor, or Student.");
 
             var setting = await _context.Role_Nav_Settings.FirstOrDefaultAsync(s => s.Role == role);
             if (setting == null)
@@ -327,6 +349,64 @@ namespace TutorConnect.API.Controllers
                 }
             }
             await _context.SaveChangesAsync();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // USER NAV PERMISSIONS CONTROLLER — per-user overrides on top of Role_Nav_Settings
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Route("api/[controller]")]
+    [Authorize]
+    [ApiController]
+    public class UserNavPermissionsController : ControllerBase
+    {
+        private readonly AppDbContext _context;
+        public UserNavPermissionsController(AppDbContext context) { _context = context; }
+
+        // GET: api/UserNavPermissions/{userId} — any authenticated user (each user checks their own override on load)
+        [HttpGet("{userId}")]
+        public async Task<ActionResult> Get(int userId)
+        {
+            var setting = await _context.User_Nav_Settings.FirstOrDefaultAsync(s => s.User_ID == userId);
+            return Ok(new
+            {
+                userId,
+                hasOverride = setting != null,
+                hiddenItems = setting != null
+                    ? setting.Hidden_Items.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    : Array.Empty<string>()
+            });
+        }
+
+        // PUT: api/UserNavPermissions/{userId} — Admin only
+        [HttpPut("{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int userId, [FromBody] UpdateHiddenItemsDto dto)
+        {
+            var setting = await _context.User_Nav_Settings.FirstOrDefaultAsync(s => s.User_ID == userId);
+            if (setting == null)
+            {
+                setting = new User_Nav_Setting { User_ID = userId };
+                _context.User_Nav_Settings.Add(setting);
+            }
+            setting.Hidden_Items = string.Join(",", dto.HiddenItems ?? new List<string>());
+            await _context.SaveChangesAsync();
+            return Ok(new { setting.User_Nav_Setting_ID, userId, HiddenItems = dto.HiddenItems });
+        }
+
+        // DELETE: api/UserNavPermissions/{userId} — Admin only — revert this user to their role's default
+        [HttpDelete("{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int userId)
+        {
+            var setting = await _context.User_Nav_Settings.FirstOrDefaultAsync(s => s.User_ID == userId);
+            if (setting != null)
+            {
+                _context.User_Nav_Settings.Remove(setting);
+                await _context.SaveChangesAsync();
+            }
+            return Ok();
         }
     }
 }

@@ -36,8 +36,8 @@
                     type="number"
                     class="rule-input"
                     [(ngModel)]="editValues[rule.rule_ID]"
-                    [min]="meta.min"
-                    [max]="meta.max"
+                    [min]="getEffectiveMin(rule)"
+                    [max]="getEffectiveMax(rule)"
                     step="1"
                   />
                   @if (meta.unit) {
@@ -89,6 +89,23 @@
               }
             </div>
           </div>
+          @if (isHardcodedAdmin) {
+            <div class="perms-user-picker">
+              <label class="perms-user-picker-label">Customize for a specific admin</label>
+              <select class="form-control" [ngModel]="selectedUserId['Admin']" (ngModelChange)="onUserSelected('Admin', $event)">
+                <option [ngValue]="null">— Role default (applies to everyone) —</option>
+                @for (u of usersByRole['Admin']; track u.user_ID) {
+                  <option [ngValue]="u.user_ID">{{ u.firstName }} {{ u.lastName }} ({{ u.email }})</option>
+                }
+              </select>
+              @if (selectedUserId['Admin']) {
+                <div class="perms-override-badge">
+                  <span>{{ hasOverride['Admin'] ? 'Custom override active' : 'Using role default — edit below to customize' }}</span>
+                  <button class="btn-text" (click)="resetUserToDefault('Admin')" [disabled]="!hasOverride['Admin']">Reset to role default</button>
+                </div>
+              }
+            </div>
+          }
           @for (section of adminSidebar; track section.heading) {
             <div class="perms-section">
               @if (section.heading) { <div class="perms-section-heading">{{ section.heading }}</div> }
@@ -145,6 +162,21 @@
               <div class="perms-panel-sub">Uncheck to hide from Tutor accounts</div>
             </div>
           </div>
+          <div class="perms-user-picker">
+            <label class="perms-user-picker-label">Customize for a specific tutor</label>
+            <select class="form-control" [ngModel]="selectedUserId['Tutor']" (ngModelChange)="onUserSelected('Tutor', $event)">
+              <option [ngValue]="null">— Role default (applies to everyone) —</option>
+              @for (u of usersByRole['Tutor']; track u.user_ID) {
+                <option [ngValue]="u.user_ID">{{ u.firstName }} {{ u.lastName }} ({{ u.email }})</option>
+              }
+            </select>
+            @if (selectedUserId['Tutor']) {
+              <div class="perms-override-badge">
+                <span>{{ hasOverride['Tutor'] ? 'Custom override active' : 'Using role default — edit below to customize' }}</span>
+                <button class="btn-text" (click)="resetUserToDefault('Tutor')" [disabled]="!hasOverride['Tutor']">Reset to role default</button>
+              </div>
+            }
+          </div>
           @for (section of tutorSidebar; track section.heading) {
             <div class="perms-section">
               @if (section.heading) { <div class="perms-section-heading">{{ section.heading }}</div> }
@@ -188,6 +220,21 @@
               <div class="perms-panel-title">Student</div>
               <div class="perms-panel-sub">Uncheck to hide from Student accounts</div>
             </div>
+          </div>
+          <div class="perms-user-picker">
+            <label class="perms-user-picker-label">Customize for a specific student</label>
+            <select class="form-control" [ngModel]="selectedUserId['Student']" (ngModelChange)="onUserSelected('Student', $event)">
+              <option [ngValue]="null">— Role default (applies to everyone) —</option>
+              @for (u of usersByRole['Student']; track u.user_ID) {
+                <option [ngValue]="u.user_ID">{{ u.firstName }} {{ u.lastName }} ({{ u.email }})</option>
+              }
+            </select>
+            @if (selectedUserId['Student']) {
+              <div class="perms-override-badge">
+                <span>{{ hasOverride['Student'] ? 'Custom override active' : 'Using role default — edit below to customize' }}</span>
+                <button class="btn-text" (click)="resetUserToDefault('Student')" [disabled]="!hasOverride['Student']">Reset to role default</button>
+              </div>
+            }
           </div>
           @for (section of studentSidebar; track section.heading) {
             <div class="perms-section">

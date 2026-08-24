@@ -2,11 +2,12 @@ import { Component, OnInit, OnDestroy, HostListener, Output, EventEmitter } from
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
 import { NotificationService } from '../../services/notification.service';
 import { RoleNavPermissionsService } from '../../services/role-nav-permissions.service';
+import { UserNavPermissionsService } from '../../services/user-nav-permissions.service';
 import { Notification } from '../../models/models';
 import { NavItem, ADMIN_TOPNAV, STUDENT_TOPNAV, TUTOR_TOPNAV, HARDCODED_ADMIN_EMAIL } from '../../shared/nav-config';
 import { environment } from '../../../environments/environment';
@@ -47,6 +48,7 @@ export class TopnavComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private notificationService: NotificationService,
     private roleNavPermsService: RoleNavPermissionsService,
+    private userNavPermsService: UserNavPermissionsService,
     private http: HttpClient,
     private router: Router
   ) {}
@@ -80,8 +82,16 @@ export class TopnavComponent implements OnInit, OnDestroy {
     if ((this.role === 'Admin' || this.role === 'Tutor' || this.role === 'Student') && !isHardcodedAdmin) {
       const base = this.role === 'Admin' ? ADMIN_TOPNAV : this.role === 'Tutor' ? TUTOR_TOPNAV : STUDENT_TOPNAV;
       this.topnavLinks = base;
-      this.roleNavPermsService.getHiddenItemsForRole(this.role).subscribe({
-        next: (hidden) => { this.topnavLinks = base.filter(l => !hidden.includes(l.key)); },
+      // A personal override (if this specific user has been individually customized) takes
+      // precedence over the role default.
+      forkJoin([
+        this.roleNavPermsService.getHiddenItemsForRole(this.role),
+        userId ? this.userNavPermsService.get(userId) : Promise.resolve({ hasOverride: false, hiddenItems: [] as string[] })
+      ]).subscribe({
+        next: ([roleHidden, userSetting]) => {
+          const hidden = userSetting.hasOverride ? userSetting.hiddenItems : roleHidden;
+          this.topnavLinks = base.filter(l => !hidden.includes(l.key));
+        },
         error: () => { /* keep the full unfiltered links shown */ }
       });
     } else if (isHardcodedAdmin) {

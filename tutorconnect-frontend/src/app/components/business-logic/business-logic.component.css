@@ -153,6 +153,43 @@
 .perms-panel-title { font-size: 0.95rem; font-weight: 700; color: var(--text-dark); }
 .perms-panel-sub { font-size: 0.76rem; color: var(--text-muted); }
 
+.perms-user-picker {
+  margin-bottom: 1.1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--border);
+}
+.perms-user-picker-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+.perms-user-picker select { font-size: 0.85rem; }
+
+.perms-override-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+.perms-override-badge .btn-text {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0;
+  flex-shrink: 0;
+}
+.perms-override-badge .btn-text:disabled { color: var(--text-muted); cursor: default; }
+
 .perms-section { margin-bottom: 0.9rem; }
 .perms-section-heading {
   font-size: 0.7rem;
