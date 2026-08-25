@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
 import { HelpIconComponent } from '../help-icon/help-icon.component';
+import { ToastService } from '../../services/toast.service';
 
 interface EnrolledModule {
   module_Code: string;
@@ -68,7 +69,7 @@ export class BookingComponent implements OnInit {
   private apiUrl = environment.apiUrl;
   private userId = 0;
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(private http: HttpClient, private authService: AuthService, private toastService: ToastService) {}
 
   ngOnInit() {
     this.userId = this.authService.getCurrentUserId() ?? 0;
@@ -178,7 +179,7 @@ export class BookingComponent implements OnInit {
   }
 
   submitBooking() {
-    if (!this.selectedSlotId) { this.errorMessage = 'Please select a time slot.'; return; }
+    if (!this.selectedSlotId) { this.errorMessage = 'Please select a time slot.'; this.toastService.error(this.errorMessage); return; }
     this.booking = true;
     this.errorMessage = '';
     this.http.post(`${this.apiUrl}/Bookings`, {

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-register',
@@ -26,7 +27,7 @@ export class RegisterComponent {
 
   fieldErrors: Record<string, string> = {};
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router, private toastService: ToastService) {}
 
   // ─── Live validators ────────────────────────────────────────────────────────
   private emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -86,10 +87,12 @@ export class RegisterComponent {
   onRegister() {
     if (!this.validateAll()) {
       this.errorMessage = 'Please fix the mistakes below before continuing.';
+      this.toastService.error(this.errorMessage);
       return;
     }
     if (!this.selectedRole) {
       this.errorMessage = 'Please select Student or Tutor to continue.';
+      this.toastService.error(this.errorMessage);
       return;
     }
 

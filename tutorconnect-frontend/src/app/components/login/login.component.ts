@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-login',
@@ -23,13 +24,15 @@ export class LoginComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private toastService: ToastService
   ) {}
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
       if (params['sessionExpired'] === 'true') {
         this.errorMessage = 'Your session has expired. Please sign in again.';
+        this.toastService.error(this.errorMessage);
       }
     });
   }

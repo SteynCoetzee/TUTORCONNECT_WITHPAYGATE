@@ -9,6 +9,7 @@ import { RoleNavPermissionsService } from '../../services/role-nav-permissions.s
 import { UserNavPermissionsService } from '../../services/user-nav-permissions.service';
 import { UserService } from '../../services/user.service';
 import { UserProfile } from '../../models/models';
+import { ToastService } from '../../services/toast.service';
 import {
   ADMIN_SIDEBAR, STUDENT_SIDEBAR, TUTOR_SIDEBAR,
   ADMIN_TOPNAV, STUDENT_TOPNAV, TUTOR_TOPNAV,
@@ -117,7 +118,8 @@ export class BusinessLogicComponent implements OnInit {
     private roleNavPermsService: RoleNavPermissionsService,
     private userNavPermsService: UserNavPermissionsService,
     private userService: UserService,
-    private authService: AuthService
+    private authService: AuthService,
+    private toastService: ToastService
   ) {
     this.isHardcodedAdmin = this.authService.getCurrentUserEmail()?.toLowerCase() === HARDCODED_ADMIN_EMAIL.toLowerCase();
   }
@@ -315,10 +317,12 @@ export class BusinessLogicComponent implements OnInit {
 
     if (val === null || val === undefined || (val as any) === '' || isNaN(val)) {
       this.errorMessage = `Value for "${meta.label}" is required.`;
+      this.toastService.error(this.errorMessage);
       return;
     }
     if (val < meta.min || val > meta.max) {
       this.errorMessage = `Value for "${meta.label}" must be between ${meta.min} and ${meta.max}.`;
+      this.toastService.error(this.errorMessage);
       return;
     }
 
@@ -327,12 +331,14 @@ export class BusinessLogicComponent implements OnInit {
       const timeout = this.getRuleValue('session_timeout_minutes');
       if (timeout !== null && val >= timeout) {
         this.errorMessage = `AFK Warning Popup must be less than the AFK Session Timeout (currently ${timeout} minutes).`;
+        this.toastService.error(this.errorMessage);
         return;
       }
     } else if (rule.rule_Name === 'session_timeout_minutes') {
       const warning = this.getRuleValue('afk_warning_minutes');
       if (warning !== null && val <= warning) {
         this.errorMessage = `AFK Session Timeout must be greater than the AFK Warning Popup time (currently ${warning} minutes).`;
+        this.toastService.error(this.errorMessage);
         return;
       }
     }

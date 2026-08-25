@@ -5,6 +5,7 @@ import { AuthService } from '../../services/auth.service';
 import { ModuleService } from '../../services/module.service';
 import { ModuleBulkImportResult } from '../../models/models';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { ToastService } from '../../services/toast.service';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
@@ -25,7 +26,8 @@ export class BulkAddModulesComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private moduleService: ModuleService,
-    private router: Router
+    private router: Router,
+    private toastService: ToastService
   ) {}
 
   ngOnInit() {
@@ -56,11 +58,13 @@ export class BulkAddModulesComponent implements OnInit {
 
     if (!file.name.toLowerCase().endsWith('.xlsx')) {
       this.errorMessage = 'Only .xlsx files are supported.';
+      this.toastService.error(this.errorMessage);
       input.value = '';
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
       this.errorMessage = 'File must be under 5 MB.';
+      this.toastService.error(this.errorMessage);
       input.value = '';
       return;
     }

@@ -7,6 +7,7 @@ import { environment } from '../../../environments/environment';
 import { Testimonial, TestimonialCreate, TestimonialCategory } from '../../models/models';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
 import { HelpIconComponent } from '../help-icon/help-icon.component';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-admin-testimonials',
@@ -53,7 +54,7 @@ export class AdminTestimonialsComponent implements OnInit {
   userId = 0;
   private apiUrl = environment.apiUrl;
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(private http: HttpClient, private authService: AuthService, private toastService: ToastService) {}
 
   ngOnInit() {
     this.userRole = this.authService.getCurrentUserRole();
@@ -152,6 +153,7 @@ export class AdminTestimonialsComponent implements OnInit {
     if (Object.keys(this.editErrors).length > 0) return;
     if (!this.editingTestimonial || !this.editCategoryId) {
       this.errorMessage = 'Please fill in all fields.';
+      this.toastService.error(this.errorMessage);
       return;
     }
     this.saving = true;

@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { Module } from '../../models/models';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-add-module',
@@ -40,7 +41,8 @@ export class AddModuleComponent implements OnInit {
     private http: HttpClient,
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private toastService: ToastService
   ) {}
 
   ngOnInit() {
@@ -88,6 +90,7 @@ export class AddModuleComponent implements OnInit {
           this.formPriceGroup = module.module_Price_Group;
         } else {
           this.errorMessage = 'Module not found.';
+          this.toastService.error(this.errorMessage);
           setTimeout(() => this.goBack(), 2000);
         }
         this.loading = false;

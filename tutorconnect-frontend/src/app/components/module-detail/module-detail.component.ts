@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { Module, ModuleResource, ModuleAssignment, ModuleQuiz, TutorModuleAssignment, UserProfile, Announcement } from '../../models/models';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
+import { ToastService } from '../../services/toast.service';
 
 interface BuilderQuestion {
   question_Text: string;
@@ -166,6 +167,7 @@ export class ModuleDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private sanitizer: DomSanitizer,
+    private toastService: ToastService,
   ) {}
 
   ngOnInit() {
@@ -353,11 +355,12 @@ export class ModuleDetailComponent implements OnInit {
     const type = isEdit ? this.editResType : this.resType;
     if (!type || type === 'Link') {
       this.errorMessage = 'Select a resource type (PDF, Doc, or Video) before dropping a file.';
+      this.toastService.error(this.errorMessage);
       return;
     }
     const kind = type === 'Video' ? 'video' : type === 'PDF' ? 'pdf' : 'doc';
     const err = this.validateFile(file, kind);
-    if (err) { this.errorMessage = err; return; }
+    if (err) { this.errorMessage = err; this.toastService.error(err); return; }
     if (isEdit) this.editResFile = file;
     else this.resFile = file;
     this.clearMessages();
@@ -365,14 +368,14 @@ export class ModuleDetailComponent implements OnInit {
 
   submitResource() {
     if (!this.resTitle.trim() || !this.resType) {
-      this.errorMessage = 'Title and type are required.'; return;
+      this.errorMessage = 'Title and type are required.'; this.toastService.error(this.errorMessage); return;
     }
     if (!this.resUrl.trim() && !this.resFile) {
-      this.errorMessage = 'Please provide a URL or upload a file.'; return;
+      this.errorMessage = 'Please provide a URL or upload a file.'; this.toastService.error(this.errorMessage); return;
     }
     if (this.resUrl.trim() && !this.resFile) {
       try { new URL(this.resUrl.trim()); } catch {
-        this.errorMessage = 'Please enter a valid URL including https:// (e.g. https://example.com).'; return;
+        this.errorMessage = 'Please enter a valid URL including https:// (e.g. https://example.com).'; this.toastService.error(this.errorMessage); return;
       }
     }
     if (this.resFile) {
@@ -484,11 +487,11 @@ export class ModuleDetailComponent implements OnInit {
 
   submitEditResource() {
     if (!this.editResTitle.trim() || !this.editResType) {
-      this.errorMessage = 'Title and type are required.'; return;
+      this.errorMessage = 'Title and type are required.'; this.toastService.error(this.errorMessage); return;
     }
     if (this.editResUrl.trim() && !this.editResFile) {
       try { new URL(this.editResUrl.trim()); } catch {
-        this.errorMessage = 'Please enter a valid URL including https:// (e.g. https://example.com).'; return;
+        this.errorMessage = 'Please enter a valid URL including https:// (e.g. https://example.com).'; this.toastService.error(this.errorMessage); return;
       }
     }
     if (this.editResFile) {
@@ -626,8 +629,8 @@ export class ModuleDetailComponent implements OnInit {
   }
 
   saveQuiz() {
-    if (!this.quizName || !this.quizDate) { this.errorMessage = 'Quiz name and date are required.'; return; }
-    if (this.quizDate < this.todayISO) { this.errorMessage = 'Quiz date cannot be in the past.'; return; }
+    if (!this.quizName || !this.quizDate) { this.errorMessage = 'Quiz name and date are required.'; this.toastService.error(this.errorMessage); return; }
+    if (this.quizDate < this.todayISO) { this.errorMessage = 'Quiz date cannot be in the past.'; this.toastService.error(this.errorMessage); return; }
     this.savingQuiz = true;
     this.http.post(`${this.apiUrl}/Quizzes`, {
       quiz_Name: this.quizName,
@@ -747,9 +750,9 @@ export class ModuleDetailComponent implements OnInit {
 
   saveQuestions() {
     for (const q of this.builderQuestions) {
-      if (!q.question_Text.trim()) { this.errorMessage = 'All questions need text.'; return; }
-      if (!q.options.some(o => o.is_Correct)) { this.errorMessage = 'Mark a correct answer for each question.'; return; }
-      if (q.options.some(o => !o.option_Text.trim())) { this.errorMessage = 'All options need text.'; return; }
+      if (!q.question_Text.trim()) { this.errorMessage = 'All questions need text.'; this.toastService.error(this.errorMessage); return; }
+      if (!q.options.some(o => o.is_Correct)) { this.errorMessage = 'Mark a correct answer for each question.'; this.toastService.error(this.errorMessage); return; }
+      if (q.options.some(o => !o.option_Text.trim())) { this.errorMessage = 'All options need text.'; this.toastService.error(this.errorMessage); return; }
     }
     this.savingQuestions = true;
     this.clearMessages();
@@ -790,7 +793,7 @@ export class ModuleDetailComponent implements OnInit {
   submitQuizAnswers() {
     if (!this.takingQuiz) return;
     const unanswered = this.takingQuiz.questions.filter((q: any) => !this.takingAnswers[q.question_ID]);
-    if (unanswered.length > 0) { this.errorMessage = `Please answer all questions (${unanswered.length} remaining).`; return; }
+    if (unanswered.length > 0) { this.errorMessage = `Please answer all questions (${unanswered.length} remaining).`; this.toastService.error(this.errorMessage); return; }
     this.submittingQuiz = true;
     this.clearMessages();
     this.http.post<any>(`${this.apiUrl}/Quizzes/${this.takingQuizId}/submit`, {
@@ -853,6 +856,7 @@ export class ModuleDetailComponent implements OnInit {
     } catch (err: any) {
       this.pdfViewerVisible = false;
       this.errorMessage = `Preview failed (${err?.message ?? 'unknown error'}). Try downloading instead.`;
+      this.toastService.error(this.errorMessage);
     }
     this.pdfViewerLoading = false;
   }
@@ -891,14 +895,14 @@ export class ModuleDetailComponent implements OnInit {
     fetch(`${this.apiUrl}/Assignments/${assignmentId}/download-brief`)
       .then(res => res.blob())
       .then(blob => this.triggerDownload(blob, `${name}.pdf`))
-      .catch(() => this.errorMessage = 'Download failed.');
+      .catch(() => { this.errorMessage = 'Download failed.'; this.toastService.error(this.errorMessage); });
   }
 
   downloadSubmission(submissionId: number, filename: string) {
     fetch(`${this.apiUrl}/Assignments/submissions/${submissionId}/download`, { headers: this.authHeader })
       .then(res => res.blob())
       .then(blob => this.triggerDownload(blob, filename))
-      .catch(() => this.errorMessage = 'Download failed.');
+      .catch(() => { this.errorMessage = 'Download failed.'; this.toastService.error(this.errorMessage); });
   }
 
   private parseUrl(raw: string): string {
@@ -944,17 +948,17 @@ export class ModuleDetailComponent implements OnInit {
     const file = input.files?.[0];
     if (!file) return;
     const err = this.validateFile(file, 'brief');
-    if (err) { this.errorMessage = err; input.value = ''; this.assignmentBriefFile = null; return; }
+    if (err) { this.errorMessage = err; this.toastService.error(err); input.value = ''; this.assignmentBriefFile = null; return; }
     this.assignmentBriefFile = file;
     this.clearMessages();
   }
 
   saveAssignment() {
     if (!this.assignmentName || !this.assignmentDate) {
-      this.errorMessage = 'Assignment name and due date are required.'; return;
+      this.errorMessage = 'Assignment name and due date are required.'; this.toastService.error(this.errorMessage); return;
     }
     if (this.assignmentDate < this.todayISO) {
-      this.errorMessage = 'Due date cannot be in the past.'; return;
+      this.errorMessage = 'Due date cannot be in the past.'; this.toastService.error(this.errorMessage); return;
     }
     if (this.assignmentBriefFile) {
       this.uploadingBrief = true;
@@ -1074,14 +1078,14 @@ export class ModuleDetailComponent implements OnInit {
     const file = input.files?.[0];
     if (!file) return;
     const err = this.validateFile(file, 'submission');
-    if (err) { this.errorMessage = err; input.value = ''; this.studentSubmitFile = null; return; }
+    if (err) { this.errorMessage = err; this.toastService.error(err); input.value = ''; this.studentSubmitFile = null; return; }
     this.studentSubmitFile = file;
     this.clearMessages();
   }
 
   submitAssignment(assignmentId: number) {
-    if (!this.studentSubmitFile) { this.errorMessage = 'Please select a PDF to submit.'; return; }
-    if (!this.studentSubmitTitle.trim()) { this.errorMessage = 'Please enter a submission title.'; return; }
+    if (!this.studentSubmitFile) { this.errorMessage = 'Please select a PDF to submit.'; this.toastService.error(this.errorMessage); return; }
+    if (!this.studentSubmitTitle.trim()) { this.errorMessage = 'Please enter a submission title.'; this.toastService.error(this.errorMessage); return; }
     this.submittingAssignmentId = assignmentId;
     this.clearMessages();
     const fd = new FormData();
@@ -1137,7 +1141,7 @@ export class ModuleDetailComponent implements OnInit {
   }
 
   saveAnnouncement() {
-    if (!this.announcementName) { this.errorMessage = 'Title is required.'; return; }
+    if (!this.announcementName) { this.errorMessage = 'Title is required.'; this.toastService.error(this.errorMessage); return; }
     this.savingAnnouncement = true;
     this.http.post(`${this.apiUrl}/Announcements`, {
       announcement_Name: this.announcementName,
@@ -1170,7 +1174,7 @@ export class ModuleDetailComponent implements OnInit {
 
   saveEditAnnouncement() {
     if (!this.editingAnnouncement) return;
-    if (!this.editAnnouncementName) { this.errorMessage = 'Title is required.'; return; }
+    if (!this.editAnnouncementName) { this.errorMessage = 'Title is required.'; this.toastService.error(this.errorMessage); return; }
     this.updatingAnnouncement = true;
     this.http.put(`${this.apiUrl}/Announcements/${this.editingAnnouncement.announcement_ID}`, {
       announcement_Name: this.editAnnouncementName,

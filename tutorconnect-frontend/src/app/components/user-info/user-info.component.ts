@@ -8,6 +8,7 @@ import { UserProfile, UserProfileUpdate } from '../../models/models';
 import { environment } from '../../../environments/environment';
 import { extractErrorMessage } from '../../interceptors/error.interceptor';
 import { HelpIconComponent } from '../help-icon/help-icon.component';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-user-info',
@@ -56,7 +57,8 @@ export class UserInfoComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private userService: UserService,
-    private http: HttpClient
+    private http: HttpClient,
+    private toastService: ToastService
   ) {}
 
   ngOnInit() {
@@ -256,6 +258,7 @@ export class UserInfoComponent implements OnInit {
   saveProfile() {
     if (!this.validateAll()) {
       this.errorMessage = 'Please fix the errors below before saving.';
+      this.toastService.error(this.errorMessage);
       return;
     }
     const userId = this.authService.getCurrentUserId();
