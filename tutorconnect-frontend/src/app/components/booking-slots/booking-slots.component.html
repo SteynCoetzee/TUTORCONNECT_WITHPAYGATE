@@ -131,7 +131,7 @@
             <span class="step-num">6</span> Location
           </div>
           <input type="text" class="form-control"
-                 [(ngModel)]="formLocation"
+                 [(ngModel)]="formLocation" maxlength="200"
                  placeholder="e.g. Room 204, Library, Zoom link..." />
           <span class="field-hint">Optional — leave blank if not confirmed yet</span>
         </div>
@@ -305,7 +305,7 @@
                       <div class="create-step">
                         <div class="step-label"><span class="step-num">6</span> Location</div>
                         <input type="text" class="form-control"
-                               [(ngModel)]="editLocation"
+                               [(ngModel)]="editLocation" maxlength="200"
                                placeholder="e.g. Room 204, Library, Zoom link..." />
                       </div>
 

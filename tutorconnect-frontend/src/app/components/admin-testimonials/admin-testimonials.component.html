@@ -224,7 +224,7 @@
           <div class="form-group">
             <label>Category Name *</label>
             <input class="form-control" [class.input-error]="catErrors['name']"
-                   [(ngModel)]="catName" name="catName" placeholder="e.g. Tutor Experience"
+                   [(ngModel)]="catName" name="catName" placeholder="e.g. Tutor Experience" maxlength="100"
                    (ngModelChange)="validateCatName($event)" />
             @if (catErrors['name']) { <span class="field-error">{{ catErrors['name'] }}</span> }
           </div>

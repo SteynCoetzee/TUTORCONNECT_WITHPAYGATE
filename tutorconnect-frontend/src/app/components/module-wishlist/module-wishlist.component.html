@@ -25,7 +25,7 @@
       <div class="form-group">
         <label class="form-label required">Module Code</label>
         <input type="text" class="form-control" [class.input-error]="fieldErrors['code']"
-               [(ngModel)]="formCode" placeholder="e.g. CS301, MATH202"
+               [(ngModel)]="formCode" placeholder="e.g. CS301, MATH202" maxlength="20"
                (ngModelChange)="validateCode($event)" (keyup.enter)="submit()" />
         @if (fieldErrors['code']) {
           <span class="field-error">{{ fieldErrors['code'] }}</span>
@@ -36,7 +36,7 @@
       <div class="form-group">
         <label class="form-label required">Module Name</label>
         <input type="text" class="form-control" [class.input-error]="fieldErrors['name']"
-               [(ngModel)]="formName" placeholder="e.g. Advanced Algorithms"
+               [(ngModel)]="formName" placeholder="e.g. Advanced Algorithms" maxlength="200"
                (ngModelChange)="validateName($event)" (keyup.enter)="submit()" />
         @if (fieldErrors['name']) {
           <span class="field-error">{{ fieldErrors['name'] }}</span>

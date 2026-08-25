@@ -56,12 +56,14 @@ export class ModuleWishlistComponent implements OnInit {
   validateCode(val: string) {
     if (!val?.trim()) { this.fieldErrors['code'] = 'Module code is required.'; }
     else if (val.trim().length < 2) { this.fieldErrors['code'] = 'Module code must be at least 2 characters.'; }
+    else if (val.trim().length > 20) { this.fieldErrors['code'] = 'Module code cannot exceed 20 characters.'; }
     else { delete this.fieldErrors['code']; }
   }
 
   validateName(val: string) {
     if (!val?.trim()) { this.fieldErrors['name'] = 'Module name is required.'; }
     else if (val.trim().length < 3) { this.fieldErrors['name'] = 'Module name must be at least 3 characters.'; }
+    else if (val.trim().length > 200) { this.fieldErrors['name'] = 'Module name cannot exceed 200 characters.'; }
     else { delete this.fieldErrors['name']; }
   }
 

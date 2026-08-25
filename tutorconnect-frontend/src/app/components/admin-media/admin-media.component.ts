@@ -61,13 +61,27 @@ export class AdminMediaComponent implements OnInit {
   validateCreateName(val: string) {
     if (!val?.trim()) { this.createErrors['name'] = 'Name is required.'; }
     else if (val.trim().length < 2) { this.createErrors['name'] = 'Name must be at least 2 characters.'; }
+    else if (val.trim().length > 200) { this.createErrors['name'] = 'Name cannot exceed 200 characters.'; }
     else { delete this.createErrors['name']; }
   }
 
   validateEditNameField(val: string) {
     if (!val?.trim()) { this.editErrors['name'] = 'Name is required.'; }
     else if (val.trim().length < 2) { this.editErrors['name'] = 'Name must be at least 2 characters.'; }
+    else if (val.trim().length > 200) { this.editErrors['name'] = 'Name cannot exceed 200 characters.'; }
     else { delete this.editErrors['name']; }
+  }
+
+  validateCreateAddress(val: string) {
+    if (!val?.trim() || this.createFile) { delete this.createErrors['media']; return; }
+    try { new URL(val.trim()); delete this.createErrors['media']; }
+    catch { this.createErrors['media'] = 'Please enter a valid URL including https://.'; }
+  }
+
+  validateEditAddress(val: string) {
+    if (!val?.trim() || this.editFile) { delete this.editErrors['media']; return; }
+    try { new URL(val.trim()); delete this.editErrors['media']; }
+    catch { this.editErrors['media'] = 'Please enter a valid URL including https://.'; }
   }
 
   openCreate() {
@@ -118,7 +132,7 @@ export class AdminMediaComponent implements OnInit {
   create() {
     this.validateCreateName(this.createName);
     if (!this.createFile && !this.createAddress) this.createErrors['media'] = 'Please upload a file or enter a URL.';
-    else delete this.createErrors['media'];
+    else this.validateCreateAddress(this.createAddress);
     if (Object.keys(this.createErrors).length > 0) return;
     this.creating = true;
     if (this.createFile) {
@@ -181,7 +195,7 @@ export class AdminMediaComponent implements OnInit {
     if (!this.editingItem) return;
     this.validateEditNameField(this.editName);
     if (!this.editFile && !this.editAddress) this.editErrors['media'] = 'Please upload a file or enter a URL.';
-    else delete this.editErrors['media'];
+    else this.validateEditAddress(this.editAddress);
     if (Object.keys(this.editErrors).length > 0) return;
     this.updating = true;
     if (this.editFile) {

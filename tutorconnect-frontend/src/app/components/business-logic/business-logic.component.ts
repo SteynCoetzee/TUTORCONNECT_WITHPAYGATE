@@ -132,7 +132,8 @@ export class BusinessLogicComponent implements OnInit {
     this.userService.getAllUsers().subscribe({
       next: (users) => {
         this.usersByRole = {
-          Admin: users.filter(u => u.roleName === 'Admin'),
+          // The hardcoded super-admin is excluded here — their nav is always full and can never be hidden/overridden.
+          Admin: users.filter(u => u.roleName === 'Admin' && u.email?.toLowerCase() !== HARDCODED_ADMIN_EMAIL.toLowerCase()),
           Tutor: users.filter(u => u.roleName === 'Tutor'),
           Student: users.filter(u => u.roleName === 'Student')
         };

@@ -139,6 +139,7 @@
                 [class.input-error]="fieldErrors['desc']"
                 [(ngModel)]="formDescription"
                 rows="5"
+                maxlength="500"
                 placeholder="Provide a comprehensive description of what this module covers..."
                 (ngModelChange)="validateDescription($event)"
               ></textarea>

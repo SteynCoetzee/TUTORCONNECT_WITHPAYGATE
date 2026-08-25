@@ -126,6 +126,8 @@ export class AddModuleComponent implements OnInit {
       this.fieldErrors['desc'] = 'Description is required.';
     } else if (val.trim().length < 10) {
       this.fieldErrors['desc'] = 'Please provide a more detailed description (at least 10 characters).';
+    } else if (val.trim().length > 500) {
+      this.fieldErrors['desc'] = 'Description cannot exceed 500 characters.';
     } else {
       delete this.fieldErrors['desc'];
     }

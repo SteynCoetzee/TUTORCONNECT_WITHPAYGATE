@@ -165,6 +165,18 @@ export class UserInfoComponent implements OnInit {
     } else { delete this.fieldErrors['studentNumber']; }
   }
 
+  validateEmployeeNumber(value: string) {
+    if (!value?.trim()) { delete this.fieldErrors['employeeNumber']; return; }
+    if (value.trim().length > 20) { this.fieldErrors['employeeNumber'] = 'Cannot exceed 20 characters.'; return; }
+    delete this.fieldErrors['employeeNumber'];
+  }
+
+  validateStaffNumber(value: string) {
+    if (!value?.trim()) { delete this.fieldErrors['staffNumber']; return; }
+    if (value.trim().length > 20) { this.fieldErrors['staffNumber'] = 'Cannot exceed 20 characters.'; return; }
+    delete this.fieldErrors['staffNumber'];
+  }
+
   validateFaculty(value: string) {
     if (!value?.trim()) { delete this.fieldErrors['faculty']; return; }
     if (!this.lettersOnly.test(value)) { this.fieldErrors['faculty'] = 'Only letters and spaces allowed.'; return; }
@@ -173,15 +185,15 @@ export class UserInfoComponent implements OnInit {
 
   validateYearOfStudy(value: number | null) {
     if (value === null || value === undefined) { delete this.fieldErrors['yearOfStudy']; return; }
-    if (!Number.isInteger(Number(value)) || value < 1 || value > 7) {
-      this.fieldErrors['yearOfStudy'] = 'Year must be between 1 and 7.';
+    if (!Number.isInteger(Number(value)) || value < 1 || value > 10) {
+      this.fieldErrors['yearOfStudy'] = 'Year must be between 1 and 10.';
     } else { delete this.fieldErrors['yearOfStudy']; }
   }
 
   validateYearsExp(value: number | null) {
     if (value === null || value === undefined) { delete this.fieldErrors['yearsExp']; return; }
-    if (!Number.isInteger(Number(value)) || value < 0 || value > 50) {
-      this.fieldErrors['yearsExp'] = 'Must be between 0 and 50 years.';
+    if (!Number.isInteger(Number(value)) || value < 0 || value > 60) {
+      this.fieldErrors['yearsExp'] = 'Must be between 0 and 60 years.';
     } else { delete this.fieldErrors['yearsExp']; }
   }
 
@@ -208,11 +220,13 @@ export class UserInfoComponent implements OnInit {
       this.validateYearOfStudy(this.editRoleProfile.year_Of_Study);
       this.validateTextField(this.editRoleProfile.degree_Program ?? '', 'degreeProgram');
     } else if (role === 'Tutor' || role === 'AW-Tutor') {
+      this.validateEmployeeNumber(this.editRoleProfile.employee_Number ?? '');
       this.validateTextField(this.editRoleProfile.qualifications ?? '', 'qualifications');
       this.validateTextField(this.editRoleProfile.specialization ?? '', 'specialization');
       this.validateYearsExp(this.editRoleProfile.years_Of_Experience);
     } else if (role === 'Admin') {
-      this.validateTextField(this.editRoleProfile.job_Title ?? '', 'jobTitle');
+      this.validateStaffNumber(this.editRoleProfile.staff_Number ?? '');
+      this.validateTextField(this.editRoleProfile.job_Title ?? '', 'jobTitle', 2, 100);
     }
     return !this.hasFieldErrors;
   }

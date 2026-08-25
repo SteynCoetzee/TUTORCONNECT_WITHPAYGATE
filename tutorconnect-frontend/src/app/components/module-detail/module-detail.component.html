@@ -100,13 +100,13 @@
               <!-- Title -->
               <div class="res-form-group">
                 <label class="res-label">Title *</label>
-                <input class="form-control" [(ngModel)]="resTitle" placeholder="e.g. Week 3 Lecture Notes" />
+                <input class="form-control" [(ngModel)]="resTitle" placeholder="e.g. Week 3 Lecture Notes" maxlength="200" />
               </div>
 
               <!-- Folder -->
               <div class="res-form-group">
                 <label class="res-label">Folder <span class="res-optional">(optional)</span></label>
-                <input class="form-control" [(ngModel)]="resFolder" placeholder="e.g. Week 1, Chapter 4..." />
+                <input class="form-control" [(ngModel)]="resFolder" placeholder="e.g. Week 1, Chapter 4..." maxlength="100" />
               </div>
 
               <!-- URL / File upload -->
@@ -280,11 +280,11 @@
                       </div>
                       <div class="res-form-group">
                         <label class="res-label">Title *</label>
-                        <input class="form-control" [(ngModel)]="editResTitle" />
+                        <input class="form-control" [(ngModel)]="editResTitle" maxlength="200" />
                       </div>
                       <div class="res-form-group">
                         <label class="res-label">Folder <span class="res-optional">(optional)</span></label>
-                        <input class="form-control" [(ngModel)]="editResFolder" placeholder="e.g. Week 1" />
+                        <input class="form-control" [(ngModel)]="editResFolder" placeholder="e.g. Week 1" maxlength="100" />
                       </div>
                       @if (editResType === 'PDF') {
                         <div class="res-form-group full-width">
@@ -459,7 +459,7 @@
             <div class="form-row-2">
               <div class="form-group">
                 <label>Quiz Name *</label>
-                <input class="form-control" [(ngModel)]="quizName" placeholder="e.g. Chapter 3 Quiz" />
+                <input class="form-control" [(ngModel)]="quizName" placeholder="e.g. Chapter 3 Quiz" maxlength="200" />
               </div>
               <div class="form-group">
                 <label>Date *</label>
@@ -792,7 +792,7 @@
             <div class="form-row-2">
               <div class="form-group">
                 <label>Assignment Name *</label>
-                <input class="form-control" [(ngModel)]="assignmentName" placeholder="e.g. Project Proposal" />
+                <input class="form-control" [(ngModel)]="assignmentName" placeholder="e.g. Project Proposal" maxlength="200" />
               </div>
               <div class="form-group">
                 <label>Due Date *</label>
@@ -859,15 +859,18 @@
                           <div class="grade-row">
                             <strong>{{ s.studentName }}</strong>
                             <input type="number" class="form-control" style="max-width:90px"
-                                   [(ngModel)]="gradeValue" placeholder="%" min="0" max="100" />
+                                   [class.input-error]="gradeError"
+                                   [(ngModel)]="gradeValue" placeholder="%" min="0" max="100"
+                                   (ngModelChange)="validateGrade($event)" />
                             <input class="form-control" style="flex:1;min-width:160px"
-                                   [(ngModel)]="feedbackValue" placeholder="Feedback (optional)" />
+                                   [(ngModel)]="feedbackValue" placeholder="Feedback (optional)" maxlength="1000" />
                             <button class="btn btn-secondary btn-sm" (click)="gradingSubmissionId = null">Cancel</button>
                             <button class="btn btn-primary btn-sm" (click)="saveGrade(assignmentSubmissionsId!)"
                                     [disabled]="savingGrade">
                               @if (savingGrade) { <span class="spinner-sm"></span> } Save Grade
                             </button>
                           </div>
+                          @if (gradeError) { <span class="field-error">{{ gradeError }}</span> }
                         </td>
                       </tr>
                     } @else {
@@ -1100,7 +1103,7 @@
             <p class="inline-edit-title">New Announcement</p>
             <div class="form-group">
               <label>Title *</label>
-              <input class="form-control" [(ngModel)]="announcementName" placeholder="e.g. Quiz postponed" />
+              <input class="form-control" [(ngModel)]="announcementName" placeholder="e.g. Quiz postponed" maxlength="200" />
             </div>
             <div class="form-group">
               <label>Type</label>
@@ -1150,7 +1153,7 @@
                 <p class="inline-edit-title">Edit Announcement</p>
                 <div class="form-group">
                   <label>Title</label>
-                  <input class="form-control" [(ngModel)]="editAnnouncementName" />
+                  <input class="form-control" [(ngModel)]="editAnnouncementName" maxlength="200" />
                 </div>
                 <div class="form-group">
                   <label>Type</label>

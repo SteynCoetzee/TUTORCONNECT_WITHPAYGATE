@@ -166,7 +166,7 @@ namespace TutorConnect.API.Controllers
 
         // POST: api/ModuleWishlist
         [HttpPost]
-        public async Task<ActionResult> Create([FromBody] Module_Wishlist request)
+        public async Task<ActionResult> Create([FromBody] ModuleWishlistCreateDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Module_Code) || string.IsNullOrWhiteSpace(request.Module_Name))
                 return BadRequest("Module code and name are required.");

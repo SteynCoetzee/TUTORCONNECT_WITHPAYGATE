@@ -116,8 +116,8 @@ namespace TutorConnect.API.Controllers
             if (request.NewPassword != request.ConfirmPassword)
                 return BadRequest("New passwords do not match.");
 
-            if (request.NewPassword.Length < 6)
-                return BadRequest("New password must be at least 6 characters.");
+            if (!IsPasswordComplex(request.NewPassword))
+                return BadRequest("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -1320,6 +1320,9 @@ namespace TutorConnect.API.Controllers
             if (request.Log_Hours_Amount <= 0 || request.Log_Hours_Amount > 24)
                 return BadRequest("Hours must be between 0.01 and 24.");
 
+            if (request.Log_Hours_Date > DateOnly.FromDateTime(DateTime.UtcNow))
+                return BadRequest("Log date cannot be in the future.");
+
             var newLog = new Log_Hours
             {
                 Log_Hours_Date = request.Log_Hours_Date,
@@ -1340,6 +1343,9 @@ namespace TutorConnect.API.Controllers
         {
             if (request.Log_Hours_Amount <= 0 || request.Log_Hours_Amount > 24)
                 return BadRequest("Hours must be between 0.01 and 24.");
+
+            if (request.Log_Hours_Date > DateOnly.FromDateTime(DateTime.UtcNow))
+                return BadRequest("Log date cannot be in the future.");
 
             var log = await _context.Log_Hours.FindAsync(id);
             if (log == null) return NotFound("Log entry not found.");

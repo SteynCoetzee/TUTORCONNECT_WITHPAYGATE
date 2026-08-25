@@ -145,6 +145,8 @@ export class AdminUsersComponent implements OnInit {
       this.editFieldErrors[field] = 'This field is required.';
     } else if (value.trim().length < 2) {
       this.editFieldErrors[field] = 'Must be at least 2 characters.';
+    } else if (value.trim().length > 50) {
+      this.editFieldErrors[field] = 'Cannot exceed 50 characters.';
     } else if (!this.nameRegex.test(value)) {
       this.editFieldErrors[field] = 'Only letters, spaces, hyphens and apostrophes allowed.';
     } else {
@@ -159,6 +161,22 @@ export class AdminUsersComponent implements OnInit {
       this.editFieldErrors['phone'] = 'Use format: +27XXXXXXXXX or 0XXXXXXXXX (SA mobile number).';
     } else {
       delete this.editFieldErrors['phone'];
+    }
+  }
+
+  validateEditAddress(value: string) {
+    if (value && value.length > 200) {
+      this.editFieldErrors['address'] = 'Address cannot exceed 200 characters.';
+    } else {
+      delete this.editFieldErrors['address'];
+    }
+  }
+
+  validateEditBio(value: string) {
+    if (value && value.length > 500) {
+      this.editFieldErrors['bio'] = 'Bio cannot exceed 500 characters.';
+    } else {
+      delete this.editFieldErrors['bio'];
     }
   }
 
@@ -183,6 +201,8 @@ export class AdminUsersComponent implements OnInit {
     this.validateEditName(this.editFirstName, 'firstName');
     this.validateEditName(this.editLastName, 'lastName');
     this.validateEditPhone(this.editPhone);
+    this.validateEditAddress(this.editAddress);
+    this.validateEditBio(this.editBio);
     if (!this.editRoleId) this.editFieldErrors['role'] = 'Please select a role.';
     if (!this.editingUser || Object.keys(this.editFieldErrors).length > 0) return;
     this.saving = true;

@@ -58,14 +58,14 @@
           <div class="form-group">
             <label>Question *</label>
             <input type="text" class="form-control" [class.input-error]="faqErrors['question']"
-                   [(ngModel)]="faqQuestion" name="faqQuestion" placeholder="Enter the question"
+                   [(ngModel)]="faqQuestion" name="faqQuestion" placeholder="Enter the question" maxlength="500"
                    (ngModelChange)="validateFaqQuestion($event)" />
             @if (faqErrors['question']) { <span class="field-error">{{ faqErrors['question'] }}</span> }
           </div>
           <div class="form-group">
             <label>Answer *</label>
             <textarea class="form-control" [class.input-error]="faqErrors['answer']"
-                      [(ngModel)]="faqAnswer" name="faqAnswer" rows="4" placeholder="Enter the answer"
+                      [(ngModel)]="faqAnswer" name="faqAnswer" rows="4" placeholder="Enter the answer" maxlength="2000"
                       (ngModelChange)="validateFaqAnswer($event)"></textarea>
             @if (faqErrors['answer']) { <span class="field-error">{{ faqErrors['answer'] }}</span> }
           </div>
@@ -154,7 +154,7 @@
           <div class="form-group">
             <label>Category Name *</label>
             <input type="text" class="form-control" [class.input-error]="catErrors['name']"
-                   [(ngModel)]="catName" name="catName" placeholder="e.g. Account, Technical..."
+                   [(ngModel)]="catName" name="catName" placeholder="e.g. Account, Technical..." maxlength="100"
                    (ngModelChange)="validateCatName($event)" />
             @if (catErrors['name']) { <span class="field-error">{{ catErrors['name'] }}</span> }
           </div>

@@ -154,14 +154,14 @@
                       <div class="form-group">
                         <label>First Name</label>
                         <input class="form-control" [class.input-error]="editFieldErrors['firstName']"
-                               [(ngModel)]="editFirstName" name="editFN" placeholder="First name"
+                               [(ngModel)]="editFirstName" name="editFN" placeholder="First name" maxlength="50"
                                (ngModelChange)="validateEditName($event, 'firstName')" />
                         @if (editFieldErrors['firstName']) { <span class="field-error">{{ editFieldErrors['firstName'] }}</span> }
                       </div>
                       <div class="form-group">
                         <label>Last Name</label>
                         <input class="form-control" [class.input-error]="editFieldErrors['lastName']"
-                               [(ngModel)]="editLastName" name="editLN" placeholder="Last name"
+                               [(ngModel)]="editLastName" name="editLN" placeholder="Last name" maxlength="50"
                                (ngModelChange)="validateEditName($event, 'lastName')" />
                         @if (editFieldErrors['lastName']) { <span class="field-error">{{ editFieldErrors['lastName'] }}</span> }
                       </div>
@@ -176,11 +176,17 @@
                     <div class="edit-form-row">
                       <div class="form-group">
                         <label>Address</label>
-                        <input class="form-control" [(ngModel)]="editAddress" name="editAddr" placeholder="Address" />
+                        <input class="form-control" [class.input-error]="editFieldErrors['address']"
+                               [(ngModel)]="editAddress" name="editAddr" placeholder="Address" maxlength="200"
+                               (ngModelChange)="validateEditAddress($event)" />
+                        @if (editFieldErrors['address']) { <span class="field-error">{{ editFieldErrors['address'] }}</span> }
                       </div>
                       <div class="form-group" style="flex:2">
                         <label>Bio</label>
-                        <input class="form-control" [(ngModel)]="editBio" name="editBio" placeholder="Short bio" />
+                        <input class="form-control" [class.input-error]="editFieldErrors['bio']"
+                               [(ngModel)]="editBio" name="editBio" placeholder="Short bio" maxlength="500"
+                               (ngModelChange)="validateEditBio($event)" />
+                        @if (editFieldErrors['bio']) { <span class="field-error">{{ editFieldErrors['bio'] }}</span> }
                       </div>
                     </div>
                     <div class="edit-form-role">

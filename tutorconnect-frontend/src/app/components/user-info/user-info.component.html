@@ -136,12 +136,18 @@
             @if (fieldErrors['studentNumber']) { <span class="field-error">{{ fieldErrors['studentNumber'] }}</span> }
           }
           @if (roleName === 'Tutor' || roleName === 'AW-Tutor') {
-            <input class="form-control" [(ngModel)]="editRoleProfile.employee_Number"
-                   placeholder="e.g. EMP2024001" />
+            <input class="form-control" [class.input-error]="fieldErrors['employeeNumber']"
+                   [(ngModel)]="editRoleProfile.employee_Number" maxlength="20"
+                   placeholder="e.g. EMP2024001"
+                   (ngModelChange)="validateEmployeeNumber($event)" />
+            @if (fieldErrors['employeeNumber']) { <span class="field-error">{{ fieldErrors['employeeNumber'] }}</span> }
           }
           @if (roleName === 'Admin') {
-            <input class="form-control" [(ngModel)]="editRoleProfile.staff_Number"
-                   placeholder="e.g. ADM2024001" />
+            <input class="form-control" [class.input-error]="fieldErrors['staffNumber']"
+                   [(ngModel)]="editRoleProfile.staff_Number" maxlength="20"
+                   placeholder="e.g. ADM2024001"
+                   (ngModelChange)="validateStaffNumber($event)" />
+            @if (fieldErrors['staffNumber']) { <span class="field-error">{{ fieldErrors['staffNumber'] }}</span> }
           }
         </div>
         <div class="form-group">
@@ -187,9 +193,9 @@
           </div>
           <div class="grid-2">
             <div class="form-group">
-              <label>Year of Study <span class="field-hint-inline">(1–7)</span></label>
+              <label>Year of Study <span class="field-hint-inline">(1–10)</span></label>
               <input type="number" class="form-control" [class.input-error]="fieldErrors['yearOfStudy']"
-                     [(ngModel)]="editRoleProfile.year_Of_Study" placeholder="e.g. 2" min="1" max="7"
+                     [(ngModel)]="editRoleProfile.year_Of_Study" placeholder="e.g. 2" min="1" max="10"
                      (ngModelChange)="validateYearOfStudy($event)" />
               @if (fieldErrors['yearOfStudy']) { <span class="field-error">{{ fieldErrors['yearOfStudy'] }}</span> }
             </div>
@@ -244,9 +250,9 @@
               @if (fieldErrors['specialization']) { <span class="field-error">{{ fieldErrors['specialization'] }}</span> }
             </div>
             <div class="form-group">
-              <label>Years of Experience <span class="field-hint-inline">(0–50)</span></label>
+              <label>Years of Experience <span class="field-hint-inline">(0–60)</span></label>
               <input type="number" class="form-control" [class.input-error]="fieldErrors['yearsExp']"
-                     [(ngModel)]="editRoleProfile.years_Of_Experience" placeholder="e.g. 3" min="0" max="50"
+                     [(ngModel)]="editRoleProfile.years_Of_Experience" placeholder="e.g. 3" min="0" max="60"
                      (ngModelChange)="validateYearsExp($event)" />
               @if (fieldErrors['yearsExp']) { <span class="field-error">{{ fieldErrors['yearsExp'] }}</span> }
             </div>
@@ -271,8 +277,8 @@
           <div class="form-group">
             <label>Job Title</label>
             <input class="form-control" [class.input-error]="fieldErrors['jobTitle']"
-                   [(ngModel)]="editRoleProfile.job_Title" placeholder="e.g. Senior Administrator"
-                   (ngModelChange)="validateTextField($event, 'jobTitle')" />
+                   [(ngModel)]="editRoleProfile.job_Title" placeholder="e.g. Senior Administrator" maxlength="100"
+                   (ngModelChange)="validateTextField($event, 'jobTitle', 2, 100)" />
             @if (fieldErrors['jobTitle']) { <span class="field-error">{{ fieldErrors['jobTitle'] }}</span> }
           </div>
         }

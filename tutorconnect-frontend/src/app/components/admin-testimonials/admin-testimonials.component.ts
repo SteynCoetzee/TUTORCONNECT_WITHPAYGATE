@@ -129,6 +129,7 @@ export class AdminTestimonialsComponent implements OnInit {
   validateCatName(val: string) {
     if (!val?.trim()) { this.catErrors['name'] = 'Category name is required.'; }
     else if (val.trim().length < 2) { this.catErrors['name'] = 'Name must be at least 2 characters.'; }
+    else if (val.trim().length > 100) { this.catErrors['name'] = 'Name cannot exceed 100 characters.'; }
     else { delete this.catErrors['name']; }
   }
 

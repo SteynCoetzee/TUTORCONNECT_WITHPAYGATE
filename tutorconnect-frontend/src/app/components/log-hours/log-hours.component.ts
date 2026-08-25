@@ -60,6 +60,10 @@ export class LogHoursComponent implements OnInit {
     });
   }
 
+  get todayISO(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
   validateDate(val: string) {
     if (!val) {
       this.formErrors['date'] = 'Date is required.';

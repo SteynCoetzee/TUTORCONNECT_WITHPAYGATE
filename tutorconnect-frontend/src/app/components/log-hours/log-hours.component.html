@@ -74,7 +74,7 @@
             <span class="step-num">1</span> Date
           </div>
           <input type="date" class="form-control date-input" [class.input-error]="formErrors['date']"
-                 [(ngModel)]="formDate" (ngModelChange)="validateDate($event)" />
+                 [(ngModel)]="formDate" [max]="todayISO" (ngModelChange)="validateDate($event)" />
           @if (formErrors['date']) { <span class="field-error">{{ formErrors['date'] }}</span> }
         </div>
 

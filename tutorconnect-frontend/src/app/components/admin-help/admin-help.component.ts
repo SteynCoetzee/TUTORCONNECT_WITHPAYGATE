@@ -65,24 +65,29 @@ export class AdminHelpComponent implements OnInit {
   validatePageTitle(val: string) {
     if (!val?.trim()) { this.pageErrors['title'] = 'Title is required.'; }
     else if (val.trim().length < 3) { this.pageErrors['title'] = 'Title must be at least 3 characters.'; }
+    else if (val.trim().length > 200) { this.pageErrors['title'] = 'Title cannot exceed 200 characters.'; }
     else { delete this.pageErrors['title']; }
   }
 
   validatePageDescription(val: string) {
     if (!val?.trim()) { this.pageErrors['desc'] = 'Description is required.'; }
     else if (val.trim().length < 10) { this.pageErrors['desc'] = 'Description must be at least 10 characters.'; }
+    else if (val.trim().length > 2000) { this.pageErrors['desc'] = 'Description cannot exceed 2000 characters.'; }
     else { delete this.pageErrors['desc']; }
   }
 
   validateResourceTitle(val: string) {
     if (!val?.trim()) { this.resourceErrors['title'] = 'Title is required.'; }
     else if (val.trim().length < 3) { this.resourceErrors['title'] = 'Title must be at least 3 characters.'; }
+    else if (val.trim().length > 200) { this.resourceErrors['title'] = 'Title cannot exceed 200 characters.'; }
     else { delete this.resourceErrors['title']; }
   }
 
   validateResourceUrl(val: string) {
-    if (!val?.trim()) { this.resourceErrors['url'] = 'Video URL is required.'; }
-    else { delete this.resourceErrors['url']; }
+    if (!val?.trim()) { this.resourceErrors['url'] = 'Video URL is required.'; return; }
+    if (val.trim().length > 500) { this.resourceErrors['url'] = 'URL cannot exceed 500 characters.'; return; }
+    try { new URL(val.trim()); delete this.resourceErrors['url']; }
+    catch { this.resourceErrors['url'] = 'Please enter a valid URL including https://.'; }
   }
 
   // ─── Help Pages ─────────────────────────────────────────────────────────────

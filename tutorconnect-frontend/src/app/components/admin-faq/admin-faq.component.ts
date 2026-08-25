@@ -76,18 +76,21 @@ export class AdminFaqComponent implements OnInit {
   validateFaqQuestion(val: string) {
     if (!val?.trim()) { this.faqErrors['question'] = 'Question is required.'; }
     else if (val.trim().length < 5) { this.faqErrors['question'] = 'Question must be at least 5 characters.'; }
+    else if (val.trim().length > 500) { this.faqErrors['question'] = 'Question cannot exceed 500 characters.'; }
     else { delete this.faqErrors['question']; }
   }
 
   validateFaqAnswer(val: string) {
     if (!val?.trim()) { this.faqErrors['answer'] = 'Answer is required.'; }
     else if (val.trim().length < 5) { this.faqErrors['answer'] = 'Answer must be at least 5 characters.'; }
+    else if (val.trim().length > 2000) { this.faqErrors['answer'] = 'Answer cannot exceed 2000 characters.'; }
     else { delete this.faqErrors['answer']; }
   }
 
   validateCatName(val: string) {
     if (!val?.trim()) { this.catErrors['name'] = 'Category name is required.'; }
     else if (val.trim().length < 2) { this.catErrors['name'] = 'Name must be at least 2 characters.'; }
+    else if (val.trim().length > 100) { this.catErrors['name'] = 'Name cannot exceed 100 characters.'; }
     else { delete this.catErrors['name']; }
   }
 

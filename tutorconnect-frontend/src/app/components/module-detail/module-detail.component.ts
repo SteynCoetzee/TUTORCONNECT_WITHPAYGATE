@@ -117,6 +117,7 @@ export class ModuleDetailComponent implements OnInit {
   gradeValue: number | null = null;
   feedbackValue = '';
   savingGrade = false;
+  gradeError = '';
 
   // Student submitting (inline form)
   studentSubmitAssignmentId: number | null = null;
@@ -369,7 +370,7 @@ export class ModuleDetailComponent implements OnInit {
     if (!this.resUrl.trim() && !this.resFile) {
       this.errorMessage = 'Please provide a URL or upload a file.'; return;
     }
-    if (this.resType === 'Link' && this.resUrl.trim()) {
+    if (this.resUrl.trim() && !this.resFile) {
       try { new URL(this.resUrl.trim()); } catch {
         this.errorMessage = 'Please enter a valid URL including https:// (e.g. https://example.com).'; return;
       }
@@ -484,6 +485,11 @@ export class ModuleDetailComponent implements OnInit {
   submitEditResource() {
     if (!this.editResTitle.trim() || !this.editResType) {
       this.errorMessage = 'Title and type are required.'; return;
+    }
+    if (this.editResUrl.trim() && !this.editResFile) {
+      try { new URL(this.editResUrl.trim()); } catch {
+        this.errorMessage = 'Please enter a valid URL including https:// (e.g. https://example.com).'; return;
+      }
     }
     if (this.editResFile) {
       this.editResUploading = true;
@@ -1016,10 +1022,23 @@ export class ModuleDetailComponent implements OnInit {
     this.gradingSubmissionId = subId;
     this.gradeValue = current ?? null;
     this.feedbackValue = currentFeedback ?? '';
+    this.gradeError = '';
+  }
+
+  validateGrade(value: number | null) {
+    if (value === null || value === undefined || (value as any) === '') {
+      this.gradeError = 'Grade is required.';
+    } else if (value < 0 || value > 100) {
+      this.gradeError = 'Grade must be between 0 and 100.';
+    } else {
+      this.gradeError = '';
+    }
   }
 
   saveGrade(assignmentId: number) {
     if (!this.gradingSubmissionId) return;
+    this.validateGrade(this.gradeValue);
+    if (this.gradeError) return;
     this.savingGrade = true;
     this.http.put(`${this.apiUrl}/Assignments/${assignmentId}/submissions/${this.gradingSubmissionId}/grade`,
       { grade: this.gradeValue, feedback: this.feedbackValue || null }
@@ -1151,6 +1170,7 @@ export class ModuleDetailComponent implements OnInit {
 
   saveEditAnnouncement() {
     if (!this.editingAnnouncement) return;
+    if (!this.editAnnouncementName) { this.errorMessage = 'Title is required.'; return; }
     this.updatingAnnouncement = true;
     this.http.put(`${this.apiUrl}/Announcements/${this.editingAnnouncement.announcement_ID}`, {
       announcement_Name: this.editAnnouncementName,

@@ -164,4 +164,18 @@ namespace TutorConnect.API.DTOs
     {
         public List<string> HiddenItems { get; set; } = new();
     }
+
+    // --- MODULE WISHLIST ---
+    public class ModuleWishlistCreateDto
+    {
+        [Required(ErrorMessage = "Module code is required.")]
+        [StringLength(20, ErrorMessage = "Module code cannot exceed 20 characters.")]
+        public string Module_Code { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Module name is required.")]
+        [StringLength(200, ErrorMessage = "Module name cannot exceed 200 characters.")]
+        public string Module_Name { get; set; } = string.Empty;
+
+        public int Student_ID { get; set; }
+    }
 }

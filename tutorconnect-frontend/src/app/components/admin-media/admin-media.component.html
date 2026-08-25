@@ -29,7 +29,7 @@
       <div class="form-group">
         <label>Name *</label>
         <input class="form-control" [class.input-error]="createErrors['name']"
-               [(ngModel)]="createName" placeholder="e.g. Tutorial Video 1"
+               [(ngModel)]="createName" placeholder="e.g. Tutorial Video 1" maxlength="200"
                (ngModelChange)="validateCreateName($event)" />
         @if (createErrors['name']) { <span class="field-error">{{ createErrors['name'] }}</span> }
       </div>
@@ -64,8 +64,10 @@
 
       <div class="form-group">
         <label>URL / Link</label>
-        <input class="form-control" [(ngModel)]="createAddress" placeholder="https://youtube.com/..."
-          [disabled]="!!createFile" />
+        <input class="form-control" [class.input-error]="createErrors['media']"
+          [(ngModel)]="createAddress" placeholder="https://youtube.com/..."
+          [disabled]="!!createFile" (ngModelChange)="validateCreateAddress($event)" />
+        @if (createErrors['media']) { <span class="field-error">{{ createErrors['media'] }}</span> }
       </div>
 
       <div class="ic-btns" style="justify-content:flex-end;width:100%">
@@ -114,7 +116,7 @@
             <div class="form-group">
               <label>Name *</label>
               <input class="form-control" [class.input-error]="editErrors['name']"
-                     [(ngModel)]="editName" placeholder="Media name"
+                     [(ngModel)]="editName" placeholder="Media name" maxlength="200"
                      (ngModelChange)="validateEditNameField($event)" />
               @if (editErrors['name']) { <span class="field-error">{{ editErrors['name'] }}</span> }
             </div>
@@ -147,8 +149,10 @@
 
             <div class="form-group">
               <label>URL / Link</label>
-              <input class="form-control" [(ngModel)]="editAddress" placeholder="https://..."
-                [disabled]="!!editFile" />
+              <input class="form-control" [class.input-error]="editErrors['media']"
+                [(ngModel)]="editAddress" placeholder="https://..."
+                [disabled]="!!editFile" (ngModelChange)="validateEditAddress($event)" />
+              @if (editErrors['media']) { <span class="field-error">{{ editErrors['media'] }}</span> }
             </div>
 
             <div class="ic-btns" style="justify-content:flex-end">
