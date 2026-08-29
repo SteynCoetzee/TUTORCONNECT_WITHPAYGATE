@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TutorConnect.API.Models
 {
+    // Lookup table for the 4 roles (Admin, Tutor, Student, AW-Tutor) — see UsersController/AuthController
     public class User_Role
     {
         [Key]
@@ -14,6 +15,8 @@ namespace TutorConnect.API.Models
         public ICollection<User> Users { get; set; } = new List<User>();
     }
 
+    // The core account row every user has, regardless of role. Role-specific extra fields live in
+    // Student_Profile/Tutor_Profile/Admin_Profile below (one-to-one, optional) — see UsersController.
     public class User
     {
         [Key]
@@ -35,6 +38,7 @@ namespace TutorConnect.API.Models
         public string? Profile_Picture_Url { get; set; }
     }
 
+    // A course module students enrol in — see ModulesController for CRUD
     public class Module
     {
         [Key]
@@ -45,6 +49,7 @@ namespace TutorConnect.API.Models
         public decimal Module_Price_Group { get; set; }
     }
 
+    // A file/link a tutor attaches to a module — see ModuleResourcesController
     public class Module_Resource
     {
         [Key]
@@ -61,6 +66,7 @@ namespace TutorConnect.API.Models
         public Module? Module { get; set; }
     }
 
+    // Role-specific extra fields for a Student user — see UsersController.UpdateStudentProfile
     public class Student_Profile
     {
         [Key]
@@ -73,6 +79,7 @@ namespace TutorConnect.API.Models
         public string? Degree_Program { get; set; }
     }
 
+    // Role-specific extra fields for a Tutor/AW-Tutor user — see UsersController.UpdateTutorProfile
     public class Tutor_Profile
     {
         [Key]
@@ -85,6 +92,7 @@ namespace TutorConnect.API.Models
         public int? Years_Of_Experience { get; set; }
     }
 
+    // Role-specific extra fields for an Admin user — see UsersController.UpdateAdminProfile
     public class Admin_Profile
     {
         [Key]
@@ -95,6 +103,7 @@ namespace TutorConnect.API.Models
         public string? Job_Title { get; set; }
     }
 
+    // One logged block of tutoring hours, pending admin approval — see LogHoursController
     public class Log_Hours
     {
         [Key]
@@ -113,6 +122,7 @@ namespace TutorConnect.API.Models
         public int? ApprovedBy_Admin_ID { get; set; }
     }
 
+    // A Help section article — see AdminContentIteration4Controller (faqs/help-pages endpoints)
     public class Help_Page
     {
         [Key]
@@ -121,6 +131,7 @@ namespace TutorConnect.API.Models
         public string Help_Page_Description { get; set; } = string.Empty;
     }
 
+    // Same controller as Help_Page above
     public class FAQ
     {
         [Key]
@@ -132,6 +143,7 @@ namespace TutorConnect.API.Models
         public string? Applicable_Pages { get; set; }
     }
 
+    // A student's platform testimonial, pending admin approval — see TestimonialsController
     public class Testimonial
     {
         [Key]

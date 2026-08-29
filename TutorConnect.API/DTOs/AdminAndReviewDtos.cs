@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TutorConnect.API.DTOs
 {
-    // --- ATTENDANCE ---
+    // --- ATTENDANCE (AttendanceController.MarkAttendance) ---
     public class AttendanceCreateDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "A valid session must be specified.")]
@@ -15,7 +15,7 @@ namespace TutorConnect.API.DTOs
         public int Attendance_Status_ID { get; set; }
     }
 
-    // --- FAQS (ADMIN CONTENT) ---
+    // --- FAQS (AdminContentIteration4Controller — Create/Update/CategoryCreate) ---
     public class FAQCreateDto
     {
         [Required]
@@ -57,7 +57,7 @@ namespace TutorConnect.API.DTOs
         public string Category_Name { get; set; } = string.Empty;
     }
 
-    // --- MEDIA CONTENT ---
+    // --- MEDIA CONTENT (AdminContentIteration5Controller.CreateMedia/UpdateMedia) ---
     public class MediaCreateDto
     {
         [Required]
@@ -69,7 +69,7 @@ namespace TutorConnect.API.DTOs
         public string Media_Address { get; set; } = string.Empty;
     }
 
-    // --- HELP PAGE ---
+    // --- HELP PAGE (AdminContentIteration4Controller) / HELP RESOURCES (AdminContentIteration5Controller) ---
     public class HelpPageCreateDto
     {
         [Required]
@@ -92,7 +92,7 @@ namespace TutorConnect.API.DTOs
         public string Video_URL { get; set; } = string.Empty;
     }
 
-    // --- TESTIMONIAL CATEGORY ---
+    // --- TESTIMONIAL CATEGORY (AdminContentIteration5Controller) / edit (TestimonialsController.UpdateTestimonial) ---
     public class TestimonialCategoryCreateDto
     {
         [Required]
@@ -110,7 +110,7 @@ namespace TutorConnect.API.DTOs
         public int Testimonial_Category_ID { get; set; }
     }
 
-    // --- INTERNAL REVIEWS ---
+    // --- REVIEWS (ReviewsController.CreateTutorReview/CreateSessionReview) ---
     public class TutorReviewCreateDto
     {
         [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
@@ -138,7 +138,7 @@ namespace TutorConnect.API.DTOs
         public int Session_ID { get; set; }
     }
 
-    // --- PUBLIC TESTIMONIALS ---
+    // --- PUBLIC TESTIMONIALS (TestimonialsController.CreateTestimonial — student submission) ---
     public class TestimonialCreateDto
     {
         [Required]
@@ -152,20 +152,20 @@ namespace TutorConnect.API.DTOs
         public int Testimonial_Category_ID { get; set; }
     }
 
-    // --- BUSINESS RULES ---
+    // --- BUSINESS RULES (BusinessRulesController.Update) ---
     public class BusinessRuleUpdateDto
     {
         [Range(0, double.MaxValue)]
         public decimal Rule_Value { get; set; }
     }
 
-    // --- ROLE NAV PERMISSIONS ---
+    // --- NAV PERMISSIONS (shared by RoleNavPermissionsController and UserNavPermissionsController) ---
     public class UpdateHiddenItemsDto
     {
         public List<string> HiddenItems { get; set; } = new();
     }
 
-    // --- MODULE WISHLIST ---
+    // --- MODULE WISHLIST (ModuleWishlistController.Create) ---
     public class ModuleWishlistCreateDto
     {
         [Required(ErrorMessage = "Module code is required.")]

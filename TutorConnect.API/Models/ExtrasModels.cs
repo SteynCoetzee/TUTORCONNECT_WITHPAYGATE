@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TutorConnect.API.Models
 {
+    // One in-app notification for a user — used by NotificationsController and written to by
+    // several other controllers (assignment submitted/graded, quiz submitted, payment logged, etc.)
     public class Notification
     {
         [Key]
@@ -17,6 +19,8 @@ namespace TutorConnect.API.Models
         public User? User { get; set; }
     }
 
+    // One audit trail entry — read-only from AuditLogsController; written via AuditService.LogAsync(...)
+    // by nearly every controller that performs a sensitive/notable action (role changes, deletes, etc.)
     public class Audit_Log
     {
         [Key]
@@ -65,6 +69,7 @@ namespace TutorConnect.API.Models
         public string Hidden_Items { get; set; } = string.Empty; // CSV of hidden item keys
     }
 
+    // A student's suggestion for a module they'd like added to the catalogue — see ModuleWishlistController
     public class Module_Wishlist
     {
         [Key]

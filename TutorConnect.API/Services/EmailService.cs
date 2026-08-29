@@ -208,7 +208,7 @@ namespace TutorConnect.API.Services
             await smtp.DisconnectAsync(true);
         }
 
-        public async Task SendResetCodeAsync(string toEmail, string resetCode)
+        public async Task SendResetCodeAsync(string toEmail, string resetCode, double expirationMinutes = 15)
         {
             var settings = _config.GetSection("EmailSettings");
             var senderEmail = settings["SenderEmail"]!;
@@ -234,7 +234,7 @@ namespace TutorConnect.API.Services
                     </div>
                     <div style='padding: 32px;'>
                       <h2 style='margin: 0 0 8px; color: #111;'>Password Reset</h2>
-                      <p style='color: #555; margin: 0 0 24px;'>Use the code below to reset your password. It expires in <strong>15 minutes</strong>.</p>
+                      <p style='color: #555; margin: 0 0 24px;'>Use the code below to reset your password. It expires in <strong>{FormatMinutes(expirationMinutes)}</strong>.</p>
                       <div style='background: #f0fdfc; border: 2px solid #0d9488; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;'>
                         <span style='font-size: 36px; font-weight: 700; letter-spacing: 10px; color: #0d9488;'>{resetCode}</span>
                       </div>
@@ -250,6 +250,13 @@ namespace TutorConnect.API.Services
             await smtp.AuthenticateAsync(senderEmail, password);
             await smtp.SendAsync(message);
             await smtp.DisconnectAsync(true);
+        }
+
+        private static string FormatMinutes(double minutes)
+        {
+            // Whole numbers print clean ("14 minutes"); fractional values keep their precision.
+            var display = minutes == Math.Floor(minutes) ? ((int)minutes).ToString() : minutes.ToString("0.##");
+            return $"{display} minute{(minutes == 1 ? "" : "s")}";
         }
     }
 }

@@ -27,6 +27,21 @@ namespace TutorConnect.API.Controllers
     }
 
     // ── Controller ──────────────────────────────────────────────────────────────
+    //
+    // The automated card/EFT gateway flow (separate from the manual bank-reference
+    // flow in PaymentsController). Money only ever actually changes the DB to
+    // "Paid" in one place — Notify(), the server-to-server callback PayFast makes
+    // once a payment truly clears. Everything else here either starts that flow,
+    // reports on it, or exists to cosmetically bounce the browser around it:
+    //   1. STUDENT-FACING FLOW    Initiate — student starts a payment
+    //   2. PAYFAST CALLBACKS      RedirectSuccess/RedirectCancel are cosmetic
+    //                             browser bounces only; Notify is the real,
+    //                             signature-verified server-to-server ITN that
+    //                             actually marks a payment Paid and enrolls the student
+    //   3. ADMIN                  GetAllPayments (read) / AdminProcess (manual
+    //                             fallback for when PayFast's ITN never arrived)
+    //   4. SIGNATURE HELPERS      PayFast's MD5 signature scheme, private
+    // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
     [ApiController]
@@ -42,6 +57,8 @@ namespace TutorConnect.API.Controllers
             _db = db;
             _logger = logger;
         }
+
+        // ── 1. STUDENT-FACING FLOW ──────────────────────────────────────────────
 
         // ── POST /api/PayFast/initiate ──────────────────────────────────────────
         // Called by Angular before redirecting to PayFast.
@@ -130,96 +147,13 @@ namespace TutorConnect.API.Controllers
             return Ok(new { payFastUrl, formData = fields });
         }
 
-        // ── POST /api/PayFast/admin/process/{paymentId} ────────────────────────
-        // Manual fallback: processes a Pending payment without waiting for ITN.
-        // Use when PayFast ITN was not delivered (e.g. tunnel was down).
-        [HttpPost("admin/process/{paymentId:int}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult> AdminProcess(int paymentId)
-        {
-            var payment = await _db.Payments.FindAsync(paymentId);
-            if (payment == null) return NotFound("Payment not found.");
-            if (payment.Payment_Status == "Paid") return Ok("Already processed.");
-            if (string.IsNullOrEmpty(payment.Enrollment_Items_Json))
-                return BadRequest("No enrollment items stored for this payment.");
-
-            var items = JsonSerializer.Deserialize<List<PayFastLineItem>>(payment.Enrollment_Items_Json);
-            if (items == null || items.Count == 0) return BadRequest("Empty item list.");
-
-            var studentId = payment.Student_ID;
-            foreach (var moduleGroup in items.GroupBy(i => i.ModuleCode))
-            {
-                var moduleCode   = moduleGroup.Key;
-                var wantOneOnOne = moduleGroup.Any(i => i.SessionType == "OneOnOne");
-                var wantGroup    = moduleGroup.Any(i => i.SessionType == "Group");
-
-                var existing = await _db.Student_Modules
-                    .FirstOrDefaultAsync(sm =>
-                        sm.Student_ID  == studentId &&
-                        sm.Module_Code == moduleCode &&
-                        sm.IsActive);
-
-                if (existing != null)
-                {
-                    if (wantOneOnOne) { existing.Sessions_Remaining_OneOnOne += 5; existing.Can_Book_OneOnOne = true; }
-                    if (wantGroup)    { existing.Sessions_Remaining_Group    += 5; existing.Can_Book_Group    = true; }
-                }
-                else
-                {
-                    _db.Student_Modules.Add(new Student_Module
-                    {
-                        Student_ID                  = studentId,
-                        Module_Code                 = moduleCode,
-                        Enrollment_Date             = DateTime.UtcNow,
-                        IsActive                    = true,
-                        Can_Book_OneOnOne           = wantOneOnOne,
-                        Can_Book_Group              = wantGroup,
-                        Sessions_Remaining_OneOnOne = wantOneOnOne ? 5 : 0,
-                        Sessions_Remaining_Group    = wantGroup    ? 5 : 0
-                    });
-                }
-            }
-
-            payment.Payment_Status = "Paid";
-            await _db.SaveChangesAsync();
-            return Ok($"Enrolled {items.GroupBy(i => i.ModuleCode).Count()} module(s) for student {studentId}.");
-        }
-
-        // ── GET /api/PayFast/payments ───────────────────────────────────────────
-        // Admin view: list all payments with student info so stuck Pending ones can be reprocessed.
-        [HttpGet("payments")]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult> GetAllPayments()
-        {
-            var payments = await _db.Payments
-                .OrderByDescending(p => p.Payment_Date)
-                .Select(p => new
-                {
-                    p.Payment_ID,
-                    p.Amount,
-                    p.Payment_Date,
-                    p.Payment_Status,
-                    p.Module_Code,
-                    p.Payment_Reference,
-                    p.Enrollment_Items_Json,
-                    StudentName = _db.Users
-                        .Where(u => u.User_ID == p.Student_ID)
-                        .Select(u => u.FirstName + " " + u.LastName)
-                        .FirstOrDefault() ?? "Unknown",
-                    StudentEmail = _db.Users
-                        .Where(u => u.User_ID == p.Student_ID)
-                        .Select(u => u.Email)
-                        .FirstOrDefault() ?? "",
-                    p.Student_ID
-                })
-                .ToListAsync();
-
-            return Ok(payments);
-        }
+        // ── 2. PAYFAST CALLBACKS ─────────────────────────────────────────────────
 
         // ── GET /api/PayFast/redirect-success & redirect-cancel ─────────────────
         // PayFast cannot redirect to localhost — so it redirects to these public
         // tunnel endpoints, which then bounce the browser to the Angular frontend.
+        // Cosmetic only — neither of these ever touches the database; a payment is
+        // only ever marked Paid by Notify() below, once PayFast's own server confirms it.
         [HttpGet("redirect-success")]
         [AllowAnonymous]
         public IActionResult RedirectSuccess()
@@ -381,6 +315,97 @@ namespace TutorConnect.API.Controllers
             _logger.LogInformation("[PayFast ITN] Payment {PaymentId} fully processed — enrollments saved.", paymentId);
             return Ok();
         }
+
+        // ── 3. ADMIN ─────────────────────────────────────────────────────────────
+
+        // ── GET /api/PayFast/payments ───────────────────────────────────────────
+        // Admin view: list all payments with student info so stuck Pending ones can be reprocessed.
+        [HttpGet("payments")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> GetAllPayments()
+        {
+            var payments = await _db.Payments
+                .OrderByDescending(p => p.Payment_Date)
+                .Select(p => new
+                {
+                    p.Payment_ID,
+                    p.Amount,
+                    p.Payment_Date,
+                    p.Payment_Status,
+                    p.Module_Code,
+                    p.Payment_Reference,
+                    p.Enrollment_Items_Json,
+                    StudentName = _db.Users
+                        .Where(u => u.User_ID == p.Student_ID)
+                        .Select(u => u.FirstName + " " + u.LastName)
+                        .FirstOrDefault() ?? "Unknown",
+                    StudentEmail = _db.Users
+                        .Where(u => u.User_ID == p.Student_ID)
+                        .Select(u => u.Email)
+                        .FirstOrDefault() ?? "",
+                    p.Student_ID
+                })
+                .ToListAsync();
+
+            return Ok(payments);
+        }
+
+        // ── POST /api/PayFast/admin/process/{paymentId} ────────────────────────
+        // Manual fallback: processes a Pending payment without waiting for ITN.
+        // Use when PayFast ITN was not delivered (e.g. tunnel was down).
+        [HttpPost("admin/process/{paymentId:int}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> AdminProcess(int paymentId)
+        {
+            var payment = await _db.Payments.FindAsync(paymentId);
+            if (payment == null) return NotFound("Payment not found.");
+            if (payment.Payment_Status == "Paid") return Ok("Already processed.");
+            if (string.IsNullOrEmpty(payment.Enrollment_Items_Json))
+                return BadRequest("No enrollment items stored for this payment.");
+
+            var items = JsonSerializer.Deserialize<List<PayFastLineItem>>(payment.Enrollment_Items_Json);
+            if (items == null || items.Count == 0) return BadRequest("Empty item list.");
+
+            var studentId = payment.Student_ID;
+            foreach (var moduleGroup in items.GroupBy(i => i.ModuleCode))
+            {
+                var moduleCode   = moduleGroup.Key;
+                var wantOneOnOne = moduleGroup.Any(i => i.SessionType == "OneOnOne");
+                var wantGroup    = moduleGroup.Any(i => i.SessionType == "Group");
+
+                var existing = await _db.Student_Modules
+                    .FirstOrDefaultAsync(sm =>
+                        sm.Student_ID  == studentId &&
+                        sm.Module_Code == moduleCode &&
+                        sm.IsActive);
+
+                if (existing != null)
+                {
+                    if (wantOneOnOne) { existing.Sessions_Remaining_OneOnOne += 5; existing.Can_Book_OneOnOne = true; }
+                    if (wantGroup)    { existing.Sessions_Remaining_Group    += 5; existing.Can_Book_Group    = true; }
+                }
+                else
+                {
+                    _db.Student_Modules.Add(new Student_Module
+                    {
+                        Student_ID                  = studentId,
+                        Module_Code                 = moduleCode,
+                        Enrollment_Date             = DateTime.UtcNow,
+                        IsActive                    = true,
+                        Can_Book_OneOnOne           = wantOneOnOne,
+                        Can_Book_Group              = wantGroup,
+                        Sessions_Remaining_OneOnOne = wantOneOnOne ? 5 : 0,
+                        Sessions_Remaining_Group    = wantGroup    ? 5 : 0
+                    });
+                }
+            }
+
+            payment.Payment_Status = "Paid";
+            await _db.SaveChangesAsync();
+            return Ok($"Enrolled {items.GroupBy(i => i.ModuleCode).Count()} module(s) for student {studentId}.");
+        }
+
+        // ── 4. SIGNATURE HELPERS (private — PayFast's MD5 signature scheme) ────
 
         // ── PayFast MD5 signature ───────────────────────────────────────────────
         private static string BuildParamString(Dictionary<string, string> data, string passphrase, bool includeEmpty = false)

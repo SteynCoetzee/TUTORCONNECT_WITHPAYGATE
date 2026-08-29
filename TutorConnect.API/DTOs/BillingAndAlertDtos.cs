@@ -2,7 +2,9 @@
 
 namespace TutorConnect.API.DTOs
 {
-    // --- PAYMENT DTOs ---
+    // --- PAYMENT DTOs (manual EFT/Ozow flow — see PaymentsController, not PayFastController) ---
+
+    // Request body for PaymentsController.MakePayment
     public class PaymentCreateDto
     {
         [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than zero.")]
@@ -30,6 +32,7 @@ namespace TutorConnect.API.DTOs
         public string Module_Code { get; set; } = string.Empty;
     }
 
+    // Response shape for PaymentsController.GetStudentPayments
     public class PaymentReturnDto
     {
         public int Payment_ID { get; set; }
@@ -42,6 +45,8 @@ namespace TutorConnect.API.DTOs
     }
 
     // --- NOTIFICATION DTOs ---
+
+    // Response shape for NotificationsController.GetUserNotifications
     public class NotificationReturnDto
     {
         public int Notification_ID { get; set; }

@@ -10,6 +10,8 @@ namespace TutorConnect.API.Controllers
 {
     // ─────────────────────────────────────────────────────────────────────────
     // NOTIFICATIONS CONTROLLER
+    //
+    // Read a user's notification feed and mark items read, one at a time or all at once.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -24,7 +26,7 @@ namespace TutorConnect.API.Controllers
             _context = context;
         }
 
-        // GET: api/Notifications/user/5
+        // GET: api/Notifications/user/5 — newest first; caller must be that user or an Admin
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<IEnumerable<NotificationReturnDto>>> GetUserNotifications(int userId)
         {
@@ -48,7 +50,7 @@ namespace TutorConnect.API.Controllers
             return Ok(notifications);
         }
 
-        // PUT: api/Notifications/{id}/read
+        // PUT: api/Notifications/{id}/read — mark a single notification read
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkAsRead(int id)
         {
@@ -59,7 +61,7 @@ namespace TutorConnect.API.Controllers
             return Ok("Notification marked as read.");
         }
 
-        // PUT: api/Notifications/user/{userId}/read-all
+        // PUT: api/Notifications/user/{userId}/read-all — "clear all" button; marks every unread notification read
         [HttpPut("user/{userId}/read-all")]
         public async Task<IActionResult> MarkAllRead(int userId)
         {
@@ -74,6 +76,9 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // AUDIT LOG CONTROLLER
+    //
+    // Read-only — entries are written elsewhere via AuditService.LogAsync(...), never through this
+    // controller. Admin-only, capped at the 200 most recent matching rows.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -84,7 +89,7 @@ namespace TutorConnect.API.Controllers
         private readonly AppDbContext _context;
         public AuditLogsController(AppDbContext context) { _context = context; }
 
-        // GET: api/AuditLogs
+        // GET: api/AuditLogs — optionally filter by ?userId= and/or ?type= (substring match on Transaction_Type)
         [HttpGet]
         public async Task<ActionResult> GetAll([FromQuery] int? userId = null, [FromQuery] string? type = null)
         {
@@ -118,6 +123,9 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // MODULE WISHLIST CONTROLLER
+    //
+    // Students suggest modules they'd like added to the catalogue. Plain CRUD, no Update —
+    // a student who wants to change their suggestion deletes it and submits a new one.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]

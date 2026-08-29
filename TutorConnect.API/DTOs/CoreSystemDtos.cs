@@ -2,7 +2,9 @@
 
 namespace TutorConnect.API.DTOs
 {
-    // ─── ENROLLMENT ─────────────────────────────────────────────
+    // ─── ENROLLMENT (EnrollmentController) ────────────────────────
+
+    // Request body for EnrollmentController.EnrollInModule
     public class EnrollmentCreateDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "A valid student must be selected.")]
@@ -15,12 +17,14 @@ namespace TutorConnect.API.DTOs
         public bool Can_Book_Group { get; set; } = true;
     }
 
+    // Request body for EnrollmentController.UnenrollFromModule
     public class EnrollmentUnenrollDto
     {
         [StringLength(1000, ErrorMessage = "Unenrol reason cannot exceed 1000 characters.")]
         public string? Unenroll_Reason { get; set; }
     }
 
+    // Response shape for EnrollmentController.GetStudentModules/GetModuleStudents
     public class EnrollmentViewDto
     {
         public int Enrollment_ID { get; set; }
@@ -35,6 +39,7 @@ namespace TutorConnect.API.DTOs
         public int Sessions_Remaining_OneOnOne { get; set; }
     }
 
+    // Request body for EnrollmentController.TopUpSessions
     public class SessionTopUpDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "A valid student must be specified.")]
@@ -49,7 +54,8 @@ namespace TutorConnect.API.DTOs
         public string Session_Type { get; set; } = string.Empty; // "Group" or "OneOnOne"
     }
 
-    // ─── GRADES ─────────────────────────────────────────────────
+    // ─── GRADES (GradesController — read-only unified view) ──────
+
     public class GradeViewDto
     {
         public int Grade_ID { get; set; }
@@ -62,7 +68,8 @@ namespace TutorConnect.API.DTOs
         public DateTime Grade_Date { get; set; }
     }
 
-    // ─── QUIZ SUBMISSION ─────────────────────────────────────────
+    // ─── QUIZ SUBMISSION (unused — QuizzesController.SubmitQuiz actually takes QuizSubmitDto/
+    // StudentAnswerDto further below; nothing in the codebase references these two) ──
     public class QuizSubmissionDto
     {
         public int Student_ID { get; set; }
@@ -75,7 +82,9 @@ namespace TutorConnect.API.DTOs
         public string Selected_Answer { get; set; } = string.Empty;
     }
 
-    // ─── ASSIGNMENT SUBMISSION ───────────────────────────────────
+    // ─── ASSIGNMENT SUBMISSION (AssignmentsController — read-only view) ──
+
+    // Response shape for AssignmentsController.GetAssignmentSubmissions
     public class AssignmentSubmissionViewDto
     {
         public int Submission_ID { get; set; }
@@ -87,7 +96,9 @@ namespace TutorConnect.API.DTOs
         public string? Feedback { get; set; }
     }
 
-    // ─── ANNOUNCEMENTS ───────────────────────────────────────────
+    // ─── ANNOUNCEMENTS (AnnouncementsController) ──────────────────
+
+    // Request body for AnnouncementsController.CreateAnnouncement
     public class AnnouncementCreateDto
     {
         [Required]
@@ -107,6 +118,7 @@ namespace TutorConnect.API.DTOs
         public string Module_Code { get; set; } = string.Empty;
     }
 
+    // Request body for AnnouncementsController.UpdateAnnouncement
     public class AnnouncementUpdateDto
     {
         [Required]
@@ -123,6 +135,9 @@ namespace TutorConnect.API.DTOs
         public string Module_Code { get; set; } = string.Empty;
     }
 
+    // ─── BOOKING SLOTS & BOOKINGS (BookingSlotsController / BookingsController) ──
+
+    // Request body for BookingSlotsController.CreateSlot/UpdateSlot
     public class BookingSlotCreateDto
     {
         public DateOnly Slot_Date { get; set; }
@@ -145,6 +160,7 @@ namespace TutorConnect.API.DTOs
         public string? Module_Code { get; set; }
     }
 
+    // Request body for BookingsController.BookSession
     public class BookingCreateDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "A valid student must be selected.")]
@@ -154,6 +170,9 @@ namespace TutorConnect.API.DTOs
         public int Booking_Slot_ID { get; set; }
     }
 
+    // ─── ASSIGNMENTS (AssignmentsController) ──────────────────────
+
+    // Request body for AssignmentsController.GradeSubmission
     public class GradeSubmissionDto
     {
         [Range(0, 100, ErrorMessage = "Grade must be between 0 and 100.")]
@@ -163,6 +182,7 @@ namespace TutorConnect.API.DTOs
         public string? Feedback { get; set; }
     }
 
+    // Request body for AssignmentsController.CreateAssignment/UpdateAssignment
     public class AssignmentCreateDto
     {
         [Required(ErrorMessage = "Assignment name is required.")]
@@ -177,6 +197,9 @@ namespace TutorConnect.API.DTOs
         public string Assignment_URL { get; set; } = string.Empty;
     }
 
+    // ─── QUIZZES (QuizzesController) ───────────────────────────────
+
+    // Request body for QuizzesController.CreateQuiz/UpdateQuiz
     public class QuizCreateDto
     {
         [Required(ErrorMessage = "Quiz name is required.")]
@@ -192,6 +215,7 @@ namespace TutorConnect.API.DTOs
         public string Module_Code { get; set; } = string.Empty;
     }
 
+    // Request body for QuizzesController.SaveQuizQuestions — one question, with its options
     public class QuizQuestionSaveDto
     {
         [Required(ErrorMessage = "Question text is required.")]
@@ -204,6 +228,7 @@ namespace TutorConnect.API.DTOs
         public List<QuizOptionSaveDto> Options { get; set; } = new();
     }
 
+    // One answer option within a QuizQuestionSaveDto
     public class QuizOptionSaveDto
     {
         [Required(ErrorMessage = "Option text is required.")]
@@ -213,6 +238,7 @@ namespace TutorConnect.API.DTOs
         public bool Is_Correct { get; set; }
     }
 
+    // Request body for QuizzesController.SubmitQuiz — the actually-used pair (see the "unused" note above)
     public class QuizSubmitDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "A valid student must be selected.")]

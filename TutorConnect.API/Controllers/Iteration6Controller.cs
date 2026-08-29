@@ -5,6 +5,22 @@ using TutorConnect.API.Data;
 
 namespace TutorConnect.API.Controllers
 {
+    // ─────────────────────────────────────────────────────────────────────────
+    // REPORTS CONTROLLER
+    //
+    // Entirely read-only, Admin-only — every endpoint aggregates existing data
+    // (Log_Hours, Payments, Tutor_Reviews, Bookings, Student_Modules, etc.) into
+    // a report; nothing here writes to the database. Most accept optional
+    // ?from=&to= date-range query params. Two flavours:
+    //   - Summary reports        one row per group (e.g. one row per tutor, per month)
+    //   - "...-detail" reports   the underlying transactions themselves, sorted
+    //                            for a control-break layout (grouped visually by
+    //                            tutor/month in the frontend, not by the API)
+    // GetCustomReport at the bottom is the odd one out — a single flexible
+    // endpoint driven by ?entity=&groupBy= instead of a fixed shape. The frontend
+    // has a service method for it (report.service.ts) but no UI currently calls it.
+    // ─────────────────────────────────────────────────────────────────────────
+
     [Route("api/[controller]")]
     [Authorize(Roles = "Admin")]
     [ApiController]
@@ -311,6 +327,9 @@ namespace TutorConnect.API.Controllers
         }
 
         // ── Custom Query ──────────────────────────────────────────────────────
+        // Flexible report: ?entity=users|bookings|enrollments|payments, optionally ?groupBy=
+        // to switch the grouping dimension per entity (see the switch below for exactly which
+        // groupBy values each entity supports).
         [HttpGet("custom")]
         public async Task<ActionResult> GetCustomReport(
             [FromQuery] string entity  = "bookings",

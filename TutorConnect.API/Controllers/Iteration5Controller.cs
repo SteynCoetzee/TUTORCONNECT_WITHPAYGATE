@@ -11,6 +11,14 @@ namespace TutorConnect.API.Controllers
 {
     // ─────────────────────────────────────────────────────────────────────────
     // ASSIGNMENTS CONTROLLER
+    //
+    // Three things live here, each grouped together:
+    //   1. ASSIGNMENT CRUD     the assignment itself — name, due date, visibility
+    //   2. BRIEF FILE          the PDF a tutor attaches describing the assignment
+    //                          (separate from a student's submitted work, see below)
+    //   3. STUDENT SUBMISSIONS Assignment_Submission rows — one per student per
+    //                          assignment; students submit/resubmit, tutors list/
+    //                          download/grade them
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -28,10 +36,14 @@ namespace TutorConnect.API.Controllers
             _audit = audit;
         }
 
+        // ── 1. ASSIGNMENT CRUD ──────────────────────────────────────────────
+
+        // GET: api/Assignments — every assignment, across all modules
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Assignment>>> GetAssignments() => await _context.Assignments.ToListAsync();
 
-        // GET: api/Assignments/module/{moduleCode}?studentId=X
+        // GET: api/Assignments/module/{moduleCode}?studentId=X — one module's assignments; pass
+        // studentId to also merge in that student's own submission status/grade for each one
         [HttpGet("module/{moduleCode}")]
         public async Task<ActionResult> GetModuleAssignments(string moduleCode, [FromQuery] int? studentId = null)
         {
@@ -64,62 +76,7 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // GET: api/Assignments/{id}/download-brief
-        // Fetches from Cloudinary server-side (bypasses browser CORS/auth issues)
-        [HttpGet("{id}/download-brief")]
-        [AllowAnonymous]
-        public async Task<IActionResult> DownloadBrief(int id)
-        {
-            var assignment = await _context.Assignments.FindAsync(id);
-            if (assignment == null || string.IsNullOrEmpty(assignment.Assignment_URL))
-                return NotFound("Brief not found.");
-
-            using var http = new HttpClient();
-            var response = await http.GetAsync(assignment.Assignment_URL);
-            if (!response.IsSuccessStatusCode)
-                return StatusCode((int)response.StatusCode,
-                    "Could not fetch file from storage. If this persists, check Cloudinary access settings.");
-
-            var bytes = await response.Content.ReadAsByteArrayAsync();
-            return File(bytes, "application/pdf", $"{assignment.Assignment_Name}.pdf");
-        }
-
-        // POST: api/Assignments/upload-brief  — uploads PDF to Cloudinary
-        [HttpPost("upload-brief")]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<ActionResult> UploadBrief(IFormFile file)
-        {
-            if (file == null || file.Length == 0) return BadRequest("No file provided.");
-            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (ext != ".pdf") return BadRequest("Only PDF files are accepted.");
-            using var stream = file.OpenReadStream();
-            var fileName = $"brief_{Guid.NewGuid()}{ext}";
-            try
-            {
-                var url = await _cloudinary.UploadRawAsync(stream, fileName);
-                return Ok(url);
-            }
-            catch { return StatusCode(500, "File upload failed. Please try again."); }
-        }
-
-// GET: api/Assignments/submissions/{submissionId}/download
-        [HttpGet("submissions/{submissionId}/download")]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<IActionResult> DownloadSubmission(int submissionId)
-        {
-            var sub = await _context.Assignment_Submissions.FindAsync(submissionId);
-            if (sub == null || string.IsNullOrEmpty(sub.File_Path))
-                return NotFound("Submission file not found.");
-
-            using var http = new HttpClient();
-            var response = await http.GetAsync(sub.File_Path);
-            if (!response.IsSuccessStatusCode)
-                return StatusCode((int)response.StatusCode, "Failed to fetch file.");
-
-            var bytes = await response.Content.ReadAsByteArrayAsync();
-            return File(bytes, "application/octet-stream", sub.File_Name);
-        }
-
+        // POST: api/Assignments — tutor/admin creates a new assignment; starts hidden until ToggleVisibility below
         [HttpPost]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<ActionResult> CreateAssignment(AssignmentCreateDto request)
@@ -142,7 +99,30 @@ namespace TutorConnect.API.Controllers
             return Ok(new { message = "Assignment created.", assignmentId = assignment.Assignment_ID });
         }
 
-        // PUT: api/Assignments/{id}/visibility
+        // PUT: api/Assignments/{id} — edits name/due date only (not the brief file or visibility, see below)
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<IActionResult> UpdateAssignment(int id, [FromBody] AssignmentCreateDto request)
+        {
+            var assignment = await _context.Assignments.FindAsync(id);
+            if (assignment == null)
+                return NotFound("Assignment not found.");
+
+            assignment.Assignment_Name = request.Assignment_Name;
+            assignment.Assignment_Date = request.Assignment_Date;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok("Assignment updated successfully.");
+            }
+            catch (DbUpdateException)
+            {
+                return StatusCode(500, "Failed to update assignment. Please try again.");
+            }
+        }
+
+        // PUT: api/Assignments/{id}/visibility — show/hide the assignment from students
         [HttpPut("{id}/visibility")]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<IActionResult> ToggleVisibility(int id, [FromBody] ResourceVisibilityDto request)
@@ -154,7 +134,64 @@ namespace TutorConnect.API.Controllers
             return Ok("Visibility updated.");
         }
 
-        // POST: api/Assignments/{id}/submit  — student submits via Cloudinary
+        // DELETE: api/Assignments/{id}
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<IActionResult> DeleteAssignment(int id)
+        {
+            var assignment = await _context.Assignments.FindAsync(id);
+            if (assignment == null)
+                return NotFound("Assignment not found.");
+
+            _context.Assignments.Remove(assignment);
+            await _context.SaveChangesAsync();
+            return Ok("Assignment deleted successfully.");
+        }
+
+        // ── 2. BRIEF FILE (the tutor's PDF describing the assignment) ──────
+
+        // POST: api/Assignments/upload-brief — uploads PDF to Cloudinary, returns the URL to save via CreateAssignment/UpdateAssignment
+        [HttpPost("upload-brief")]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<ActionResult> UploadBrief(IFormFile file)
+        {
+            if (file == null || file.Length == 0) return BadRequest("No file provided.");
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext != ".pdf") return BadRequest("Only PDF files are accepted.");
+            using var stream = file.OpenReadStream();
+            var fileName = $"brief_{Guid.NewGuid()}{ext}";
+            try
+            {
+                var url = await _cloudinary.UploadRawAsync(stream, fileName);
+                return Ok(url);
+            }
+            catch { return StatusCode(500, "File upload failed. Please try again."); }
+        }
+
+        // GET: api/Assignments/{id}/download-brief — fetches from Cloudinary server-side
+        // (bypasses browser CORS/auth issues); anonymous since the file itself has no separate secret
+        [HttpGet("{id}/download-brief")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DownloadBrief(int id)
+        {
+            var assignment = await _context.Assignments.FindAsync(id);
+            if (assignment == null || string.IsNullOrEmpty(assignment.Assignment_URL))
+                return NotFound("Brief not found.");
+
+            using var http = new HttpClient();
+            var response = await http.GetAsync(assignment.Assignment_URL);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode((int)response.StatusCode,
+                    "Could not fetch file from storage. If this persists, check Cloudinary access settings.");
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            return File(bytes, "application/pdf", $"{assignment.Assignment_Name}.pdf");
+        }
+
+        // ── 3. STUDENT SUBMISSIONS (Assignment_Submission — one row per student per assignment) ──
+
+        // POST: api/Assignments/{id}/submit — student submits via Cloudinary; submitting again replaces
+        // the existing row rather than creating a second one (one submission per student per assignment)
         [HttpPost("{id}/submit")]
         public async Task<IActionResult> SubmitAssignment(int id, [FromForm] int studentId, [FromForm] IFormFile file)
         {
@@ -215,7 +252,7 @@ namespace TutorConnect.API.Controllers
             return Ok(new { message = "Assignment submitted.", fileName = file.FileName });
         }
 
-        // GET: api/Assignments/{id}/submissions  — tutor sees all submissions with student names
+        // GET: api/Assignments/{id}/submissions — tutor sees all submissions with student names
         [HttpGet("{id}/submissions")]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<ActionResult> GetAssignmentSubmissions(int id)
@@ -241,10 +278,25 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // PUT: api/assignments/{assignmentId}/submissions/{submissionId}/grade
-        /// <summary>
-        /// Grade a student submission
-        /// </summary>
+        // GET: api/Assignments/submissions/{submissionId}/download — tutor downloads one student's submitted file
+        [HttpGet("submissions/{submissionId}/download")]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<IActionResult> DownloadSubmission(int submissionId)
+        {
+            var sub = await _context.Assignment_Submissions.FindAsync(submissionId);
+            if (sub == null || string.IsNullOrEmpty(sub.File_Path))
+                return NotFound("Submission file not found.");
+
+            using var http = new HttpClient();
+            var response = await http.GetAsync(sub.File_Path);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode((int)response.StatusCode, "Failed to fetch file.");
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            return File(bytes, "application/octet-stream", sub.File_Name);
+        }
+
+        // PUT: api/Assignments/{assignmentId}/submissions/{submissionId}/grade — grade a student submission
         [HttpPut("{assignmentId}/submissions/{submissionId}/grade")]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<IActionResult> GradeSubmission(int assignmentId, int submissionId, [FromBody] GradeSubmissionDto gradeRequest)
@@ -283,45 +335,17 @@ namespace TutorConnect.API.Controllers
                 return StatusCode(500, "Failed to save grade. Please try again.");
             }
         }
-
-        [HttpPut("{id}")]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<IActionResult> UpdateAssignment(int id, [FromBody] AssignmentCreateDto request)
-        {
-            var assignment = await _context.Assignments.FindAsync(id);
-            if (assignment == null)
-                return NotFound("Assignment not found.");
-
-            assignment.Assignment_Name = request.Assignment_Name;
-            assignment.Assignment_Date = request.Assignment_Date;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-                return Ok("Assignment updated successfully.");
-            }
-            catch (DbUpdateException)
-            {
-                return StatusCode(500, "Failed to update assignment. Please try again.");
-            }
-        }
-
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<IActionResult> DeleteAssignment(int id)
-        {
-            var assignment = await _context.Assignments.FindAsync(id);
-            if (assignment == null)
-                return NotFound("Assignment not found.");
-
-            _context.Assignments.Remove(assignment);
-            await _context.SaveChangesAsync();
-            return Ok("Assignment deleted successfully.");
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // GRADES CONTROLLER
+    //
+    // Read-only — a unified view over grades that actually live on two other
+    // tables (Student_Quizzes for quiz scores, Assignment_Submissions for
+    // assignment grades). Nothing is written here; grading itself happens via
+    // QuizzesController/AssignmentsController. Every method just narrows the
+    // same quiz+assignment union down further: all of a student's grades →
+    // just one module's → just one quiz → the student's overall average.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -503,6 +527,12 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // QUIZZES CONTROLLER
+    //
+    // Three things live here, each grouped together:
+    //   1. QUIZ CRUD           the quiz itself — name, details, date, visibility
+    //   2. QUESTIONS            multiple-choice questions + options belonging to a quiz
+    //   3. STUDENT ATTEMPTS     Student_Quiz rows — start → submit (auto-graded) →
+    //                          tutor's submissions list / a single result or full review
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -514,10 +544,14 @@ namespace TutorConnect.API.Controllers
         private readonly AuditService _audit;
         public QuizzesController(AppDbContext context, AuditService audit) { _context = context; _audit = audit; }
 
+        // ── 1. QUIZ CRUD ────────────────────────────────────────────────────
+
+        // GET: api/Quizzes — every quiz, across all modules
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Quiz>>> GetQuizzes() => await _context.Quizzes.ToListAsync();
 
-        // GET: api/Quizzes/module/{moduleCode}?studentId=X
+        // GET: api/Quizzes/module/{moduleCode}?studentId=X — one module's quizzes; pass studentId to
+        // also merge in whether that student has submitted each one and their best score
         [HttpGet("module/{moduleCode}")]
         public async Task<ActionResult> GetModuleQuizzes(string moduleCode, [FromQuery] int? studentId = null)
         {
@@ -546,7 +580,69 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // GET: api/Quizzes/{id}/questions  — full quiz with questions + options
+        // POST: api/Quizzes — tutor/admin creates a new (empty) quiz shell; questions are added separately below
+        [HttpPost]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<ActionResult> CreateQuiz(QuizCreateDto request)
+        {
+            if (string.IsNullOrEmpty(request.Quiz_Name) || string.IsNullOrEmpty(request.Module_Code))
+                return BadRequest("Quiz name and module code are required.");
+            if (request.Quiz_Date.Date < DateTime.UtcNow.Date)
+                return BadRequest("Quiz date cannot be in the past.");
+
+            var quiz = new Quiz {
+                Quiz_Name = request.Quiz_Name,
+                Quiz_Details = request.Quiz_Details,
+                Quiz_Date = request.Quiz_Date,
+                Module_Code = request.Module_Code,
+                Is_Visible = false
+            };
+            _context.Quizzes.Add(quiz);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Quiz created.", quizId = quiz.Quiz_ID });
+        }
+
+        // PUT: api/Quizzes/{id} — edits name/details/date only (not questions or visibility, see below)
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<ActionResult> UpdateQuiz(int id, [FromBody] QuizCreateDto request)
+        {
+            var quiz = await _context.Quizzes.FindAsync(id);
+            if (quiz == null) return NotFound("Quiz not found.");
+            quiz.Quiz_Name = request.Quiz_Name;
+            quiz.Quiz_Details = request.Quiz_Details;
+            quiz.Quiz_Date = request.Quiz_Date;
+            await _context.SaveChangesAsync();
+            return Ok("Quiz updated.");
+        }
+
+        // PUT: api/Quizzes/{id}/visibility — show/hide the quiz from students
+        [HttpPut("{id}/visibility")]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<IActionResult> ToggleVisibility(int id, [FromBody] ResourceVisibilityDto request)
+        {
+            var quiz = await _context.Quizzes.FindAsync(id);
+            if (quiz == null) return NotFound("Quiz not found.");
+            quiz.Is_Visible = request.Is_Visible;
+            await _context.SaveChangesAsync();
+            return Ok("Visibility updated.");
+        }
+
+        // DELETE: api/Quizzes/{id}
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Tutor,Admin")]
+        public async Task<ActionResult> DeleteQuiz(int id)
+        {
+            var quiz = await _context.Quizzes.FindAsync(id);
+            if (quiz == null) return NotFound("Quiz not found.");
+            _context.Quizzes.Remove(quiz);
+            await _context.SaveChangesAsync();
+            return Ok("Quiz deleted.");
+        }
+
+        // ── 2. QUESTIONS ─────────────────────────────────────────────────────
+
+        // GET: api/Quizzes/{id}/questions — full quiz with questions + options
         [HttpGet("{id}/questions")]
         public async Task<ActionResult> GetQuizWithQuestions(int id)
         {
@@ -575,29 +671,8 @@ namespace TutorConnect.API.Controllers
             });
         }
 
-        // POST: api/Quizzes
-        [HttpPost]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<ActionResult> CreateQuiz(QuizCreateDto request)
-        {
-            if (string.IsNullOrEmpty(request.Quiz_Name) || string.IsNullOrEmpty(request.Module_Code))
-                return BadRequest("Quiz name and module code are required.");
-            if (request.Quiz_Date.Date < DateTime.UtcNow.Date)
-                return BadRequest("Quiz date cannot be in the past.");
-
-            var quiz = new Quiz {
-                Quiz_Name = request.Quiz_Name,
-                Quiz_Details = request.Quiz_Details,
-                Quiz_Date = request.Quiz_Date,
-                Module_Code = request.Module_Code,
-                Is_Visible = false
-            };
-            _context.Quizzes.Add(quiz);
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Quiz created.", quizId = quiz.Quiz_ID });
-        }
-
-        // POST: api/Quizzes/{id}/questions  — save all questions (replaces existing)
+        // POST: api/Quizzes/{id}/questions — save all questions (wipes and replaces existing ones,
+        // rather than diffing — simpler and safe since a quiz's question set is edited as a whole in the UI)
         [HttpPost("{id}/questions")]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<IActionResult> SaveQuizQuestions(int id, [FromBody] List<QuizQuestionSaveDto> questions)
@@ -637,7 +712,10 @@ namespace TutorConnect.API.Controllers
             return Ok("Questions saved.");
         }
 
-        // POST: api/Quizzes/{id}/start  — student starts attempt
+        // ── 3. STUDENT ATTEMPTS (Student_Quiz — one row per student attempt) ──
+
+        // POST: api/Quizzes/{id}/start — student starts an attempt; resumes an in-progress one if there
+        // already is one, and blocks starting a second attempt once the quiz has been completed
         [HttpPost("{id}/start")]
         public async Task<ActionResult> StartQuiz(int id, [FromBody] int studentId)
         {
@@ -661,7 +739,7 @@ namespace TutorConnect.API.Controllers
             return Ok(new { studentQuizId = attempt.Student_Quiz_ID, alreadyStarted = false });
         }
 
-        // POST: api/Quizzes/{id}/submit
+        // POST: api/Quizzes/{id}/submit — auto-grades against the correct options and closes out the attempt
         [HttpPost("{id}/submit")]
         public async Task<ActionResult> SubmitQuiz(int id, [FromBody] QuizSubmitDto request)
         {
@@ -702,7 +780,7 @@ namespace TutorConnect.API.Controllers
             return Ok(new { score, correct, total = questions.Count });
         }
 
-        // GET: api/Quizzes/{id}/submissions  — all student submissions (tutor/admin)
+        // GET: api/Quizzes/{id}/submissions — every student's completed attempt on this quiz (tutor/admin)
         [HttpGet("{id}/submissions")]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<ActionResult> GetSubmissions(int id)
@@ -732,7 +810,7 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // GET: api/Quizzes/{id}/student/{studentId}/result
+        // GET: api/Quizzes/{id}/student/{studentId}/result — just the score/timing, no per-question detail
         [HttpGet("{id}/student/{studentId}/result")]
         public async Task<ActionResult> GetQuizResult(int id, int studentId)
         {
@@ -742,7 +820,9 @@ namespace TutorConnect.API.Controllers
             return Ok(new { score = result.Quiz_Score, startTime = result.Start_Time, endTime = result.End_Time, submissionDate = result.Submission_Date });
         }
 
-        // GET: api/Quizzes/{id}/student/{studentId}/review — full per-question breakdown for a completed attempt
+        // GET: api/Quizzes/{id}/student/{studentId}/review — full per-question breakdown for a completed
+        // attempt (which option they picked, whether it was correct); the student can view their own, a
+        // tutor/admin can view anyone's
         [HttpGet("{id}/student/{studentId}/review")]
         public async Task<ActionResult> GetQuizReview(int id, int studentId)
         {
@@ -789,45 +869,16 @@ namespace TutorConnect.API.Controllers
                 })
             });
         }
-
-        [HttpPut("{id}")]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<ActionResult> UpdateQuiz(int id, [FromBody] QuizCreateDto request)
-        {
-            var quiz = await _context.Quizzes.FindAsync(id);
-            if (quiz == null) return NotFound("Quiz not found.");
-            quiz.Quiz_Name = request.Quiz_Name;
-            quiz.Quiz_Details = request.Quiz_Details;
-            quiz.Quiz_Date = request.Quiz_Date;
-            await _context.SaveChangesAsync();
-            return Ok("Quiz updated.");
-        }
-
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<ActionResult> DeleteQuiz(int id)
-        {
-            var quiz = await _context.Quizzes.FindAsync(id);
-            if (quiz == null) return NotFound("Quiz not found.");
-            _context.Quizzes.Remove(quiz);
-            await _context.SaveChangesAsync();
-            return Ok("Quiz deleted.");
-        }
-
-        [HttpPut("{id}/visibility")]
-        [Authorize(Roles = "Tutor,Admin")]
-        public async Task<IActionResult> ToggleVisibility(int id, [FromBody] ResourceVisibilityDto request)
-        {
-            var quiz = await _context.Quizzes.FindAsync(id);
-            if (quiz == null) return NotFound("Quiz not found.");
-            quiz.Is_Visible = request.Is_Visible;
-            await _context.SaveChangesAsync();
-            return Ok("Visibility updated.");
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // ANNOUNCEMENTS CONTROLLER
+    //
+    // One Announcement table serves two purposes depending on Module_Code:
+    // null/empty = a site-wide website announcement, set = a module-specific one.
+    //   1. READ    several views over the same table (all / website-only / one
+    //              module / one student's enrolled modules / a single announcement)
+    //   2. CREATE / UPDATE / DELETE
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -838,16 +889,21 @@ namespace TutorConnect.API.Controllers
         private readonly AppDbContext _context;
         public AnnouncementsController(AppDbContext context) { _context = context; }
 
+        // ── 1. READ ──────────────────────────────────────────────────────────
+
+        // GET: api/Announcements — everything, website and module announcements together, newest first
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Announcement>>> GetAnnouncements()
             => await _context.Announcements.OrderByDescending(a => a.Date_Posted).ToListAsync();
 
+        // GET: api/Announcements/website — site-wide only (Module_Code is null/empty)
         [HttpGet("website")]
         public async Task<ActionResult<IEnumerable<Announcement>>> GetWebsiteAnnouncements()
             => await _context.Announcements
                 .Where(a => a.Module_Code == null || a.Module_Code == string.Empty)
                 .OrderByDescending(a => a.Date_Posted).ToListAsync();
 
+        // GET: api/Announcements/module/{moduleCode} — one module's announcements
         [HttpGet("module/{moduleCode}")]
         public async Task<ActionResult<IEnumerable<Announcement>>> GetModuleAnnouncements(string moduleCode)
             => await _context.Announcements
@@ -872,6 +928,7 @@ namespace TutorConnect.API.Controllers
             return Ok(announcements);
         }
 
+        // GET: api/Announcements/{id} — a single announcement
         [HttpGet("{id}")]
         public async Task<ActionResult<Announcement>> GetAnnouncement(int id)
         {
@@ -880,6 +937,9 @@ namespace TutorConnect.API.Controllers
             return announcement;
         }
 
+        // ── 2. CREATE / UPDATE / DELETE ─────────────────────────────────────
+
+        // POST: api/Announcements — leave Module_Code blank/null for a site-wide announcement
         [HttpPost]
         public async Task<ActionResult> CreateAnnouncement(AnnouncementCreateDto request)
         {
@@ -898,6 +958,7 @@ namespace TutorConnect.API.Controllers
             return Ok("Announcement created.");
         }
 
+        // PUT: api/Announcements/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateAnnouncement(int id, AnnouncementUpdateDto request)
         {
@@ -913,6 +974,7 @@ namespace TutorConnect.API.Controllers
             return Ok("Announcement updated.");
         }
 
+        // DELETE: api/Announcements/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAnnouncement(int id)
         {
@@ -926,6 +988,14 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // REVIEWS CONTROLLER
+    //
+    // Two independent, unrelated review types share this controller and its
+    // /api/Reviews route, distinguished by URL prefix — "tutor" rates a tutor
+    // overall, "session" rates one specific booked session:
+    //   1. TUTOR REVIEWS      (Tutor_Review — a student's overall rating of a tutor)
+    //   2. SESSION REVIEWS    (Session_Review — a rating of one specific booked session)
+    // Each section is plain CRUD (no Update — reviews are delete-and-recreate) with
+    // an admin "every review platform-wide" view at the end.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -936,7 +1006,8 @@ namespace TutorConnect.API.Controllers
         private readonly AppDbContext _context;
         public ReviewsController(AppDbContext context) { _context = context; }
 
-        // --- TUTOR REVIEWS ---
+        // ── 1. TUTOR REVIEWS ─────────────────────────────────────────────────
+
         // GET: api/Reviews/tutor/{tutorId}  — reviews FOR a tutor (tutor views their own feedback)
         [HttpGet("tutor/{tutorId}")]
         public async Task<ActionResult> GetTutorReviews(int tutorId)
@@ -985,42 +1056,8 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        [HttpPost("tutor")]
-        public async Task<ActionResult> CreateTutorReview(TutorReviewCreateDto request)
-        {
-            // A student may only review a tutor they have booked at least one session with
-            var hasBooked = await _context.Bookings
-                .Include(b => b.Booking_Slot)
-                .AnyAsync(b => b.Student_ID == request.Student_ID
-                            && b.Booking_Slot!.Tutor_ID == request.Tutor_ID);
-
-            if (!hasBooked)
-                return BadRequest("You can only rate a tutor after booking your first session with them.");
-
-            var review = new Tutor_Review
-            {
-                Tutor_Rating = request.Rating,
-                Student_ID = request.Student_ID,
-                Tutor_ID = request.Tutor_ID
-            };
-            _context.Tutor_Reviews.Add(review);
-            await _context.SaveChangesAsync();
-            return Ok("Tutor reviewed successfully.");
-        }
-
-        // DELETE: api/Reviews/tutor/{id}
-        [HttpDelete("tutor/{id}")]
-        public async Task<IActionResult> DeleteTutorReview(int id)
-        {
-            var review = await _context.Tutor_Reviews.FindAsync(id);
-            if (review == null) return NotFound("Review not found.");
-            _context.Tutor_Reviews.Remove(review);
-            await _context.SaveChangesAsync();
-            return Ok("Tutor review deleted.");
-        }
-
-        // GET: api/Reviews/tutors-for-student/{studentId}
-        // Returns tutors the student has booked at least one session with
+        // GET: api/Reviews/tutors-for-student/{studentId} — feeds the "who can I review" picker:
+        // tutors this student has both booked a session with AND shares an active enrolled module with
         [HttpGet("tutors-for-student/{studentId}")]
         public async Task<ActionResult> GetTutorsForStudent(int studentId)
         {
@@ -1064,7 +1101,65 @@ namespace TutorConnect.API.Controllers
             return Ok(tutors);
         }
 
-        // --- SESSION REVIEWS ---
+        // GET: api/Reviews/admin/tutor  — ALL tutor reviews across platform (admin only)
+        [HttpGet("admin/tutor")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> GetAllTutorReviews()
+        {
+            var reviews = await _context.Tutor_Reviews.ToListAsync();
+            var userIds = reviews.SelectMany(r => new[] { r.Tutor_ID, r.Student_ID }).Distinct().ToList();
+            var users = await _context.Users
+                .Where(u => userIds.Contains(u.User_ID))
+                .ToDictionaryAsync(u => u.User_ID, u => $"{u.FirstName} {u.LastName}");
+
+            return Ok(reviews.Select(r => new
+            {
+                r.Tutor_Review_ID,
+                r.Tutor_Rating,
+                r.Student_ID,
+                r.Tutor_ID,
+                TutorName   = users.TryGetValue(r.Tutor_ID,   out var tn) ? tn : $"Tutor #{r.Tutor_ID}",
+                StudentName = users.TryGetValue(r.Student_ID, out var sn) ? sn : $"Student #{r.Student_ID}"
+            }));
+        }
+
+        // POST: api/Reviews/tutor — a student may only review a tutor they've booked at least one session with
+        [HttpPost("tutor")]
+        public async Task<ActionResult> CreateTutorReview(TutorReviewCreateDto request)
+        {
+            // A student may only review a tutor they have booked at least one session with
+            var hasBooked = await _context.Bookings
+                .Include(b => b.Booking_Slot)
+                .AnyAsync(b => b.Student_ID == request.Student_ID
+                            && b.Booking_Slot!.Tutor_ID == request.Tutor_ID);
+
+            if (!hasBooked)
+                return BadRequest("You can only rate a tutor after booking your first session with them.");
+
+            var review = new Tutor_Review
+            {
+                Tutor_Rating = request.Rating,
+                Student_ID = request.Student_ID,
+                Tutor_ID = request.Tutor_ID
+            };
+            _context.Tutor_Reviews.Add(review);
+            await _context.SaveChangesAsync();
+            return Ok("Tutor reviewed successfully.");
+        }
+
+        // DELETE: api/Reviews/tutor/{id}
+        [HttpDelete("tutor/{id}")]
+        public async Task<IActionResult> DeleteTutorReview(int id)
+        {
+            var review = await _context.Tutor_Reviews.FindAsync(id);
+            if (review == null) return NotFound("Review not found.");
+            _context.Tutor_Reviews.Remove(review);
+            await _context.SaveChangesAsync();
+            return Ok("Tutor review deleted.");
+        }
+
+        // ── 2. SESSION REVIEWS ───────────────────────────────────────────────
+
         // GET: api/Reviews/session/tutor/{tutorId} — reviews for sessions a tutor ran
         [HttpGet("session/tutor/{tutorId}")]
         public async Task<ActionResult> GetTutorSessionReviews(int tutorId)
@@ -1110,7 +1205,7 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // GET: api/Reviews/session/student/{studentId}
+        // GET: api/Reviews/session/student/{studentId} — reviews a student has written
         [HttpGet("session/student/{studentId}")]
         public async Task<ActionResult> GetStudentSessionReviews(int studentId)
         {
@@ -1146,57 +1241,10 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
+        // GET: api/Reviews/session/{sessionId} — all reviews for one specific booked session
         [HttpGet("session/{sessionId}")]
         public async Task<ActionResult> GetSessionReviews(int sessionId)
             => Ok(await _context.Session_Reviews.Where(r => r.Session_ID == sessionId).ToListAsync());
-
-        // DELETE: api/Reviews/session/{id}
-        [HttpDelete("session/{id}")]
-        public async Task<IActionResult> DeleteSessionReview(int id)
-        {
-            var review = await _context.Session_Reviews.FindAsync(id);
-            if (review == null) return NotFound("Review not found.");
-            _context.Session_Reviews.Remove(review);
-            await _context.SaveChangesAsync();
-            return Ok("Session review deleted.");
-        }
-
-        [HttpPost("session")]
-        public async Task<ActionResult> CreateSessionReview(SessionReviewCreateDto request)
-        {
-            var review = new Session_Review
-            {
-                Session_Rating = request.Rating,
-                Session_Description = request.Description,
-                Student_ID = request.Student_ID,
-                Session_ID = request.Session_ID
-            };
-            _context.Session_Reviews.Add(review);
-            await _context.SaveChangesAsync();
-            return Ok("Session reviewed successfully.");
-        }
-
-        // GET: api/Reviews/admin/tutor  — ALL tutor reviews across platform (admin only)
-        [HttpGet("admin/tutor")]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult> GetAllTutorReviews()
-        {
-            var reviews = await _context.Tutor_Reviews.ToListAsync();
-            var userIds = reviews.SelectMany(r => new[] { r.Tutor_ID, r.Student_ID }).Distinct().ToList();
-            var users = await _context.Users
-                .Where(u => userIds.Contains(u.User_ID))
-                .ToDictionaryAsync(u => u.User_ID, u => $"{u.FirstName} {u.LastName}");
-
-            return Ok(reviews.Select(r => new
-            {
-                r.Tutor_Review_ID,
-                r.Tutor_Rating,
-                r.Student_ID,
-                r.Tutor_ID,
-                TutorName   = users.TryGetValue(r.Tutor_ID,   out var tn) ? tn : $"Tutor #{r.Tutor_ID}",
-                StudentName = users.TryGetValue(r.Student_ID, out var sn) ? sn : $"Student #{r.Student_ID}"
-            }));
-        }
 
         // GET: api/Reviews/admin/session  — ALL session reviews across platform (admin only)
         [HttpGet("admin/session")]
@@ -1236,10 +1284,40 @@ namespace TutorConnect.API.Controllers
                 };
             }));
         }
+
+        // POST: api/Reviews/session
+        [HttpPost("session")]
+        public async Task<ActionResult> CreateSessionReview(SessionReviewCreateDto request)
+        {
+            var review = new Session_Review
+            {
+                Session_Rating = request.Rating,
+                Session_Description = request.Description,
+                Student_ID = request.Student_ID,
+                Session_ID = request.Session_ID
+            };
+            _context.Session_Reviews.Add(review);
+            await _context.SaveChangesAsync();
+            return Ok("Session reviewed successfully.");
+        }
+
+        // DELETE: api/Reviews/session/{id}
+        [HttpDelete("session/{id}")]
+        public async Task<IActionResult> DeleteSessionReview(int id)
+        {
+            var review = await _context.Session_Reviews.FindAsync(id);
+            if (review == null) return NotFound("Review not found.");
+            _context.Session_Reviews.Remove(review);
+            await _context.SaveChangesAsync();
+            return Ok("Session review deleted.");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // ATTENDANCE CONTROLLER
+    //
+    // Minimal — just read a session's roll call and mark one student present/absent.
+    // No update or delete: correcting a mistake means marking it again.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1250,12 +1328,14 @@ namespace TutorConnect.API.Controllers
         private readonly AppDbContext _context;
         public AttendanceController(AppDbContext context) { _context = context; }
 
+        // GET: api/Attendance/session/{sessionId} — attendance records for one booked session
         [HttpGet("session/{sessionId}")]
         public async Task<ActionResult> GetAttendance(int sessionId)
         {
             return Ok(await _context.Session_Attendances.Where(a => a.Session_ID == sessionId).ToListAsync());
         }
 
+        // POST: api/Attendance — mark one student's attendance status for a session
         [HttpPost]
         public async Task<ActionResult> MarkAttendance(AttendanceCreateDto request)
         {
@@ -1274,6 +1354,11 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // BOOKING SLOTS CONTROLLER
+    //
+    // A slot is a tutor-created time window students can book into (1-on-1 or group).
+    //   1. READ      GetSlots (all) / GetSlotsByTutor / GetAvailableSlots family
+    //                (the "available" ones also compute remaining capacity, unlike the plain reads)
+    //   2. CREATE / UPDATE / DELETE  a slot can't be edited or deleted once someone has booked it
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1284,6 +1369,9 @@ namespace TutorConnect.API.Controllers
         private readonly AppDbContext _context;
         public BookingSlotsController(AppDbContext context) { _context = context; }
 
+        // ── 1. READ ──────────────────────────────────────────────────────────
+
+        // GET: api/BookingSlots — every slot, booked or not
         [HttpGet]
         public async Task<ActionResult> GetSlots()
         {
@@ -1332,7 +1420,7 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // GET: api/BookingSlots/available
+        // GET: api/BookingSlots/available — unbooked, today or later, no filtering by module/tutor
         [HttpGet("available")]
         public async Task<ActionResult<IEnumerable<Booking_Slot>>> GetAvailableSlots()
         {
@@ -1345,7 +1433,8 @@ namespace TutorConnect.API.Controllers
             return Ok(slots);
         }
 
-        // GET: api/BookingSlots/available/module/{moduleCode}
+        // GET: api/BookingSlots/available/module/{moduleCode} — unbooked slots run by a tutor of this
+        // module, with live remaining-capacity computed per slot
         [HttpGet("available/module/{moduleCode}")]
         public async Task<ActionResult> GetAvailableSlotsByModule(string moduleCode)
         {
@@ -1393,7 +1482,8 @@ namespace TutorConnect.API.Controllers
             return Ok(result);
         }
 
-        // GET: api/BookingSlots/available/student/{studentId}
+        // GET: api/BookingSlots/available/student/{studentId} — unbooked slots across every module
+        // this student is actively enrolled in
         [HttpGet("available/student/{studentId}")]
         public async Task<ActionResult> GetAvailableSlotsForStudent(int studentId)
         {
@@ -1448,6 +1538,9 @@ namespace TutorConnect.API.Controllers
             return Ok(result);
         }
 
+        // ── 2. CREATE / UPDATE / DELETE ─────────────────────────────────────
+
+        // POST: api/BookingSlots — a tutor can't double-book themself at the same date/time
         [HttpPost]
         public async Task<ActionResult> CreateSlot(BookingSlotCreateDto request)
         {
@@ -1526,6 +1619,12 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // BOOKINGS CONTROLLER
+    //
+    // A booking is a student claiming one BookingSlot. Creating/cancelling one has
+    // real side effects beyond the Bookings row itself — session-count tracking on
+    // the student's enrollment, the slot's Is_Booked flag, and (for BookSession)
+    // Google Meet link creation + confirmation emails. Read is plain; Create and
+    // Delete are where the complexity lives.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1545,11 +1644,14 @@ namespace TutorConnect.API.Controllers
             _email = email;
         }
 
+        // ── READ ─────────────────────────────────────────────────────────────
+
+        // GET: api/Bookings — every booking, all students (Admin only)
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<Booking>>> GetBookings() => await _context.Bookings.Include(b => b.Booking_Slot).ToListAsync();
 
-        // GET: api/Bookings/student/{studentId}
+        // GET: api/Bookings/student/{studentId} — one student's own bookings, soonest first
         [HttpGet("student/{studentId}")]
         public async Task<ActionResult> GetStudentBookings(int studentId)
         {
@@ -1576,7 +1678,10 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // DELETE: api/Bookings/{id}  — student cancels their own booking
+        // ── DELETE (cancel) ──────────────────────────────────────────────────
+
+        // DELETE: api/Bookings/{id} — student cancels their own booking; refunds a session back onto
+        // their enrollment, re-opens the slot if it had filled up, and emails both sides
         [HttpDelete("{id}")]
         public async Task<IActionResult> CancelBooking(int id)
         {
@@ -1674,6 +1779,12 @@ namespace TutorConnect.API.Controllers
             return Ok("Booking cancelled.");
         }
 
+        // ── CREATE ───────────────────────────────────────────────────────────
+
+        // POST: api/Bookings — books a student into a slot: deducts a session from their enrollment,
+        // marks the slot full once at capacity, then (for online/in-person sessions) creates a Google
+        // Meet link and emails confirmations to both student and tutor. Meet-link and email failures are
+        // caught and logged individually so a Google/SMTP hiccup never blocks the booking itself.
         [HttpPost]
         public async Task<ActionResult> BookSession(BookingCreateDto request)
         {
@@ -1830,6 +1941,11 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // PAYMENTS CONTROLLER
+    //
+    // Manual EFT/Ozow payments — the student submits their own bank reference and
+    // every one starts "Pending"; nothing in this controller ever moves it to
+    // "Paid" (that only happens for the separate, automated PayFast gateway flow
+    // in PayFastController). This controller has no card/gateway integration at all.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1844,7 +1960,7 @@ namespace TutorConnect.API.Controllers
             _context = context;
         }
 
-        // GET: api/Payments/student/5 (Use Case 5.10 View Payment)
+        // GET: api/Payments/student/5 — one student's payment history, any status (Use Case 5.10 View Payment)
         [HttpGet("student/{studentId}")]
         public async Task<ActionResult<IEnumerable<PaymentReturnDto>>> GetStudentPayments(int studentId)
         {
@@ -1905,6 +2021,16 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // ENROLLMENT CONTROLLER
+    //
+    // A Student_Module row tracks a student's access to one module plus their
+    // remaining 1-on-1/group session credits. "Deleting" an enrollment never
+    // removes the row — it flips IsActive off and logs the reason separately
+    // (Student_Unenrollments), so history is preserved:
+    //   1. READ      GetStudentModules / GetModuleStudents / CheckEnrollment
+    //   2. CREATE     EnrollInModule (upsert — adds session types to an existing
+    //                active enrollment instead of duplicating it)
+    //   3. UPDATE     TopUpSessions (admin grants more session credits)
+    //   4. DELETE     UnenrollFromModule (soft — sets IsActive=false)
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1916,7 +2042,106 @@ namespace TutorConnect.API.Controllers
         private readonly AuditService _audit;
         public EnrollmentController(AppDbContext context, AuditService audit) { _context = context; _audit = audit; }
 
-        // POST: api/enrollment/enroll
+        // ── 1. READ ──────────────────────────────────────────────────────────
+
+        // GET: api/enrollment/student/{studentId} — one student's active enrollments
+        /// <summary>
+        /// Get all enrolled modules for a student
+        /// </summary>
+        [HttpGet("student/{studentId}")]
+        public async Task<ActionResult<List<EnrollmentViewDto>>> GetStudentModules(int studentId)
+        {
+            try
+            {
+                var enrollments = await _context.Student_Modules
+                    .Where(sm => sm.Student_ID == studentId && sm.IsActive)
+                    .Include(sm => sm.Module)
+                    .Select(sm => new EnrollmentViewDto
+                    {
+                        Enrollment_ID = sm.Enrollment_ID,
+                        Student_ID = sm.Student_ID,
+                        Module_Code = sm.Module_Code,
+                        Module_Name = sm.Module != null ? sm.Module.Module_Name : string.Empty,
+                        Enrollment_Date = sm.Enrollment_Date,
+                        IsActive = sm.IsActive,
+                        Can_Book_OneOnOne = sm.Can_Book_OneOnOne,
+                        Can_Book_Group = sm.Can_Book_Group,
+                        Sessions_Remaining_Group = sm.Sessions_Remaining_Group,
+                        Sessions_Remaining_OneOnOne = sm.Sessions_Remaining_OneOnOne
+                    })
+                    .ToListAsync();
+
+                return Ok(enrollments);
+            }
+            catch
+            {
+                // Fallback if session columns don't exist yet (migration pending)
+                var enrollments = await _context.Student_Modules
+                    .Where(sm => sm.Student_ID == studentId && sm.IsActive)
+                    .Include(sm => sm.Module)
+                    .Select(sm => new EnrollmentViewDto
+                    {
+                        Enrollment_ID = sm.Enrollment_ID,
+                        Student_ID = sm.Student_ID,
+                        Module_Code = sm.Module_Code,
+                        Module_Name = sm.Module != null ? sm.Module.Module_Name : string.Empty,
+                        Enrollment_Date = sm.Enrollment_Date,
+                        IsActive = sm.IsActive,
+                        Can_Book_OneOnOne = sm.Can_Book_OneOnOne,
+                        Can_Book_Group = sm.Can_Book_Group,
+                        Sessions_Remaining_Group = 5,
+                        Sessions_Remaining_OneOnOne = 5
+                    })
+                    .ToListAsync();
+
+                return Ok(enrollments);
+            }
+        }
+
+        // GET: api/enrollment/module/{moduleCode} — every student actively enrolled in one module
+        /// <summary>
+        /// Get all enrolled students for a module
+        /// </summary>
+        [HttpGet("module/{moduleCode}")]
+        [Authorize(Roles = "Admin,Tutor")]
+        public async Task<ActionResult<List<EnrollmentViewDto>>> GetModuleStudents(string moduleCode)
+        {
+            var enrollments = await _context.Student_Modules
+                .Where(sm => sm.Module_Code == moduleCode && sm.IsActive)
+                .Include(sm => sm.Student)
+                .Select(sm => new EnrollmentViewDto
+                {
+                    Enrollment_ID = sm.Enrollment_ID,
+                    Student_ID = sm.Student_ID,
+                    Module_Code = sm.Module_Code,
+                    Module_Name = moduleCode,
+                    Enrollment_Date = sm.Enrollment_Date,
+                    IsActive = sm.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(enrollments);
+        }
+
+        // GET: api/enrollment/check/{studentId}/{moduleCode} — quick boolean check, no enrollment details
+        /// <summary>
+        /// Check if a student is enrolled in a module
+        /// </summary>
+        [HttpGet("check/{studentId}/{moduleCode}")]
+        public async Task<IActionResult> CheckEnrollment(int studentId, string moduleCode)
+        {
+            var enrollment = await _context.Student_Modules
+                .FirstOrDefaultAsync(sm => sm.Student_ID == studentId
+                    && sm.Module_Code == moduleCode
+                    && sm.IsActive);
+
+            return Ok(new { isEnrolled = enrollment != null });
+        }
+
+        // ── 2. CREATE ────────────────────────────────────────────────────────
+
+        // POST: api/enrollment/enroll — if the student is already actively enrolled, adds whichever
+        // session type(s) they don't already have instead of rejecting as a duplicate
         /// <summary>
         /// Enroll a student in a module
         /// </summary>
@@ -2003,101 +2228,9 @@ namespace TutorConnect.API.Controllers
             }
         }
 
-        // DELETE: api/enrollment/unenroll/{moduleCode}
-        /// <summary>
-        /// Unenroll a student from a module
-        /// </summary>
-        [HttpDelete("unenroll/{moduleCode}")]
-        public async Task<IActionResult> UnenrollFromModule(int studentId, string moduleCode, [FromBody] EnrollmentUnenrollDto? request)
-        {
-            var enrollment = await _context.Student_Modules
-                .FirstOrDefaultAsync(sm => sm.Student_ID == studentId
-                    && sm.Module_Code == moduleCode
-                    && sm.IsActive);
+        // ── 3. UPDATE ────────────────────────────────────────────────────────
 
-            if (enrollment == null)
-                return NotFound("Enrollment not found.");
-
-            // Mark enrollment as inactive
-            enrollment.IsActive = false;
-
-            // Record unenrollment details in the separate Student_Unenrollments table
-            _context.Student_Unenrollments.Add(new Student_Unenrollment
-            {
-                Student_ID      = studentId,
-                Module_Code     = moduleCode,
-                Enrollment_ID   = enrollment.Enrollment_ID,
-                Unenroll_Date   = DateTime.UtcNow,
-                Unenroll_Reason = request?.Unenroll_Reason
-            });
-
-            try
-            {
-                await _context.SaveChangesAsync();
-                await _audit.LogAsync(studentId, "Module Unenrolled", $"Module_Code: {moduleCode}");
-                return Ok("Successfully unenrolled from module.");
-            }
-            catch (DbUpdateException)
-            {
-                return StatusCode(500, "Failed to unenroll from module.");
-            }
-        }
-
-        // GET: api/enrollment/student/{studentId}
-        /// <summary>
-        /// Get all enrolled modules for a student
-        /// </summary>
-        [HttpGet("student/{studentId}")]
-        public async Task<ActionResult<List<EnrollmentViewDto>>> GetStudentModules(int studentId)
-        {
-            try
-            {
-                var enrollments = await _context.Student_Modules
-                    .Where(sm => sm.Student_ID == studentId && sm.IsActive)
-                    .Include(sm => sm.Module)
-                    .Select(sm => new EnrollmentViewDto
-                    {
-                        Enrollment_ID = sm.Enrollment_ID,
-                        Student_ID = sm.Student_ID,
-                        Module_Code = sm.Module_Code,
-                        Module_Name = sm.Module != null ? sm.Module.Module_Name : string.Empty,
-                        Enrollment_Date = sm.Enrollment_Date,
-                        IsActive = sm.IsActive,
-                        Can_Book_OneOnOne = sm.Can_Book_OneOnOne,
-                        Can_Book_Group = sm.Can_Book_Group,
-                        Sessions_Remaining_Group = sm.Sessions_Remaining_Group,
-                        Sessions_Remaining_OneOnOne = sm.Sessions_Remaining_OneOnOne
-                    })
-                    .ToListAsync();
-
-                return Ok(enrollments);
-            }
-            catch
-            {
-                // Fallback if session columns don't exist yet (migration pending)
-                var enrollments = await _context.Student_Modules
-                    .Where(sm => sm.Student_ID == studentId && sm.IsActive)
-                    .Include(sm => sm.Module)
-                    .Select(sm => new EnrollmentViewDto
-                    {
-                        Enrollment_ID = sm.Enrollment_ID,
-                        Student_ID = sm.Student_ID,
-                        Module_Code = sm.Module_Code,
-                        Module_Name = sm.Module != null ? sm.Module.Module_Name : string.Empty,
-                        Enrollment_Date = sm.Enrollment_Date,
-                        IsActive = sm.IsActive,
-                        Can_Book_OneOnOne = sm.Can_Book_OneOnOne,
-                        Can_Book_Group = sm.Can_Book_Group,
-                        Sessions_Remaining_Group = 5,
-                        Sessions_Remaining_OneOnOne = 5
-                    })
-                    .ToListAsync();
-
-                return Ok(enrollments);
-            }
-        }
-
-        // POST: api/enrollment/topup
+        // POST: api/enrollment/topup — admin grants 5 more sessions of the given type
         [HttpPost("topup")]
         public async Task<IActionResult> TopUpSessions([FromBody] SessionTopUpDto request)
         {
@@ -2136,49 +2269,55 @@ namespace TutorConnect.API.Controllers
             });
         }
 
-        // GET: api/enrollment/module/{moduleCode}
-        /// <summary>
-        /// Get all enrolled students for a module
-        /// </summary>
-        [HttpGet("module/{moduleCode}")]
-        [Authorize(Roles = "Admin,Tutor")]
-        public async Task<ActionResult<List<EnrollmentViewDto>>> GetModuleStudents(string moduleCode)
-        {
-            var enrollments = await _context.Student_Modules
-                .Where(sm => sm.Module_Code == moduleCode && sm.IsActive)
-                .Include(sm => sm.Student)
-                .Select(sm => new EnrollmentViewDto
-                {
-                    Enrollment_ID = sm.Enrollment_ID,
-                    Student_ID = sm.Student_ID,
-                    Module_Code = sm.Module_Code,
-                    Module_Name = moduleCode,
-                    Enrollment_Date = sm.Enrollment_Date,
-                    IsActive = sm.IsActive
-                })
-                .ToListAsync();
+        // ── 4. DELETE (soft) ─────────────────────────────────────────────────
 
-            return Ok(enrollments);
-        }
-
-        // GET: api/enrollment/check/{studentId}/{moduleCode}
+        // DELETE: api/enrollment/unenroll/{moduleCode} — flips IsActive off and logs a separate
+        // Student_Unenrollment record with the reason; the row itself is never removed
         /// <summary>
-        /// Check if a student is enrolled in a module
+        /// Unenroll a student from a module
         /// </summary>
-        [HttpGet("check/{studentId}/{moduleCode}")]
-        public async Task<IActionResult> CheckEnrollment(int studentId, string moduleCode)
+        [HttpDelete("unenroll/{moduleCode}")]
+        public async Task<IActionResult> UnenrollFromModule(int studentId, string moduleCode, [FromBody] EnrollmentUnenrollDto? request)
         {
             var enrollment = await _context.Student_Modules
                 .FirstOrDefaultAsync(sm => sm.Student_ID == studentId
                     && sm.Module_Code == moduleCode
                     && sm.IsActive);
 
-            return Ok(new { isEnrolled = enrollment != null });
+            if (enrollment == null)
+                return NotFound("Enrollment not found.");
+
+            // Mark enrollment as inactive
+            enrollment.IsActive = false;
+
+            // Record unenrollment details in the separate Student_Unenrollments table
+            _context.Student_Unenrollments.Add(new Student_Unenrollment
+            {
+                Student_ID      = studentId,
+                Module_Code     = moduleCode,
+                Enrollment_ID   = enrollment.Enrollment_ID,
+                Unenroll_Date   = DateTime.UtcNow,
+                Unenroll_Reason = request?.Unenroll_Reason
+            });
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                await _audit.LogAsync(studentId, "Module Unenrolled", $"Module_Code: {moduleCode}");
+                return Ok("Successfully unenrolled from module.");
+            }
+            catch (DbUpdateException)
+            {
+                return StatusCode(500, "Failed to unenroll from module.");
+            }
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // TUTOR MODULE CONTROLLER
+    //
+    // Which tutors teach which modules. Same soft-delete pattern as Enrollment
+    // above — "unassign" just flips IsActive off rather than removing the row.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -2189,7 +2328,9 @@ namespace TutorConnect.API.Controllers
         private readonly AppDbContext _context;
         public TutorModuleController(AppDbContext context) { _context = context; }
 
-        // GET: api/TutorModule/tutor/{tutorId}
+        // ── READ ─────────────────────────────────────────────────────────────
+
+        // GET: api/TutorModule/tutor/{tutorId} — one tutor's assigned modules
         [HttpGet("tutor/{tutorId}")]
         public async Task<ActionResult<List<TutorModuleViewDto>>> GetModulesForTutor(int tutorId)
         {
@@ -2211,7 +2352,7 @@ namespace TutorConnect.API.Controllers
             return Ok(assignments);
         }
 
-        // GET: api/TutorModule/module/{moduleCode}
+        // GET: api/TutorModule/module/{moduleCode} — every tutor assigned to one module
         [HttpGet("module/{moduleCode}")]
         [Authorize(Roles = "Admin,Tutor")]
         public async Task<ActionResult<List<TutorModuleViewDto>>> GetTutorsForModule(string moduleCode)
@@ -2237,7 +2378,7 @@ namespace TutorConnect.API.Controllers
             return Ok(assignments);
         }
 
-        // GET: api/TutorModule/check/{tutorId}/{moduleCode}
+        // GET: api/TutorModule/check/{tutorId}/{moduleCode} — quick boolean check
         [HttpGet("check/{tutorId}/{moduleCode}")]
         public async Task<IActionResult> CheckAssignment(int tutorId, string moduleCode)
         {
@@ -2248,6 +2389,8 @@ namespace TutorConnect.API.Controllers
 
             return Ok(new { isAssigned = assignment != null });
         }
+
+        // ── CREATE / DELETE ──────────────────────────────────────────────────
 
         // POST: api/TutorModule/assign
         [HttpPost("assign")]
@@ -2284,7 +2427,7 @@ namespace TutorConnect.API.Controllers
             return Ok(new { message = "Tutor assigned to module.", assignmentId = assignment.Tutor_Module_ID });
         }
 
-        // DELETE: api/TutorModule/unassign/{tutorId}/{moduleCode}
+        // DELETE: api/TutorModule/unassign/{tutorId}/{moduleCode} — soft: flips IsActive off, row stays
         [HttpDelete("unassign/{tutorId}/{moduleCode}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UnassignTutorFromModule(int tutorId, string moduleCode)
@@ -2306,8 +2449,14 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // ADMIN CONTENT ITERATION 5 CONTROLLER
-    // FAQ Categories (UC 4.16-4.19), Help Resources (UC 4.28-4.31),
-    // Media Content (UC 4.20-4.23), Testimonial Categories (UC 4.32-4.35)
+    //
+    // Four independent, admin-managed content types sharing one /api/AdminContent
+    // route, each plain CRUD (Get → Create → Update → Delete) and each publicly
+    // readable via [AllowAnonymous] on its GET:
+    //   1. FAQ CATEGORIES         (UC 4.16-4.19) — groupings for the FAQController's questions
+    //   2. MEDIA CONTENT          (UC 4.20-4.23) — images/videos shown on the public site
+    //   3. HELP RESOURCES         (UC 4.28-4.31) — video links for the Help page
+    //   4. TESTIMONIAL CATEGORIES (UC 4.32-4.35) — groupings for TestimonialsController's reviews
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/AdminContent")]
@@ -2323,8 +2472,9 @@ namespace TutorConnect.API.Controllers
             _cloudinary = cloudinary;
         }
 
-        // ─── FAQ CATEGORIES ────────────────────────────────────────────────────
+        // ── 1. FAQ CATEGORIES ────────────────────────────────────────────────
 
+        // GET: api/AdminContent/faq-categories — public
         [HttpGet("faq-categories")]
         [AllowAnonymous]
         public async Task<ActionResult> GetFAQCategories()
@@ -2365,13 +2515,15 @@ namespace TutorConnect.API.Controllers
             return Ok("FAQ category deleted.");
         }
 
-        // ─── MEDIA CONTENT ─────────────────────────────────────────────────────
+        // ── 2. MEDIA CONTENT ─────────────────────────────────────────────────
 
+        // GET: api/AdminContent/media — public
         [HttpGet("media")]
         [AllowAnonymous]
         public async Task<ActionResult> GetMedia()
             => Ok(await _context.Media_Contents.ToListAsync());
 
+        // POST: api/AdminContent/media/upload — uploads the image/video file, returns the URL to save via CreateMedia below
         [HttpPost("media/upload")]
         public async Task<ActionResult> UploadMediaFile(IFormFile file)
         {
@@ -2432,8 +2584,9 @@ namespace TutorConnect.API.Controllers
             return Ok("Media content deleted.");
         }
 
-        // ─── HELP RESOURCES ────────────────────────────────────────────────────
+        // ── 3. HELP RESOURCES ────────────────────────────────────────────────
 
+        // GET: api/AdminContent/help-resources — public
         [HttpGet("help-resources")]
         [AllowAnonymous]
         public async Task<ActionResult> GetHelpResources()
@@ -2469,8 +2622,9 @@ namespace TutorConnect.API.Controllers
             return Ok("Help resource deleted.");
         }
 
-        // ─── TESTIMONIAL CATEGORIES ────────────────────────────────────────────
+        // ── 4. TESTIMONIAL CATEGORIES ────────────────────────────────────────
 
+        // GET: api/AdminContent/testimonial-categories — public
         [HttpGet("testimonial-categories")]
         [AllowAnonymous]
         public async Task<ActionResult> GetTestimonialCategories()

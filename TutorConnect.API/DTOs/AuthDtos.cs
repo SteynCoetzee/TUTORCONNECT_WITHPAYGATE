@@ -3,6 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace TutorConnect.API.DTOs
 {
+    // --- SIGN UP / SIGN IN (AuthController) ---
+
+    // Request body for AuthController.Register
     public class UserRegisterDto
     {
         [Required]
@@ -35,6 +38,7 @@ namespace TutorConnect.API.DTOs
         public string? Bio { get; set; }
     }
 
+    // Request body for AuthController.Login
     public class UserLoginDto
     {
         [Required]
@@ -47,6 +51,10 @@ namespace TutorConnect.API.DTOs
         public string Password { get; set; } = string.Empty;
     }
 
+    // --- CORE ACCOUNT (UsersController) ---
+
+    // Response shape for UsersController.GetUser/GetAllUsers — explicit [JsonPropertyName]
+    // on every field keeps the wire format stable even if these C# property names change
     public class UserProfileDto
     {
         [JsonPropertyName("user_ID")]
@@ -86,6 +94,7 @@ namespace TutorConnect.API.DTOs
         public string? Profile_Picture_Url { get; set; }
     }
 
+    // Request body for UsersController.UpdateUser — self-service edit, no role field
     public class UserProfileUpdateDto
     {
         [Required]
@@ -105,6 +114,8 @@ namespace TutorConnect.API.DTOs
         [StringLength(500)]
         public string? Bio { get; set; }
     }
+
+    // --- ROLE-SPECIFIC PROFILES (UsersController.UpdateStudentProfile/UpdateTutorProfile/UpdateAdminProfile) ---
 
     public class StudentProfileDto
     {
@@ -145,6 +156,9 @@ namespace TutorConnect.API.DTOs
         public string? Job_Title { get; set; }
     }
 
+    // --- ADMIN ACCOUNT MANAGEMENT (UsersController.AdminUpdateUser/ChangeUserRole) ---
+
+    // Request body for UsersController.AdminUpdateUser — full profile fields plus role in one call
     public class AdminUserUpdateDto
     {
         [Required]
@@ -168,6 +182,9 @@ namespace TutorConnect.API.DTOs
         public int RoleId { get; set; }
     }
 
+    // --- PASSWORD RESET FLOW (AuthController — ForgotPassword → VerifyResetCode → ResetPassword, in order) ---
+
+    // Request body for AuthController.ForgotPassword
     public class ForgotPasswordDto
     {
         [Required]
@@ -176,6 +193,7 @@ namespace TutorConnect.API.DTOs
         public string Email { get; set; } = string.Empty;
     }
 
+    // Request body for AuthController.ResetPassword (final step)
     public class ResetPasswordDto
     {
         [Required]
@@ -192,6 +210,7 @@ namespace TutorConnect.API.DTOs
         public string NewPassword { get; set; } = string.Empty;
     }
 
+    // Request body for AuthController.VerifyResetCode (middle step)
     public class VerifyResetCodeDto
     {
         [Required]
@@ -204,12 +223,14 @@ namespace TutorConnect.API.DTOs
         public string ResetCode { get; set; } = string.Empty;
     }
 
+    // Request body for UsersController.ChangeUserRole
     public class ChangeRoleDto
     {
         [Range(1, 4)]
         public int RoleId { get; set; }
     }
 
+    // --- PASSWORD CHANGE (AuthController.ChangePassword — self-service, requires the current password) ---
     public class ChangePasswordDto
     {
         [Required]

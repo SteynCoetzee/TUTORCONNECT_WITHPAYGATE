@@ -18,6 +18,14 @@ namespace TutorConnect.API.Controllers
 {
     // ─────────────────────────────────────────────────────────────────────────
     // AUTH CONTROLLER
+    //
+    // Sign-up/sign-in, then everything to do with a password, in the order a
+    // user would hit them:
+    //   1. SIGN UP / SIGN IN         Register / Login
+    //   2. PASSWORD MANAGEMENT       ChangePassword (self-service, while logged in)
+    //                                ForgotPassword → VerifyResetCode → ResetPassword
+    //                                (the "I forgot my password" flow, in order)
+    //   3. PRIVATE HELPERS           CreateToken (JWT) / IsPasswordComplex
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -37,6 +45,9 @@ namespace TutorConnect.API.Controllers
             _audit = audit;
         }
 
+        // ── 1. SIGN UP / SIGN IN ────────────────────────────────────────────
+
+        // POST: api/Auth/register — creates a new account; tutors start as AW-Tutor until an admin promotes them
         [HttpPost("register")]
         public async Task<ActionResult<string>> Register(UserRegisterDto request)
         {
@@ -76,6 +87,7 @@ namespace TutorConnect.API.Controllers
             return Ok("User successfully registered.");
         }
 
+        // POST: api/Auth/login — verifies credentials, blocks deleted accounts, auto-restores archived ones, returns a JWT
         [HttpPost("login")]
         public async Task<ActionResult<string>> Login(UserLoginDto request)
         {
@@ -110,6 +122,9 @@ namespace TutorConnect.API.Controllers
             return Ok(token);
         }
 
+        // ── 2. PASSWORD MANAGEMENT ──────────────────────────────────────────
+
+        // PUT: api/Auth/change-password/{userId} — self-service change; requires knowing the current password
         [HttpPut("change-password/{userId}")]
         public async Task<ActionResult<string>> ChangePassword(int userId, ChangePasswordDto request)
         {
@@ -133,6 +148,9 @@ namespace TutorConnect.API.Controllers
             return Ok("Password updated successfully.");
         }
 
+        // POST: api/Auth/forgot-password — step 1 of the "I forgot my password" flow: emails a one-time
+        // reset code. Always returns the same generic message whether or not the email exists, to avoid
+        // leaking which emails are registered.
         [HttpPost("forgot-password")]
         public async Task<ActionResult<object>> ForgotPassword(ForgotPasswordDto request)
         {
@@ -159,10 +177,12 @@ namespace TutorConnect.API.Controllers
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
-            await _emailService.SendResetCodeAsync(user.Email, resetCode);
+            await _emailService.SendResetCodeAsync(user.Email, resetCode, expirationMinutes);
             return Ok(new { message = "If this email is registered, a reset code has been sent.", expiresInMinutes = expirationMinutes });
         }
 
+        // POST: api/Auth/verify-reset-code — step 2: lets the frontend check the code before showing the
+        // "set new password" form, without spending the code (ResetPassword below re-validates it anyway)
         [HttpPost("verify-reset-code")]
         public async Task<ActionResult> VerifyResetCode([FromBody] VerifyResetCodeDto request)
         {
@@ -175,6 +195,7 @@ namespace TutorConnect.API.Controllers
             return Ok("OTP verified successfully.");
         }
 
+        // POST: api/Auth/reset-password — step 3: re-validates the code and expiration, then sets the new password
         [HttpPost("reset-password")]
         public async Task<ActionResult<string>> ResetPassword(ResetPasswordDto request)
         {
@@ -211,6 +232,9 @@ namespace TutorConnect.API.Controllers
             return Ok("Password successfully reset.");
         }
 
+        // ── 3. PRIVATE HELPERS ──────────────────────────────────────────────
+
+        // Builds the JWT handed back on successful login — carries user id/name/email/role as claims
         private string CreateToken(User user)
         {
             List<Claim> claims = new List<Claim>
@@ -238,6 +262,8 @@ namespace TutorConnect.API.Controllers
             return jwt;
         }
 
+        // Shared complexity rule used by Register, ChangePassword, and ResetPassword above:
+        // 8+ chars, at least one uppercase letter, one digit, one non-alphanumeric character
         private static bool IsPasswordComplex(string pw) =>
             pw.Length >= 8 &&
             pw.Any(char.IsUpper) &&
@@ -247,6 +273,21 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // USERS CONTROLLER
+    //
+    // Everything to do with a user account lives here, split into four groups
+    // below (each with its own banner comment):
+    //   1. CORE ACCOUNT — READ     GetUser / GetAllUsers
+    //   2. CORE ACCOUNT — UPDATE   UpdateUser / AdminUpdateUser / ChangeUserRole
+    //   3. ROLE-SPECIFIC PROFILE CRUD
+    //      The Student/Tutor/Admin extra-details tables (Student_Profiles,
+    //      Tutor_Profiles, Admin_Profiles) — one row per user, in whichever
+    //      table matches their role. Read is GetRoleProfile; each Update*Profile
+    //      method is an upsert (creates the row on first save, updates it after).
+    //      Delete isn't separate — a profile row is removed as part of the
+    //      cascading hard-delete in section 5 below, since a profile can't
+    //      outlive the account it belongs to.
+    //   4. ACCOUNT LIFECYCLE       Archive / Unarchive / soft Delete / Restore
+    //   5. HARD DELETE             Irreversible, cascades across all related data
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -258,11 +299,13 @@ namespace TutorConnect.API.Controllers
         private readonly AuditService _audit;
         public UsersController(AppDbContext context, AuditService audit) { _context = context; _audit = audit; }
 
-        // GET: api/Users/5
+        // ── 1. CORE ACCOUNT — READ ──────────────────────────────────────────
+
+        // GET: api/Users/5 — one user's core account fields (not their role-specific profile, see section 3)
         [HttpGet("{id}")]
         public async Task<ActionResult<UserProfileDto>> GetUser(int id)
         {
-            // Ownership check: students may only view their own profile; Admin can view any
+            // Ownership check: students may only view their own profile; Admin/Tutor can view any
             var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             if (callerId != id && !User.IsInRole("Admin") && !User.IsInRole("Tutor"))
                 return Forbid();
@@ -290,27 +333,7 @@ namespace TutorConnect.API.Controllers
             });
         }
 
-        // PUT: api/Users/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(int id, UserProfileUpdateDto request)
-        {
-            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            if (callerId != id && !User.IsInRole("Admin")) return Forbid();
-
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound("User not found.");
-
-            user.FirstName = request.FirstName;
-            user.LastName = request.LastName;
-            user.Phone = request.Phone;
-            user.Address = request.Address;
-            user.Bio = request.Bio;
-
-            await _context.SaveChangesAsync();
-            return Ok("Profile updated successfully.");
-        }
-
-        // GET: api/Users (Admin only - list all users)
+        // GET: api/Users — every user's core account fields (Admin only; powers the Users tab list)
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<UserProfileDto>>> GetAllUsers()
@@ -336,7 +359,29 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // PUT: api/Users/{id}/admin (Admin only - update full profile + role)
+        // ── 2. CORE ACCOUNT — UPDATE ────────────────────────────────────────
+
+        // PUT: api/Users/5 — self-service edit of the basic account fields (name, phone, address, bio)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(int id, UserProfileUpdateDto request)
+        {
+            var callerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (callerId != id && !User.IsInRole("Admin")) return Forbid();
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+
+            user.FirstName = request.FirstName;
+            user.LastName = request.LastName;
+            user.Phone = request.Phone;
+            user.Address = request.Address;
+            user.Bio = request.Bio;
+
+            await _context.SaveChangesAsync();
+            return Ok("Profile updated successfully.");
+        }
+
+        // PUT: api/Users/{id}/admin — Admin editing another user's basic fields AND role in one call
         [HttpPut("{id}/admin")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AdminUpdateUser(int id, AdminUserUpdateDto request)
@@ -358,7 +403,7 @@ namespace TutorConnect.API.Controllers
             return Ok("User updated successfully.");
         }
 
-        // PUT: api/Users/{id}/role (Admin only - change user role)
+        // PUT: api/Users/{id}/role — Admin changing just the role, nothing else (e.g. approving an AW-Tutor)
         [HttpPut("{id}/role")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeUserRole(int id, [FromBody] ChangeRoleDto request)
@@ -375,7 +420,9 @@ namespace TutorConnect.API.Controllers
             return Ok("User role updated successfully.");
         }
 
-        // GET: api/Users/{id}/role-profile
+        // ── 3. ROLE-SPECIFIC PROFILE CRUD (Student_Profiles / Tutor_Profiles / Admin_Profiles) ──
+
+        // GET: api/Users/{id}/role-profile — reads whichever profile table matches this user's current role
         [HttpGet("{id}/role-profile")]
         public async Task<IActionResult> GetRoleProfile(int id)
         {
@@ -389,10 +436,10 @@ namespace TutorConnect.API.Controllers
                 return Ok(await _context.Tutor_Profiles.FirstOrDefaultAsync(p => p.User_ID == id));
             if (role == "Admin")
                 return Ok(await _context.Admin_Profiles.FirstOrDefaultAsync(p => p.User_ID == id));
-            return Ok(null);
+            return Ok(null); // no profile table for this role
         }
 
-        // PUT: api/Users/{id}/student-profile
+        // PUT: api/Users/{id}/student-profile — upsert (creates the row on first save, updates it after)
         [HttpPut("{id}/student-profile")]
         public async Task<IActionResult> UpdateStudentProfile(int id, [FromBody] StudentProfileDto dto)
         {
@@ -415,7 +462,7 @@ namespace TutorConnect.API.Controllers
             return Ok("Student profile updated.");
         }
 
-        // PUT: api/Users/{id}/tutor-profile
+        // PUT: api/Users/{id}/tutor-profile — upsert (creates the row on first save, updates it after)
         [HttpPut("{id}/tutor-profile")]
         public async Task<IActionResult> UpdateTutorProfile(int id, [FromBody] TutorProfileDto dto)
         {
@@ -439,7 +486,7 @@ namespace TutorConnect.API.Controllers
             return Ok("Tutor profile updated.");
         }
 
-        // PUT: api/Users/{id}/admin-profile
+        // PUT: api/Users/{id}/admin-profile — upsert (creates the row on first save, updates it after)
         [HttpPut("{id}/admin-profile")]
         public async Task<IActionResult> UpdateAdminProfile(int id, [FromBody] AdminProfileDto dto)
         {
@@ -457,36 +504,9 @@ namespace TutorConnect.API.Controllers
             return Ok("Admin profile updated.");
         }
 
-        // POST: api/Users/{id}/archive
-        [HttpPost("{id}/archive")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> ArchiveUser(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound("User not found.");
-            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            if (id == currentUserId) return BadRequest("You cannot archive your own account.");
-            user.Is_Archived = true;
-            await _context.SaveChangesAsync();
-            await _audit.LogAsync(currentUserId, "User Archived", $"User_ID: {id}, Email: {user.Email}");
-            return Ok("User archived.");
-        }
-
-        // POST: api/Users/{id}/unarchive
-        [HttpPost("{id}/unarchive")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UnarchiveUser(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound("User not found.");
-            user.Is_Archived = false;
-            await _context.SaveChangesAsync();
-            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _audit.LogAsync(currentUserId, "User Unarchived", $"User_ID: {id}, Email: {user.Email}");
-            return Ok("User restored to active.");
-        }
-
-        // POST: api/Users/{id}/profile-picture
+        // POST: api/Users/{id}/profile-picture — sits with the profile section since it's the user's
+        // avatar, though technically it's a field on the core Users row (Profile_Picture_Url), not a
+        // row in one of the role-specific profile tables above.
         [HttpPost("{id}/profile-picture")]
         [Authorize]
         public async Task<IActionResult> UploadProfilePicture(int id, IFormFile file, [FromServices] CloudinaryService cloudinary)
@@ -513,28 +533,38 @@ namespace TutorConnect.API.Controllers
             return Ok(url);
         }
 
-        // Returns a block reason if this student must not be deleted right now, null if safe to delete.
-        private async Task<string?> StudentDeletionBlockedAsync(int studentId)
+        // ── 4. ACCOUNT LIFECYCLE (archive / soft delete / restore — none of these touch profile rows) ──
+
+        // POST: api/Users/{id}/archive — hides the account from active lists without deleting anything
+        [HttpPost("{id}/archive")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ArchiveUser(int id)
         {
-            var hasSessions = await _context.Student_Modules
-                .AnyAsync(sm => sm.Student_ID == studentId && sm.IsActive &&
-                                (sm.Sessions_Remaining_OneOnOne > 0 || sm.Sessions_Remaining_Group > 0));
-            if (hasSessions)
-                return "This student still has unused sessions. Please wait until all sessions have been used or refund them before deleting.";
-
-            var now = DateTime.UtcNow;
-            var hasPaidThisMonth = await _context.Payments
-                .AnyAsync(p => p.Student_ID == studentId &&
-                               p.Payment_Status == "Paid" &&
-                               p.Payment_Date.Year  == now.Year &&
-                               p.Payment_Date.Month == now.Month);
-            if (hasPaidThisMonth)
-                return $"This student has a payment recorded for {now:MMMM yyyy}. Deletion is blocked until the next calendar month.";
-
-            return null;
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (id == currentUserId) return BadRequest("You cannot archive your own account.");
+            user.Is_Archived = true;
+            await _context.SaveChangesAsync();
+            await _audit.LogAsync(currentUserId, "User Archived", $"User_ID: {id}, Email: {user.Email}");
+            return Ok("User archived.");
         }
 
-        // DELETE: api/Users/{id} — soft delete (moves to Deleted tab, fully restorable)
+        // POST: api/Users/{id}/unarchive — reverses ArchiveUser above
+        [HttpPost("{id}/unarchive")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UnarchiveUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+            user.Is_Archived = false;
+            await _context.SaveChangesAsync();
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _audit.LogAsync(currentUserId, "User Unarchived", $"User_ID: {id}, Email: {user.Email}");
+            return Ok("User restored to active.");
+        }
+
+        // DELETE: api/Users/{id} — soft delete (moves to the Deleted tab, fully restorable via RestoreDeleted below)
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -559,7 +589,7 @@ namespace TutorConnect.API.Controllers
             return Ok("User moved to deleted.");
         }
 
-        // POST: api/Users/{id}/restore-deleted
+        // POST: api/Users/{id}/restore-deleted — reverses the soft DeleteUser above
         [HttpPost("{id}/restore-deleted")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RestoreDeleted(int id)
@@ -573,7 +603,33 @@ namespace TutorConnect.API.Controllers
             return Ok("User restored to active.");
         }
 
-        // DELETE: api/Users/{id}/permanent — irreversible hard delete
+        // ── 5. HARD DELETE (irreversible — this is the one place a role-specific profile row actually gets removed) ──
+
+        // Shared guard used by both DeleteUser (soft, above) and PermanentDeleteUser (hard, below).
+        // Returns a block reason if this student must not be deleted right now, null if safe to delete.
+        private async Task<string?> StudentDeletionBlockedAsync(int studentId)
+        {
+            var hasSessions = await _context.Student_Modules
+                .AnyAsync(sm => sm.Student_ID == studentId && sm.IsActive &&
+                                (sm.Sessions_Remaining_OneOnOne > 0 || sm.Sessions_Remaining_Group > 0));
+            if (hasSessions)
+                return "This student still has unused sessions. Please wait until all sessions have been used or refund them before deleting.";
+
+            var now = DateTime.UtcNow;
+            var hasPaidThisMonth = await _context.Payments
+                .AnyAsync(p => p.Student_ID == studentId &&
+                               p.Payment_Status == "Paid" &&
+                               p.Payment_Date.Year  == now.Year &&
+                               p.Payment_Date.Month == now.Month);
+            if (hasPaidThisMonth)
+                return $"This student has a payment recorded for {now:MMMM yyyy}. Deletion is blocked until the next calendar month.";
+
+            return null;
+        }
+
+        // DELETE: api/Users/{id}/permanent — irreversible hard delete. Wipes the account row itself plus
+        // everything that points at it (role-specific profile row included), branching by role because
+        // each role leaves behind a different footprint of related data to clean up or preserve.
         [HttpDelete("{id}/permanent")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> PermanentDeleteUser(int id)
@@ -642,7 +698,7 @@ namespace TutorConnect.API.Controllers
                     _context.Student_Group_Allocations.RemoveRange(
                         _context.Student_Group_Allocations.Where(g => g.Student_ID == id));
 
-                    // Profile
+                    // Profile (Student_Profiles row — this is the only place it's ever removed)
                     var sp = await _context.Student_Profiles.FirstOrDefaultAsync(p => p.User_ID == id);
                     if (sp != null) _context.Student_Profiles.Remove(sp);
                 }
@@ -679,7 +735,7 @@ namespace TutorConnect.API.Controllers
                     _context.Announcements.RemoveRange(
                         _context.Announcements.Where(a => a.Tutor_ID == id));
 
-                    // Profile
+                    // Profile (Tutor_Profiles row — this is the only place it's ever removed)
                     var tp = await _context.Tutor_Profiles.FirstOrDefaultAsync(p => p.User_ID == id);
                     if (tp != null) _context.Tutor_Profiles.Remove(tp);
                 }
@@ -693,6 +749,7 @@ namespace TutorConnect.API.Controllers
                     _context.Announcements.RemoveRange(
                         _context.Announcements.Where(a => a.Admin_ID == id));
 
+                    // Profile (Admin_Profiles row — this is the only place it's ever removed)
                     var ap = await _context.Admin_Profiles.FirstOrDefaultAsync(p => p.User_ID == id);
                     if (ap != null) _context.Admin_Profiles.Remove(ap);
                 }
@@ -711,6 +768,13 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // MODULES CONTROLLER
+    //
+    // Module CRUD (list/create/update/delete), plus a bulk-import sub-flow for
+    // adding many modules at once from an Excel file:
+    //   1. MODULE CRUD          GetModules / CreateModule / UpdateModule / DeleteModule
+    //                            (GetPriceCapsAsync is a shared helper the writes below use)
+    //   2. BULK IMPORT           DownloadBulkTemplate (blank workbook) →
+    //                            BulkCreateModules (parses a filled-in one, row by row)
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -727,7 +791,9 @@ namespace TutorConnect.API.Controllers
             _audit = audit;
         }
 
-        // GET: api/Modules (Everyone can see available modules)
+        // ── 1. MODULE CRUD ──────────────────────────────────────────────────
+
+        // GET: api/Modules — everyone can browse; pass ?studentId= to instead get just that student's enrolled modules
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ModuleReturnDto>>> GetModules([FromQuery] int? studentId = null)
         {
@@ -766,7 +832,8 @@ namespace TutorConnect.API.Controllers
             return Ok(modules);
         }
 
-        // Reads the admin-configurable price ceilings from Business_Rules (falls back to 10000 if not set yet).
+        // Shared helper: reads the admin-configurable price ceilings from Business_Rules (falls back to
+        // 10000 if not set yet). Used by CreateModule, UpdateModule, and both bulk-import methods below.
         private async Task<(decimal MaxOneOnOne, decimal MaxGroup)> GetPriceCapsAsync()
         {
             var rules = await _context.Business_Rules
@@ -866,7 +933,7 @@ namespace TutorConnect.API.Controllers
             return Ok("Module deleted successfully.");
         }
 
-        // ─── BULK IMPORT ───────────────────────────────────────────────────────
+        // ── 2. BULK IMPORT ──────────────────────────────────────────────────
 
         private const string BulkExampleCode = "EXAMPLE-CODE-DO-NOT-USE";
 
@@ -1054,6 +1121,7 @@ namespace TutorConnect.API.Controllers
             }
         }
 
+        // Parses one price cell from the bulk-import sheet, producing a field-level error message on failure
         private static bool TryReadPrice(string raw, out decimal value, out string? error)
         {
             value = 0m; error = null;
@@ -1069,6 +1137,14 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // MODULE RESOURCES CONTROLLER
+    //
+    // Files/links a tutor attaches to a module (PDFs, docs, videos, links),
+    // organized into folders:
+    //   1. READ         GetResources / GetResourcesByModule / PreviewResource
+    //   2. UPLOAD        UploadFile (raw file → Cloudinary, returns a URL to save via CreateResource)
+    //   3. CREATE/UPDATE CreateResource / UpdateResource
+    //   4. VISIBILITY    ToggleVisibility (one file) / SetFolderVisibility (whole folder at once)
+    //   5. DELETE        DeleteResource
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1085,6 +1161,9 @@ namespace TutorConnect.API.Controllers
             _cloudinary = cloudinary;
         }
 
+        // ── 1. READ ──────────────────────────────────────────────────────────
+
+        // GET: api/ModuleResources — every resource across every module (unfiltered)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Module_Resource>>> GetResources()
             => Ok(await _context.Module_Resources.ToListAsync());
@@ -1138,7 +1217,10 @@ namespace TutorConnect.API.Controllers
             return File(bytes, contentType);
         }
 
-        // POST: api/ModuleResources/upload — file upload (PDF / Doc / Video)
+        // ── 2. UPLOAD ────────────────────────────────────────────────────────
+
+        // POST: api/ModuleResources/upload — file upload (PDF / Doc / Video); returns the storage URL,
+        // which the frontend then saves as a resource row via CreateResource below
         [HttpPost("upload")]
         [Authorize(Roles = "Tutor,Admin")]
         [DisableRequestSizeLimit]
@@ -1167,7 +1249,10 @@ namespace TutorConnect.API.Controllers
             }
         }
 
-        // POST: api/ModuleResources
+        // ── 3. CREATE / UPDATE ───────────────────────────────────────────────
+
+        // POST: api/ModuleResources — saves a resource row; new files start hidden (Is_Visible=false)
+        // until the tutor explicitly reveals them, and inherit their folder's current visibility
         [HttpPost]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<ActionResult> CreateResource(ResourceCreateDto request)
@@ -1197,7 +1282,7 @@ namespace TutorConnect.API.Controllers
             return Ok("Resource added successfully.");
         }
 
-        // PUT: api/ModuleResources/{id}
+        // PUT: api/ModuleResources/{id} — edits title/type/URL/folder (does not touch visibility, see below)
         [HttpPut("{id}")]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<IActionResult> UpdateResource(int id, ResourceCreateDto request)
@@ -1211,6 +1296,8 @@ namespace TutorConnect.API.Controllers
             await _context.SaveChangesAsync();
             return Ok("Resource updated.");
         }
+
+        // ── 4. VISIBILITY ────────────────────────────────────────────────────
 
         // PUT: api/ModuleResources/{id}/visibility  — toggles a single file's Is_Visible
         [HttpPut("{id}/visibility")]
@@ -1246,6 +1333,8 @@ namespace TutorConnect.API.Controllers
             return Ok("Folder visibility updated.");
         }
 
+        // ── 5. DELETE ────────────────────────────────────────────────────────
+
         // DELETE: api/ModuleResources/{id}
         [HttpDelete("{id}")]
         [Authorize(Roles = "Tutor,Admin")]
@@ -1261,6 +1350,10 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // LOG HOURS CONTROLLER
+    //
+    // Tutors log the hours they've worked; admins review and approve/reject them:
+    //   1. LOG HOURS CRUD        GetLoggedHours / GetTutorHours / LogTime / UpdateLogHours / DeleteLogHours
+    //   2. ADMIN APPROVAL        GetPendingHours → ApproveLogHours / RejectLogHours
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1277,7 +1370,9 @@ namespace TutorConnect.API.Controllers
             _audit = audit;
         }
 
-        // GET: api/LogHours — all records (admin view)
+        // ── 1. LOG HOURS CRUD ────────────────────────────────────────────────
+
+        // GET: api/LogHours — all records across all tutors (admin view)
         [HttpGet]
         public async Task<ActionResult> GetLoggedHours()
         {
@@ -1370,6 +1465,8 @@ namespace TutorConnect.API.Controllers
             return Ok("Log entry deleted successfully.");
         }
 
+        // ── 2. ADMIN APPROVAL WORKFLOW ──────────────────────────────────────
+
         // GET: api/LogHours/pending — all unapproved entries with tutor name (admin)
         [HttpGet("pending")]
         [Authorize(Roles = "Admin")]
@@ -1431,6 +1528,13 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // TESTIMONIALS CONTROLLER
+    //
+    // Students submit testimonials; every new/edited one starts unapproved and
+    // only shows on the public site once an admin approves it:
+    //   1. READ      Categories / Approved (public) / Pending (admin) / by-student
+    //   2. CREATE     CreateTestimonial (student submission — always starts unapproved)
+    //   3. UPDATE     ApproveTestimonial (admin) / UpdateTestimonial (student edit — resets approval)
+    //   4. DELETE     DeleteTestimonial
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/[controller]")]
@@ -1441,13 +1545,15 @@ namespace TutorConnect.API.Controllers
         private readonly AppDbContext _context;
         public TestimonialsController(AppDbContext context) { _context = context; }
 
-        // GET: Categories - open to all (needed by submit form and public viewer)
+        // ── 1. READ ──────────────────────────────────────────────────────────
+
+        // GET: api/Testimonials/categories — open to all (needed by submit form and public viewer)
         [HttpGet("categories")]
         [AllowAnonymous]
         public async Task<ActionResult> GetCategories()
             => Ok(await _context.Testimonial_Categories.ToListAsync());
 
-        // GET: For the public website (Only shows Approved ones)
+        // GET: api/Testimonials/approved — for the public website (only shows Approved ones)
         [HttpGet("approved")]
         [AllowAnonymous]
         public async Task<ActionResult> GetApprovedTestimonials()
@@ -1455,14 +1561,21 @@ namespace TutorConnect.API.Controllers
             return Ok(await _context.Testimonials.Where(t => t.IsApproved == true).ToListAsync());
         }
 
-        // GET: For the Admin Dashboard (Shows ones waiting for review)
+        // GET: api/Testimonials/pending — for the Admin Dashboard (shows ones waiting for review)
         [HttpGet("pending")]
         public async Task<ActionResult> GetPendingTestimonials()
         {
             return Ok(await _context.Testimonials.Where(t => t.IsApproved == false).ToListAsync());
         }
 
-        // POST: A student submits a new testimonial
+        // GET: api/Testimonials/student/{studentId} — one student's own testimonials, any approval state
+        [HttpGet("student/{studentId}")]
+        public async Task<ActionResult> GetStudentTestimonials(int studentId)
+            => Ok(await _context.Testimonials.Where(t => t.Student_ID == studentId).ToListAsync());
+
+        // ── 2. CREATE ────────────────────────────────────────────────────────
+
+        // POST: api/Testimonials — a student submits a new testimonial
         [HttpPost]
         public async Task<ActionResult> CreateTestimonial(TestimonialCreateDto request)
         {
@@ -1478,12 +1591,9 @@ namespace TutorConnect.API.Controllers
             return Ok("Testimonial submitted for admin approval.");
         }
 
-        // GET: All testimonials for a student
-        [HttpGet("student/{studentId}")]
-        public async Task<ActionResult> GetStudentTestimonials(int studentId)
-            => Ok(await _context.Testimonials.Where(t => t.Student_ID == studentId).ToListAsync());
+        // ── 3. UPDATE ────────────────────────────────────────────────────────
 
-        // PUT: An Admin clicks "Approve"
+        // PUT: api/Testimonials/{id}/approve — an Admin clicks "Approve"
         [HttpPut("{id}/approve")]
         public async Task<IActionResult> ApproveTestimonial(int id)
         {
@@ -1495,7 +1605,8 @@ namespace TutorConnect.API.Controllers
             return Ok("Testimonial approved for public display.");
         }
 
-        // PUT: Student updates their testimonial (2.11 Update Testimonial)
+        // PUT: api/Testimonials/{id} — student edits their own testimonial; editing un-approves it again
+        // (2.11 Update Testimonial)
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTestimonial(int id, TestimonialUpdateDto request)
         {
@@ -1509,7 +1620,9 @@ namespace TutorConnect.API.Controllers
             return Ok("Testimonial updated. Awaiting admin approval.");
         }
 
-        // DELETE: Student deletes their testimonial (2.12 Delete Testimonial)
+        // ── 4. DELETE ────────────────────────────────────────────────────────
+
+        // DELETE: api/Testimonials/{id} — student deletes their own testimonial (2.12 Delete Testimonial)
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTestimonial(int id)
         {
@@ -1524,7 +1637,11 @@ namespace TutorConnect.API.Controllers
 
     // ─────────────────────────────────────────────────────────────────────────
     // ADMIN CONTENT ITERATION 4 CONTROLLER
-    // FAQs (UC 4.12-4.15) and Help Pages (UC 4.24-4.27)
+    //
+    // Two independent, admin-managed content types, each plain CRUD
+    // (Get → Create → Update → Delete) and each publicly readable via [AllowAnonymous] on its GET:
+    //   1. FAQs         (UC 4.12-4.15)
+    //   2. HELP PAGES   (UC 4.24-4.27)
     // ─────────────────────────────────────────────────────────────────────────
 
     [Route("api/AdminContent")]
@@ -1538,8 +1655,9 @@ namespace TutorConnect.API.Controllers
             _context = context;
         }
 
-        // ─── FAQs ──────────────────────────────────────────────────────────────
+        // ── 1. FAQs ──────────────────────────────────────────────────────────
 
+        // GET: api/AdminContent/faqs — public (frontend FAQ page + admin management screen both use this)
         [HttpGet("faqs")]
         [AllowAnonymous]
         public async Task<ActionResult> GetFAQs()
@@ -1592,8 +1710,9 @@ namespace TutorConnect.API.Controllers
             return Ok("FAQ deleted.");
         }
 
-        // ─── HELP PAGES ────────────────────────────────────────────────────────
+        // ── 2. HELP PAGES ────────────────────────────────────────────────────
 
+        // GET: api/AdminContent/help-pages — public (Help section on the frontend + admin management screen)
         [HttpGet("help-pages")]
         [AllowAnonymous]
         public async Task<ActionResult> GetHelpPages()

@@ -2,6 +2,10 @@
 
 namespace TutorConnect.API.DTOs
 {
+    // DTOs for ModuleResourcesController (resource + folder visibility) and
+    // LogHoursController (create/update a logged-hours entry).
+
+    // Request body for ModuleResourcesController.CreateResource/UpdateResource
     public class ResourceCreateDto
     {
         [Required]
@@ -24,11 +28,13 @@ namespace TutorConnect.API.DTOs
         public string Folder_Name { get; set; } = string.Empty;
     }
 
+    // Request body for ModuleResourcesController.ToggleVisibility (one file)
     public class ResourceVisibilityDto
     {
         public bool Is_Visible { get; set; }
     }
 
+    // Request body for ModuleResourcesController.SetFolderVisibility (whole folder at once)
     public class FolderVisibilityDto
     {
         [Required]
@@ -42,6 +48,7 @@ namespace TutorConnect.API.DTOs
         public bool Is_Visible { get; set; }
     }
 
+    // Request body for LogHoursController.LogTime (create) and UpdateLogHours — same shape for both
     public class LogHoursCreateDto
     {
         // Swagger will automatically format these nicely because of the DateOnly/TimeOnly types!

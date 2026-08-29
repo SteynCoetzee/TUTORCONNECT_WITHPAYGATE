@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TutorConnect.API.Models
 {
+    // See AssignmentsController for CRUD; a student's submitted work is Assignment_Submission below
     public class Assignment
     {
         [Key]
@@ -18,6 +19,7 @@ namespace TutorConnect.API.Models
         public Module? Module { get; set; }
     }
 
+    // One student's submitted file for one Assignment — one row per student per assignment
     public class Assignment_Submission
     {
         [Key]
@@ -64,6 +66,7 @@ namespace TutorConnect.API.Models
         }
     }
 
+    // See QuizzesController for CRUD; questions live in Quiz_Question below, attempts in Student_Quiz
     public class Quiz
     {
         [Key]
@@ -76,6 +79,7 @@ namespace TutorConnect.API.Models
         public Module? Module { get; set; }
     }
 
+    // One multiple-choice question belonging to a Quiz; its options are Quiz_Question_Option below
     public class Quiz_Question
     {
         [Key]
@@ -85,6 +89,7 @@ namespace TutorConnect.API.Models
         public int Question_Order { get; set; } = 0;
     }
 
+    // One answer choice for a Quiz_Question — Is_Correct marks the right one(s)
     public class Quiz_Question_Option
     {
         [Key]
@@ -94,6 +99,7 @@ namespace TutorConnect.API.Models
         public bool Is_Correct { get; set; } = false;
     }
 
+    // Which option a student picked for one question, on one attempt (Student_Quiz below)
     public class Student_Quiz_Answer
     {
         [Key]
@@ -103,7 +109,7 @@ namespace TutorConnect.API.Models
         public int Option_ID { get; set; }
     }
 
-    // 1. Quizzes
+    // One student's attempt at a Quiz — End_Time null means still in progress (see QuizzesController.StartQuiz/SubmitQuiz)
     public class Student_Quiz
     {
         [Key]
@@ -117,6 +123,7 @@ namespace TutorConnect.API.Models
         public DateTime? End_Time { get; set; }
     }
 
+    // A site-wide (Module_Code blank) or module-specific announcement — see AnnouncementsController
     public class Announcement
     {
         [Key]
@@ -133,6 +140,7 @@ namespace TutorConnect.API.Models
         public string Module_Code { get; set; } = string.Empty;
     }
 
+    // A student's overall rating of a tutor — see ReviewsController (distinct from Session_Review below)
     public class Tutor_Review
     {
         [Key]
@@ -142,6 +150,7 @@ namespace TutorConnect.API.Models
         public int Tutor_ID { get; set; }
     }
 
+    // A student's rating of one specific booked session (Session_ID = a Booking_Slot_ID) — see ReviewsController
     public class Session_Review
     {
         [Key]
@@ -152,7 +161,7 @@ namespace TutorConnect.API.Models
         public int Session_ID { get; set; }
     }
 
-    // 3. Attendance
+    // Lookup table (e.g. Present/Absent/Late) referenced by Session_Attendance below — see AttendanceController
     public class Attendance_Status
     {
         [Key]
@@ -160,6 +169,7 @@ namespace TutorConnect.API.Models
         public string Status_Name { get; set; } = string.Empty;
     }
 
+    // One student's attendance record for one session — see AttendanceController
     public class Session_Attendance
     {
         [Key]
@@ -174,7 +184,7 @@ namespace TutorConnect.API.Models
         public Attendance_Status? Attendance_Status { get; set; }
     }
 
-    // 2. Recorded Sessions
+    // Unused — has a DbSet and a DB table, but no controller reads or writes it anywhere in the API.
     public class Recorded_Session
     {
         [Key]
@@ -187,7 +197,7 @@ namespace TutorConnect.API.Models
         public int Session_ID { get; set; }
     }
 
-    // 4. Booking Slots
+    // A tutor-created time window students can book into — see BookingSlotsController
     public class Booking_Slot
     {
         [Key]
@@ -203,6 +213,7 @@ namespace TutorConnect.API.Models
         public string? Module_Code { get; set; }
     }
 
+    // A student claiming one Booking_Slot — see BookingsController
     public class Booking
     {
         [Key]
@@ -217,6 +228,8 @@ namespace TutorConnect.API.Models
         public Booking_Slot? Booking_Slot { get; set; }
     }
 
+    // Shared by two separate payment flows: manual EFT/Ozow (PaymentsController) and the automated
+    // PayFast gateway (PayFastController) — Enrollment_Items_Json below is PayFast-specific.
     public class Payment
     {
         [Key]
@@ -243,6 +256,8 @@ namespace TutorConnect.API.Models
         public Module? Module { get; set; }
     }
 
+    // A student's access to one module, plus their remaining 1-on-1/group session credits —
+    // see EnrollmentController. "Unenrolling" flips IsActive off rather than deleting the row.
     public class Student_Module
     {
         [Key]
@@ -264,6 +279,7 @@ namespace TutorConnect.API.Models
         public int Sessions_Remaining_OneOnOne { get; set; } = 5;
     }
 
+    // A log entry recording why/when a student unenrolled — written by EnrollmentController.UnenrollFromModule
     public class Student_Unenrollment
     {
         [Key]
@@ -281,6 +297,8 @@ namespace TutorConnect.API.Models
         public string? Unenroll_Reason { get; set; }
     }
 
+    // Which tutor teaches which module — see TutorModuleController. Same soft-delete pattern as
+    // Student_Module above: "unassign" flips IsActive off rather than deleting the row.
     public class Tutor_Module
     {
         [Key]
@@ -298,6 +316,7 @@ namespace TutorConnect.API.Models
         public bool IsActive { get; set; } = true;
     }
 
+    // A video link for the Help page — see AdminContentIteration5Controller (help-resources endpoints)
     public class Help_Resource
     {
         [Key]
@@ -306,6 +325,7 @@ namespace TutorConnect.API.Models
         public string Video_URL { get; set; } = string.Empty;
     }
 
+    // A grouping for FAQ.FAQ_Category_ID — see AdminContentIteration5Controller (faq-categories endpoints)
     public class FAQ_Category
     {
         [Key]
@@ -313,6 +333,7 @@ namespace TutorConnect.API.Models
         public string Category_Name { get; set; } = string.Empty;
     }
 
+    // A grouping for Testimonial.Testimonial_Category_ID — see AdminContentIteration5Controller (testimonial-categories endpoints)
     public class Testimonial_Category
     {
         [Key]
@@ -320,6 +341,7 @@ namespace TutorConnect.API.Models
         public string Test_Category_Name { get; set; } = string.Empty;
     }
 
+    // An image/video shown on the public site — see AdminContentIteration5Controller (media endpoints)
     public class Media_Content
     {
         [Key]
@@ -328,7 +350,9 @@ namespace TutorConnect.API.Models
         public string Media_Address { get; set; } = string.Empty; // The URL/Path
     }
 
-    // 5 & 6. Student Groups (With the required Many-to-Many Bridging Table)
+    // Student Groups, with the required many-to-many bridging table (Student_Group_Allocation).
+    // Largely unused — no controller ever creates a Student_Group or allocates a student into one;
+    // the only touch point anywhere is PermanentDeleteUser cleaning up allocation rows on delete.
     public class Student_Group
     {
         [Key]
