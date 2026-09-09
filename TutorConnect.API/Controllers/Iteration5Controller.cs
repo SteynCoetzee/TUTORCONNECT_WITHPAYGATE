@@ -235,8 +235,9 @@ namespace TutorConnect.API.Controllers
                     File_Type       = ext.TrimStart('.'),
                     File_Size       = file.Length,
                     Submission_Date = DateTime.UtcNow,
-                    Feedback        = "",
-                    Grade           = 0
+                    Feedback        = null,
+                    Grade           = null // ungraded — must stay null, not 0, so the frontend can tell
+                                            // "never graded" apart from an actual grade of 0%
                 });
             }
 
