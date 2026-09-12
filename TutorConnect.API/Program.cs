@@ -107,10 +107,15 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// ── Seed roles + hardcoded admin account ─────────────────────────────────────
+// ── Auto-migrate + seed roles/hardcoded admin ─────────────────────────────────
+// Applies any pending EF Core migrations on startup, so a fresh clone just needs
+// a reachable SQL Server (per appsettings.json's connection string) — no manual
+// `dotnet ef database update` step. Safe to run every time: Migrate() is a no-op
+// once the database is already up to date.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
 
     // Seed User_Roles if the table is empty (fresh database)
     if (!db.User_Roles.Any())
