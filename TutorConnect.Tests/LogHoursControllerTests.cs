@@ -38,7 +38,7 @@ namespace TutorConnect.Tests
 
             var result = await controller.LogTime(new LogHoursCreateDto
             {
-                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.Today),
+                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.UtcNow),
                 Log_Hours_Time   = new TimeOnly(9, 0),
                 Log_Hours_Amount = hours,
                 Tutor_ID         = 10
@@ -58,7 +58,7 @@ namespace TutorConnect.Tests
 
             var result = await controller.LogTime(new LogHoursCreateDto
             {
-                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.Today),
+                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.UtcNow),
                 Log_Hours_Time   = new TimeOnly(9, 0),
                 Log_Hours_Amount = hours,
                 Tutor_ID         = 10
@@ -74,7 +74,7 @@ namespace TutorConnect.Tests
 
             await controller.LogTime(new LogHoursCreateDto
             {
-                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.Today),
+                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.UtcNow),
                 Log_Hours_Time   = new TimeOnly(9, 0),
                 Log_Hours_Amount = 2.5m,
                 Tutor_ID         = 10
@@ -94,7 +94,7 @@ namespace TutorConnect.Tests
             ctx.Log_Hours.Add(new Log_Hours
             {
                 Log_Hours_ID     = 1,
-                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.Today),
+                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.UtcNow),
                 Log_Hours_Time   = new TimeOnly(9, 0),
                 Log_Hours_Amount = 3m,
                 Tutor_ID         = 10
@@ -103,7 +103,7 @@ namespace TutorConnect.Tests
 
             var result = await controller.UpdateLogHours(1, new LogHoursCreateDto
             {
-                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.Today),
+                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.UtcNow),
                 Log_Hours_Time   = new TimeOnly(9, 0),
                 Log_Hours_Amount = 0m,
                 Tutor_ID         = 10
@@ -122,7 +122,7 @@ namespace TutorConnect.Tests
             ctx.Log_Hours.Add(new Log_Hours
             {
                 Log_Hours_ID     = 5,
-                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.Today),
+                Log_Hours_Date   = DateOnly.FromDateTime(DateTime.UtcNow),
                 Log_Hours_Time   = new TimeOnly(9, 0),
                 Log_Hours_Amount = 2m,
                 Tutor_ID         = 10
