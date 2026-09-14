@@ -9,6 +9,17 @@ using TutorConnect.API.Services;
 
 namespace TutorConnect.API.Controllers
 {
+    // South Africa does not observe daylight saving time, so SAST is always a fixed
+    // UTC+2 offset — no TimeZoneInfo lookup needed (those vary by OS/ID naming and
+    // would depend on however a given machine's clock/timezone happens to be set,
+    // which is exactly what caused the LogHours "date in the future" bug earlier).
+    // Used anywhere a quiz/assignment due-date comparison or completion timestamp
+    // needs to mean "now, in South Africa" regardless of the server's own clock.
+    internal static class SastClock
+    {
+        public static DateTime Now => DateTime.UtcNow.AddHours(2);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // ASSIGNMENTS CONTROLLER
     //
@@ -203,6 +214,10 @@ namespace TutorConnect.API.Controllers
             var assignment = await _context.Assignments.FindAsync(id);
             if (assignment == null) return NotFound("Assignment not found.");
 
+            // Late submissions are blocked — due by end of day (SAST) on Assignment_Date
+            if (SastClock.Now.Date > assignment.Assignment_Date.Date)
+                return BadRequest("This assignment's due date has passed. Late submissions are not accepted.");
+
             // Check for existing submission (one per student per assignment)
             var existing = await _context.Assignment_Submissions
                 .FirstOrDefaultAsync(s => s.Assignment_ID == id && s.Student_ID == studentId);
@@ -223,7 +238,7 @@ namespace TutorConnect.API.Controllers
                 existing.File_Path = fileUrl;
                 existing.File_Type = ext.TrimStart('.');
                 existing.File_Size = file.Length;
-                existing.Submission_Date = DateTime.UtcNow;
+                existing.Submission_Date = SastClock.Now;
             }
             else
             {
@@ -234,7 +249,7 @@ namespace TutorConnect.API.Controllers
                     File_Path       = fileUrl,
                     File_Type       = ext.TrimStart('.'),
                     File_Size       = file.Length,
-                    Submission_Date = DateTime.UtcNow,
+                    Submission_Date = SastClock.Now,
                     Feedback        = null,
                     Grade           = null // ungraded — must stay null, not 0, so the frontend can tell
                                             // "never graded" apart from an actual grade of 0%
@@ -720,6 +735,13 @@ namespace TutorConnect.API.Controllers
         [HttpPost("{id}/start")]
         public async Task<ActionResult> StartQuiz(int id, [FromBody] int studentId)
         {
+            var quiz = await _context.Quizzes.FindAsync(id);
+            if (quiz == null) return NotFound("Quiz not found.");
+
+            // Late attempts are blocked — due by end of day (SAST) on Quiz_Date
+            if (SastClock.Now.Date > quiz.Quiz_Date.Date)
+                return BadRequest("This quiz's due date has passed. It can no longer be started.");
+
             // Return existing active attempt if any
             var active = await _context.Student_Quizzes
                 .FirstOrDefaultAsync(sq => sq.Quiz_ID == id && sq.Student_ID == studentId && sq.End_Time == null);
@@ -733,7 +755,7 @@ namespace TutorConnect.API.Controllers
 
             var attempt = new Student_Quiz {
                 Quiz_ID = id, Student_ID = studentId,
-                Quiz_Score = 0, Start_Time = DateTime.UtcNow
+                Quiz_Score = 0, Start_Time = SastClock.Now
             };
             _context.Student_Quizzes.Add(attempt);
             await _context.SaveChangesAsync();
@@ -744,6 +766,14 @@ namespace TutorConnect.API.Controllers
         [HttpPost("{id}/submit")]
         public async Task<ActionResult> SubmitQuiz(int id, [FromBody] QuizSubmitDto request)
         {
+            var quiz = await _context.Quizzes.FindAsync(id);
+            if (quiz == null) return NotFound("Quiz not found.");
+
+            // Late completions are blocked too, not just late starts — an attempt started
+            // before the due date but finished after it still can't be submitted.
+            if (SastClock.Now.Date > quiz.Quiz_Date.Date)
+                return BadRequest("This quiz's due date has passed. It can no longer be completed.");
+
             var attempt = await _context.Student_Quizzes
                 .FirstOrDefaultAsync(sq => sq.Quiz_ID == id && sq.Student_ID == request.Student_ID && sq.End_Time == null);
             if (attempt == null) return BadRequest("No active quiz attempt. Start the quiz first.");
@@ -767,13 +797,13 @@ namespace TutorConnect.API.Controllers
 
             decimal score = questions.Count > 0 ? Math.Round((decimal)correct / questions.Count * 100, 1) : 0;
             attempt.Quiz_Score = score;
-            attempt.End_Time = DateTime.UtcNow;
-            attempt.Submission_Date = DateTime.UtcNow;
+            attempt.End_Time = SastClock.Now;
+            attempt.Submission_Date = SastClock.Now;
 
             _context.Notifications.Add(new Notification {
                 User_ID = request.Student_ID,
-                Message = $"Quiz submitted: {(await _context.Quizzes.FindAsync(id))?.Quiz_Name}. Score: {score}%",
-                Date_Sent = DateTime.UtcNow, Is_Read = false
+                Message = $"Quiz submitted: {quiz.Quiz_Name}. Score: {score}%",
+                Date_Sent = SastClock.Now, Is_Read = false
             });
 
             await _context.SaveChangesAsync();
