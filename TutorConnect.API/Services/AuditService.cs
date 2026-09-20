@@ -13,8 +13,8 @@ namespace TutorConnect.API.Services
         {
             _context.Audit_Logs.Add(new Audit_Log
             {
-                Audit_Date       = DateOnly.FromDateTime(DateTime.UtcNow),
-                Audit_Time       = TimeOnly.FromDateTime(DateTime.UtcNow),
+                Audit_Date       = DateOnly.FromDateTime(SastClock.Now),
+                Audit_Time       = TimeOnly.FromDateTime(SastClock.Now),
                 User_ID          = userId,
                 Transaction_Type = transactionType,
                 Critical_Data    = criticalData
