@@ -761,7 +761,10 @@ namespace TutorConnect.API.Controllers
             }
             catch (DbUpdateException ex)
             {
-                return Conflict($"Permanent delete failed: {ex.InnerException?.Message ?? ex.Message}");
+                // Log the real (often SQL FK-constraint) exception server-side only — a raw DB
+                // error is not something a user can act on, so the response stays generic.
+                Console.WriteLine($"[TutorConnect] Permanent delete failed for User_ID {id}: {ex.InnerException?.Message ?? ex.Message}");
+                return Conflict("This user can't be permanently deleted because they still have related records (e.g. bookings, submissions, or logs) elsewhere in the system.");
             }
         }
     }
@@ -1104,7 +1107,10 @@ namespace TutorConnect.API.Controllers
                     try { await _context.SaveChangesAsync(); }
                     catch (DbUpdateException ex)
                     {
-                        return Conflict($"Bulk import failed while saving: {ex.InnerException?.Message ?? ex.Message}. No modules from this file were created — please retry.");
+                        // Log the real DB exception server-side only — a raw SQL error isn't
+                        // something the person uploading the sheet can act on.
+                        Console.WriteLine($"[TutorConnect] Bulk module import failed while saving: {ex.InnerException?.Message ?? ex.Message}");
+                        return Conflict("Bulk import failed while saving to the database. No modules from this file were created — please check the file for invalid data and try again.");
                     }
                 }
 

@@ -176,7 +176,7 @@
                     <div class="form-group">
                       <label>Date</label>
                       <input type="date" class="form-control" [class.input-error]="formErrors['date']"
-                             [(ngModel)]="formDate" (ngModelChange)="validateDate($event)" />
+                             [(ngModel)]="formDate" [max]="todayISO" (ngModelChange)="validateDate($event)" />
                       @if (formErrors['date']) { <span class="field-error">{{ formErrors['date'] }}</span> }
                     </div>
                     <div class="form-group">

@@ -62,6 +62,33 @@ builder.Services.AddControllers(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
+
+// Most DTO fields have a custom, human-written [Required]/[StringLength]/etc. ErrorMessage
+// (e.g. "Assignment name is required."). Wherever one doesn't, ASP.NET Core's built-in
+// [ApiController] model validation falls back to a generic message built from the raw C#
+// property name, e.g. "The Module_Code field is required." — readable to a developer, not
+// to a user. This rewrites just the underscores in those messages ("Module_Code" ->
+// "Module Code") before the response is built, so every validation error across the whole
+// API reads like an English sentence without having to hand-annotate every single attribute.
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    var defaultFactory = options.InvalidModelStateResponseFactory;
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        foreach (var entry in context.ModelState.Values)
+        {
+            if (entry.Errors.Count == 0) continue;
+            var rewritten = entry.Errors
+                .Select(e => e.Exception != null
+                    ? new Microsoft.AspNetCore.Mvc.ModelBinding.ModelError(e.Exception, e.ErrorMessage.Replace('_', ' '))
+                    : new Microsoft.AspNetCore.Mvc.ModelBinding.ModelError(e.ErrorMessage.Replace('_', ' ')))
+                .ToList();
+            entry.Errors.Clear();
+            foreach (var e in rewritten) entry.Errors.Add(e);
+        }
+        return defaultFactory(context);
+    };
+});
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<GoogleCalendarService>();
 builder.Services.AddSingleton<CloudinaryService>();
