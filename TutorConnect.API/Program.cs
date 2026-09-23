@@ -129,7 +129,23 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAngular");
 app.UseDefaultFiles();  // serves wwwroot/index.html at "/" - the built Angular app, once deployed there
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // Angular's build gives every JS/CSS bundle a content hash in its filename
+    // (main-X6M3N5S3.js), so those are safe to cache forever - a new deploy produces
+    // new filenames, never reuses old ones. index.html itself has no hash and is the
+    // one file that must always be revalidated, or a browser can go on serving a
+    // stale cached copy indefinitely with no Cache-Control header telling it not to -
+    // exactly what happened here (Azure's default "waiting for content" placeholder,
+    // briefly served during a deploy, got stuck in cache and outlived the deploy).
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.File.Name;
+        ctx.Context.Response.Headers.CacheControl = path.Equals("index.html", StringComparison.OrdinalIgnoreCase)
+            ? "no-cache, no-store, must-revalidate"
+            : "public, max-age=31536000, immutable";
+    }
+});
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
