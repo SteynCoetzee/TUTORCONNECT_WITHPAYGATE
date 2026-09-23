@@ -3,6 +3,11 @@ echo Starting ngrok tunnel for PayFast...
 echo Static domain: https://underpaid-saint-curled.ngrok-free.dev
 echo Forwarding to: http://localhost:5149
 echo.
+echo NOTE: The backend now does this automatically on startup (see Program.cs -
+echo EnsurePayFastTunnelAsync) - you shouldn't need to run this manually anymore.
+echo It's kept as a fallback for whenever the auto-start can't find/install ngrok
+echo itself, and for manually restarting the tunnel without restarting the backend.
+echo.
 echo NOTE: This tunnel only receives real PayFast payment callbacks if it is run
 echo from the machine whose ngrok account owns this static domain. Anyone else
 echo running this script needs their own ngrok account + domain, and PayFast

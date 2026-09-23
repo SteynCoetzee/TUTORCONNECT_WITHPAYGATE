@@ -2,6 +2,7 @@ using BCrypt.Net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Serialization;
 using TutorConnect.API.Data;
@@ -66,7 +67,7 @@ builder.Services.AddControllers(options =>
 // Most DTO fields have a custom, human-written [Required]/[StringLength]/etc. ErrorMessage
 // (e.g. "Assignment name is required."). Wherever one doesn't, ASP.NET Core's built-in
 // [ApiController] model validation falls back to a generic message built from the raw C#
-// property name, e.g. "The Module_Code field is required." — readable to a developer, not
+// property name, e.g. "The Module_Code field is required." - readable to a developer, not
 // to a user. This rewrites just the underscores in those messages ("Module_Code" ->
 // "Module Code") before the response is built, so every validation error across the whole
 // API reads like an English sentence without having to hand-annotate every single attribute.
@@ -98,7 +99,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Global exception handler — catches any unhandled exception and returns a
+// Global exception handler - catches any unhandled exception and returns a
 // clean JSON 500 instead of leaking stack traces or raw exception messages.
 app.UseExceptionHandler(errorApp =>
 {
@@ -136,7 +137,7 @@ app.MapControllers();
 
 // ── Auto-migrate + seed roles/hardcoded admin ─────────────────────────────────
 // Applies any pending EF Core migrations on startup, so a fresh clone just needs
-// a reachable SQL Server (per appsettings.json's connection string) — no manual
+// a reachable SQL Server (per appsettings.json's connection string) - no manual
 // `dotnet ef database update` step. Safe to run every time: Migrate() is a no-op
 // once the database is already up to date.
 using (var scope = app.Services.CreateScope())
@@ -177,28 +178,250 @@ using (var scope = app.Services.CreateScope())
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Startup self-check: is the live PayFast webhook actually reachable? ───────
-// PayFast:NotifyUrl (appsettings.json) is a fixed, hand-maintained URL — currently
-// an ngrok tunnel — that PayFast's own servers call after every completed payment
-// to confirm it. If that tunnel isn't running, or its address has drifted since
-// appsettings.json was last updated, a real payment still succeeds on PayFast's
-// side (the customer is charged) but the confirmation never reaches this backend —
-// silently, with nothing in the app itself to show it. Checking this on every
-// startup turns that into an impossible-to-miss console message instead of a
-// support ticket after the fact.
+// ── Startup: get the live PayFast webhook working with zero manual steps ──────
+// PayFast:NotifyUrl points at a reserved ngrok static domain (see Start-Ngrok.bat) -
+// PayFast's own servers call it after every completed payment to confirm it back
+// here. If that tunnel isn't running, a real payment still succeeds on PayFast's
+// side (the customer is charged) but the confirmation never reaches this backend -
+// silently, with nothing in the app itself to show it. Instead of relying on
+// someone remembering to run Start-Ngrok.bat first, the backend now does the
+// whole thing itself on startup: find ngrok (installing it via winget if it's
+// missing entirely) -> launch the tunnel if it isn't already up -> verify the
+// result is actually reachable. Runs in the background after the server has
+// started listening, so none of this ever delays startup.
 //
 // This can only prove the URL is reachable, not that PayFast itself can reach it
 // (e.g. it won't catch a firewall that specifically blocks PayFast's IP ranges),
-// and a free ngrok tunnel's address changes every time ngrok restarts unless a
-// reserved/static domain is used — see the pending ngrok task. Runs after the
-// server has started listening, in the background, so it never delays startup.
-app.Lifetime.ApplicationStarted.Register(() => _ = CheckPayFastNotifyUrlAsync(app.Configuration));
+// and the static domain only ever works when run from the machine whose ngrok
+// account owns it - anyone else needs their own ngrok account + domain (and
+// PayFast:NotifyUrl pointed at it) to receive real callbacks. Set
+// PayFast:AutoStartNgrok to false in appsettings.json to disable all of this
+// (e.g. once real production hosting replaces ngrok entirely).
+app.Lifetime.ApplicationStarted.Register(() => _ = EnsurePayFastTunnelAsync(app));
 
 app.Run();
 
+// Finds ngrok, launches the tunnel if it isn't already running, then always runs
+// the reachability check so the result is reported either way.
+static async Task EnsurePayFastTunnelAsync(WebApplication app)
+{
+    var config  = app.Configuration;
+    var payFast = config.GetSection("PayFast");
+
+    if (!payFast.GetValue("AutoStartNgrok", true))
+    {
+        await CheckPayFastNotifyUrlAsync(config);
+        return;
+    }
+
+    var notifyUrl = payFast["NotifyUrl"];
+    if (string.IsNullOrWhiteSpace(notifyUrl) || !Uri.TryCreate(notifyUrl, UriKind.Absolute, out var notifyUri))
+    {
+        await CheckPayFastNotifyUrlAsync(config); // reports the missing/invalid URL itself
+        return;
+    }
+
+    var domain = notifyUri.Host;
+    var port   = GetListeningHttpPort(app);
+
+    if (await IsNgrokTunnelUpAsync(domain))
+    {
+        Console.WriteLine($"[TutorConnect] ngrok tunnel for {domain} is already running.");
+    }
+    else
+    {
+        var ngrokExe = FindNgrokExe() ?? await InstallNgrokAsync();
+        if (ngrokExe == null)
+        {
+            Console.WriteLine("[TutorConnect] Could not find or install ngrok - install it manually from https://ngrok.com/download, or run Start-Ngrok.bat once you have.");
+        }
+        else
+        {
+            await LaunchNgrokTunnelAsync(app, ngrokExe, domain, port);
+        }
+    }
+
+    await CheckPayFastNotifyUrlAsync(config);
+}
+
+// Looks for ngrok.exe on PATH first, then the WinGet packages folder (mirrors
+// Start-Ngrok.bat's own lookup, so both agree on where it'd expect to find it).
+static string? FindNgrokExe()
+{
+    var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? "";
+    foreach (var dir in pathEnv.Split(Path.PathSeparator))
+    {
+        try
+        {
+            var candidate = Path.Combine(dir, "ngrok.exe");
+            if (File.Exists(candidate)) return candidate;
+        }
+        catch { /* malformed PATH entry - skip it */ }
+    }
+
+    try
+    {
+        var wingetRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft", "WinGet", "Packages");
+        if (Directory.Exists(wingetRoot))
+            return Directory.EnumerateFiles(wingetRoot, "ngrok.exe", SearchOption.AllDirectories).FirstOrDefault();
+    }
+    catch { /* no access to the folder, or it doesn't exist - fine, just not found */ }
+
+    return null;
+}
+
+// ngrok isn't on this PC at all - install it with winget (built into Windows 10/11,
+// so this needs nothing extra). Non-interactive: --silent plus both agreement
+// flags so it never blocks on a prompt the backend can't answer.
+static async Task<string?> InstallNgrokAsync()
+{
+    Console.WriteLine("[TutorConnect] ngrok.exe not found on this PC - installing it via winget...");
+    try
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName               = "winget",
+            Arguments              = "install --id Ngrok.Ngrok -e --accept-package-agreements --accept-source-agreements --silent",
+            UseShellExecute        = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            CreateNoWindow         = true
+        };
+        using var proc = Process.Start(psi);
+        if (proc == null)
+        {
+            Console.WriteLine("[TutorConnect] Could not start winget.");
+            return null;
+        }
+
+        // Downloads can take a while on a slow connection - worth a real wait, but
+        // capped so a stuck installer can't hang the check forever.
+        var exited = await Task.Run(() => proc.WaitForExit(120_000));
+        if (!exited)
+        {
+            Console.WriteLine("[TutorConnect] winget install is taking too long - giving up for this run.");
+            try { proc.Kill(true); } catch { }
+            return null;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[TutorConnect] Could not run winget to install ngrok: {ex.Message}");
+        Console.WriteLine("[TutorConnect]   Install it manually from https://ngrok.com/download, or run Start-Ngrok.bat once you have.");
+        return null;
+    }
+
+    var exe = FindNgrokExe();
+    if (exe == null)
+        Console.WriteLine("[TutorConnect] ngrok still isn't found after installing - a new terminal session may be needed for PATH to pick it up. Install it manually from https://ngrok.com/download if this keeps happening.");
+    else
+        Console.WriteLine($"[TutorConnect] ngrok installed: {exe}");
+    return exe;
+}
+
+// Launches the tunnel and waits (briefly) for it to actually come up before
+// returning, so the reachability check right after this has a fair chance to pass.
+static async Task LaunchNgrokTunnelAsync(WebApplication app, string ngrokExe, string domain, int port)
+{
+    Console.WriteLine($"[TutorConnect] Launching ngrok tunnel: {domain} -> localhost:{port} ...");
+    var errorLines = new List<string>();
+    Process? proc;
+    try
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName               = ngrokExe,
+            Arguments              = $"http --domain={domain} {port} --log=stdout",
+            UseShellExecute        = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            CreateNoWindow         = true
+        };
+        proc = Process.Start(psi);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[TutorConnect] Failed to launch ngrok: {ex.Message}");
+        return;
+    }
+    if (proc == null) { Console.WriteLine("[TutorConnect] Failed to launch ngrok."); return; }
+
+    // Never leave an orphaned tunnel bound to the static domain after this backend
+    // stops - that would block the next run (or Start-Ngrok.bat) from using it.
+    app.Lifetime.ApplicationStopping.Register(() =>
+    {
+        try { if (!proc.HasExited) proc.Kill(true); } catch { /* already gone */ }
+    });
+
+    proc.ErrorDataReceived += (_, e) => { if (e.Data != null) errorLines.Add(e.Data); };
+    proc.BeginErrorReadLine();
+
+    var up = false;
+    for (var i = 0; i < 10 && !up; i++)
+    {
+        await Task.Delay(1000);
+        up = await IsNgrokTunnelUpAsync(domain);
+    }
+
+    if (up)
+    {
+        Console.WriteLine("[TutorConnect] ngrok tunnel is up.");
+    }
+    else
+    {
+        Console.WriteLine("[TutorConnect] ngrok did not come up in time.");
+        if (errorLines.Count > 0)
+            Console.WriteLine("[TutorConnect]   ngrok said: " + string.Join(" | ", errorLines.TakeLast(3)));
+        Console.WriteLine("[TutorConnect]   This static domain only works from the machine whose ngrok account owns it. If this isn't");
+        Console.WriteLine("[TutorConnect]   that machine, run 'ngrok config add-authtoken <your token>' with your own account, then point");
+        Console.WriteLine("[TutorConnect]   PayFast:NotifyUrl at your own domain instead.");
+    }
+}
+
+// Asks ngrok's own local agent API (always at 127.0.0.1:4040 while a tunnel is
+// running) whether it currently has a tunnel open for the given domain. This is
+// how both "is one already running" and "did the one we just launched come up"
+// are checked - no PayFast/network round-trip needed for either.
+static async Task<bool> IsNgrokTunnelUpAsync(string domain)
+{
+    try
+    {
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var json = await http.GetStringAsync("http://127.0.0.1:4040/api/tunnels");
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        foreach (var tunnel in doc.RootElement.GetProperty("tunnels").EnumerateArray())
+        {
+            var publicUrl = tunnel.GetProperty("public_url").GetString() ?? "";
+            if (publicUrl.Contains(domain, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+    }
+    catch { /* ngrok's local API isn't up (yet, or at all) - just means "not running" */ }
+    return false;
+}
+
+// The port this instance is actually listening on (not hardcoded), so the tunnel
+// always forwards to wherever the backend really is, even if ASPNETCORE_URLS
+// overrides the documented default dev port.
+static int GetListeningHttpPort(WebApplication app)
+{
+    var addresses = app.Services
+        .GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+        .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()
+        ?.Addresses ?? Enumerable.Empty<string>();
+
+    foreach (var addr in addresses)
+        if (Uri.TryCreate(addr, UriKind.Absolute, out var uri) && uri.Scheme == "http")
+            return uri.Port;
+
+    return 5149; // falls back to the documented default dev port if nothing matched
+}
+
 // Fires a HEAD request at the configured PayFast notify URL. HEAD (not POST) is
 // deliberate: /api/PayFast/notify is a [HttpPost]-only route, so HEAD can never
-// trigger real payment-confirmation logic — it only proves the request reached
+// trigger real payment-confirmation logic - it only proves the request reached
 // the server at all. Any HTTP response (even a 404/405) means "reachable"; a
 // thrown exception (DNS failure, connection refused, timeout) means it isn't.
 static async Task CheckPayFastNotifyUrlAsync(IConfiguration configuration)
@@ -213,11 +436,11 @@ static async Task CheckPayFastNotifyUrlAsync(IConfiguration configuration)
 
     if (string.IsNullOrWhiteSpace(merchantId) || string.IsNullOrWhiteSpace(payFast["MerchantKey"]))
     {
-        Console.WriteLine("[TutorConnect] X PayFast MerchantId/MerchantKey missing from configuration — payments will not work at all.");
+        Console.WriteLine("[TutorConnect] X PayFast MerchantId/MerchantKey missing from configuration - payments will not work at all.");
     }
     else if (string.IsNullOrWhiteSpace(notifyUrl) || !Uri.TryCreate(notifyUrl, UriKind.Absolute, out _))
     {
-        Console.WriteLine("[TutorConnect] X PayFast:NotifyUrl is missing or not a valid URL — PayFast has no way to confirm payments back to this server.");
+        Console.WriteLine("[TutorConnect] X PayFast:NotifyUrl is missing or not a valid URL - PayFast has no way to confirm payments back to this server.");
     }
     else
     {
@@ -231,7 +454,7 @@ static async Task CheckPayFastNotifyUrlAsync(IConfiguration configuration)
 
             if (response.Headers.TryGetValues("Ngrok-Error-Code", out var ngrokErrors))
             {
-                Console.WriteLine($"[TutorConnect] X PayFast notify URL is NOT reachable — ngrok tunnel is not running ({string.Join(", ", ngrokErrors)}).");
+                Console.WriteLine($"[TutorConnect] X PayFast notify URL is NOT reachable - ngrok tunnel is not running ({string.Join(", ", ngrokErrors)}).");
                 Console.WriteLine("[TutorConnect]   Start the ngrok tunnel (see Start-Ngrok.bat) and confirm its address still matches PayFast:NotifyUrl in appsettings.json.");
             }
             else
