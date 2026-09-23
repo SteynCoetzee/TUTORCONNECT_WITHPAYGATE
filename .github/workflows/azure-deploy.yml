@@ -1,0 +1,44 @@
+name: Deploy to Azure
+
+# Builds the Angular frontend and the .NET API, merges the Angular build into the
+# API's wwwroot (same-origin hosting - no CORS needed in production), and deploys
+# the result to the live Azure App Service. Runs on every push to develop.
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch: {} # lets you trigger a redeploy manually from the Actions tab too
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Angular frontend (production)
+        working-directory: tutorconnect-frontend
+        run: |
+          npm ci
+          npx ng build --configuration production
+
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish API
+        run: dotnet publish TutorConnect.API/TutorConnect.API.csproj -c Release -o publish_output
+
+      - name: Merge Angular build into wwwroot
+        run: cp -r tutorconnect-frontend/dist/tutorconnect-frontend/browser/. publish_output/wwwroot/
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: tutorconnect-api-steyn2026
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: publish_output

@@ -236,3 +236,15 @@
   .about-container { grid-template-columns: 1fr; gap: 40px; }
   .about-photo { height: 320px; }
 }
+
+/* Phone width: the nav row (logo + 3 links + Sign Up/Login) needs ~500px and only
+   has ~310px on a 375px screen with no wrapping - it would overflow/crush the
+   auth buttons. Drop the secondary links and subtitle to give Sign Up/Login the
+   room they need to stay fully visible and easy to tap. */
+@media (max-width: 640px) {
+  .landing-nav { padding: 0 16px; }
+  .nav-links { display: none; }
+  .brand-sub { display: none; }
+  .nav-auth { gap: 6px; }
+  .btn-outline-primary { padding: 7px 12px; font-size: 13px; }
+}

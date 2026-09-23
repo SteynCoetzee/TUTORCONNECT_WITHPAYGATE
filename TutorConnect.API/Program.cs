@@ -128,12 +128,22 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAngular");
+app.UseDefaultFiles();  // serves wwwroot/index.html at "/" - the built Angular app, once deployed there
 app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Serves wwwroot/index.html for any request that didn't match an API route or a
+// real static file - Angular's router uses HTML5 pushState, so a hard refresh on
+// e.g. /dashboard/courses needs the server to hand back index.html and let Angular's
+// own client-side router take it from there, instead of 404ing. Registered after
+// MapControllers() so /api/* always matches its real controller first; harmless
+// locally where wwwroot has no index.html yet (the Angular app runs separately via
+// `ng serve` in dev) - it just 404s exactly as before.
+app.MapFallbackToFile("index.html");
 
 // ── Auto-migrate + seed roles/hardcoded admin ─────────────────────────────────
 // Applies any pending EF Core migrations on startup, so a fresh clone just needs
