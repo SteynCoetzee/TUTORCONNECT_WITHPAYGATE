@@ -177,4 +177,76 @@ using (var scope = app.Services.CreateScope())
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Startup self-check: is the live PayFast webhook actually reachable? ───────
+// PayFast:NotifyUrl (appsettings.json) is a fixed, hand-maintained URL — currently
+// an ngrok tunnel — that PayFast's own servers call after every completed payment
+// to confirm it. If that tunnel isn't running, or its address has drifted since
+// appsettings.json was last updated, a real payment still succeeds on PayFast's
+// side (the customer is charged) but the confirmation never reaches this backend —
+// silently, with nothing in the app itself to show it. Checking this on every
+// startup turns that into an impossible-to-miss console message instead of a
+// support ticket after the fact.
+//
+// This can only prove the URL is reachable, not that PayFast itself can reach it
+// (e.g. it won't catch a firewall that specifically blocks PayFast's IP ranges),
+// and a free ngrok tunnel's address changes every time ngrok restarts unless a
+// reserved/static domain is used — see the pending ngrok task. Runs after the
+// server has started listening, in the background, so it never delays startup.
+app.Lifetime.ApplicationStarted.Register(() => _ = CheckPayFastNotifyUrlAsync(app.Configuration));
+
 app.Run();
+
+// Fires a HEAD request at the configured PayFast notify URL. HEAD (not POST) is
+// deliberate: /api/PayFast/notify is a [HttpPost]-only route, so HEAD can never
+// trigger real payment-confirmation logic — it only proves the request reached
+// the server at all. Any HTTP response (even a 404/405) means "reachable"; a
+// thrown exception (DNS failure, connection refused, timeout) means it isn't.
+static async Task CheckPayFastNotifyUrlAsync(IConfiguration configuration)
+{
+    var payFast    = configuration.GetSection("PayFast");
+    var notifyUrl  = payFast["NotifyUrl"];
+    var merchantId = payFast["MerchantId"];
+    var isSandbox  = payFast.GetValue<bool>("IsSandbox");
+
+    Console.WriteLine();
+    Console.WriteLine("[TutorConnect] -- PayFast startup check -----------------------------------");
+
+    if (string.IsNullOrWhiteSpace(merchantId) || string.IsNullOrWhiteSpace(payFast["MerchantKey"]))
+    {
+        Console.WriteLine("[TutorConnect] X PayFast MerchantId/MerchantKey missing from configuration — payments will not work at all.");
+    }
+    else if (string.IsNullOrWhiteSpace(notifyUrl) || !Uri.TryCreate(notifyUrl, UriKind.Absolute, out _))
+    {
+        Console.WriteLine("[TutorConnect] X PayFast:NotifyUrl is missing or not a valid URL — PayFast has no way to confirm payments back to this server.");
+    }
+    else
+    {
+        Console.WriteLine($"[TutorConnect] Mode: {(isSandbox ? "SANDBOX" : "LIVE")}  |  Notify URL: {notifyUrl}");
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            var request = new HttpRequestMessage(HttpMethod.Head, notifyUrl);
+            request.Headers.Add("ngrok-skip-browser-warning", "true"); // bypass ngrok's free-tier interstitial page
+            var response = await http.SendAsync(request);
+
+            if (response.Headers.TryGetValues("Ngrok-Error-Code", out var ngrokErrors))
+            {
+                Console.WriteLine($"[TutorConnect] X PayFast notify URL is NOT reachable — ngrok tunnel is not running ({string.Join(", ", ngrokErrors)}).");
+                Console.WriteLine("[TutorConnect]   Start the ngrok tunnel (see Start-Ngrok.bat) and confirm its address still matches PayFast:NotifyUrl in appsettings.json.");
+            }
+            else
+            {
+                Console.WriteLine($"[TutorConnect] OK PayFast notify URL is reachable (HTTP {(int)response.StatusCode}). Live payments will be recorded correctly.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[TutorConnect] X PayFast notify URL is NOT reachable: {ex.Message}");
+            Console.WriteLine("[TutorConnect]   Payments will still succeed on PayFast's side but won't be recorded here until this is fixed.");
+            Console.WriteLine("[TutorConnect]   Check that your ngrok tunnel is running and that PayFast:NotifyUrl in appsettings.json matches its current address.");
+        }
+    }
+
+    Console.WriteLine("[TutorConnect] ---------------------------------------------------------------");
+    Console.WriteLine();
+}
