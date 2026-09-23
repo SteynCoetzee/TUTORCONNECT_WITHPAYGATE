@@ -37,7 +37,12 @@ jobs:
         run: cp -r tutorconnect-frontend/dist/tutorconnect-frontend/browser/. publish_output/wwwroot/
 
       - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v3
+        # Pinned to v2, not v3: v3's newer ARM-based resource auto-detection ("Failed
+        # to get app runtime OS") misfires when only a publish-profile is supplied
+        # (no OIDC/Azure login), and cascades into a false "Publish profile is
+        # invalid" error even with a correct profile - a known issue with v3, not
+        # something wrong with the profile itself. v2 skips that detection entirely.
+        uses: azure/webapps-deploy@v2
         with:
           app-name: tutorconnect-api-steyn2026
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
