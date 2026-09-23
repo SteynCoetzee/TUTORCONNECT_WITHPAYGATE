@@ -36,14 +36,27 @@ jobs:
       - name: Merge Angular build into wwwroot
         run: cp -r tutorconnect-frontend/dist/tutorconnect-frontend/browser/. publish_output/wwwroot/
 
-      - name: Deploy to Azure App Service
-        # Pinned to v2, not v3: v3's newer ARM-based resource auto-detection ("Failed
-        # to get app runtime OS") misfires when only a publish-profile is supplied
-        # (no OIDC/Azure login), and cascades into a false "Publish profile is
-        # invalid" error even with a correct profile - a known issue with v3, not
-        # something wrong with the profile itself. v2 skips that detection entirely.
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: tutorconnect-api-steyn2026
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: publish_output
+      - name: Zip publish output
+        run: (cd publish_output && zip -r ../deploy.zip .)
+
+      - name: Deploy to Azure App Service (clean)
+        # Calls Kudu's OneDeploy API directly with clean=true, instead of the
+        # azure/webapps-deploy marketplace action, for two reasons found the hard
+        # way: (1) that action has no "clean" option at all, and Kudu's deploy is
+        # incremental by default - it never wipes /home/site/wwwroot, so files from
+        # an old deploy can linger alongside new ones. After adding several new NuGet
+        # dependencies in one push, that once left a stale/mismatched assembly mixed
+        # in with the new ones, causing a BadImageFormatException at runtime that only
+        # a clean deploy fixed. (2) azure/webapps-deploy@v3's newer ARM-based resource
+        # auto-detection ("Failed to get app runtime OS") misfires with only a
+        # publish-profile (no OIDC/Azure login) and falsely reports "Publish profile is
+        # invalid" even with a correct one - this sidesteps that entirely too.
+        run: |
+          PROFILE='${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}'
+          USERNAME=$(echo "$PROFILE" | grep -o 'userName="[^"]*"' | head -1 | sed 's/userName="//;s/"$//')
+          PASSWORD=$(echo "$PROFILE" | grep -o 'userPWD="[^"]*"' | head -1 | sed 's/userPWD="//;s/"$//')
+          curl -sf -X POST \
+            -u "$USERNAME:$PASSWORD" \
+            -H "Content-Type: application/zip" \
+            --data-binary @deploy.zip \
+            "https://tutorconnect-api-steyn2026.scm.azurewebsites.net/api/publish?type=zip&clean=true&restart=true"
