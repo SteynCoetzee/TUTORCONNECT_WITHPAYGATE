@@ -1,19 +1,41 @@
-using MailKit.Net.Smtp;
-using MailKit.Security;
-using MimeKit;
+using Azure.Communication.Email;
 
 namespace TutorConnect.API.Services
 {
+    // Sends via Azure Communication Services Email rather than Gmail SMTP. Gmail
+    // rejects SMTP logins from a brand-new, unrecognized IP (exactly what a cloud
+    // server's IP is to it) with "534 5.7.9 WebLoginRequired" - a suspicious-activity
+    // block on Google's side, not a code or credentials bug. ACS Email is built for
+    // this exact server-to-server sending pattern and isn't IP-reputation-sensitive
+    // the way a personal Gmail account is, so it works the same locally and deployed.
     public class EmailService
     {
-        private readonly IConfiguration _config;
+        private readonly EmailClient _client;
+        private readonly string _senderAddress;
+        private readonly string _senderName;
 
         public EmailService(IConfiguration config)
         {
-            _config = config;
+            var settings = config.GetSection("AzureEmail");
+            _client = new EmailClient(settings["ConnectionString"]!);
+            _senderAddress = settings["SenderAddress"]!;
+            _senderName = config["EmailSettings:SenderName"] ?? "Smiths Tutoring";
         }
 
-        public async Task SendBookingConfirmationAsync(
+        private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
+        {
+            var message = new EmailMessage(
+                senderAddress: _senderAddress,
+                content: new EmailContent(subject) { Html = htmlBody },
+                recipients: new EmailRecipients(new[] { new EmailAddress(toEmail) }));
+
+            // WaitUntil.Completed so a send failure surfaces here (and to the caller)
+            // immediately, instead of silently failing in a background Azure operation
+            // the caller never gets to hear about.
+            await _client.SendAsync(Azure.WaitUntil.Completed, message);
+        }
+
+        public Task SendBookingConfirmationAsync(
             string toEmail,
             string recipientName,
             string otherPartyName,
@@ -23,29 +45,15 @@ namespace TutorConnect.API.Services
             string moduleCode,
             string meetLink)
         {
-            var settings = _config.GetSection("EmailSettings");
-            var senderEmail = settings["SenderEmail"]!;
-            var senderName  = settings["SenderName"]!;
-            var smtpHost    = settings["SmtpHost"]!;
-            var smtpPort    = int.Parse(settings["SmtpPort"]!);
-            var password    = settings["Password"]!;
-
             var partyLabel = role == "student" ? "Tutor" : "Student";
 
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(senderName, senderEmail));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = $"Online Session Confirmed — {sessionDate} at {sessionTime}";
-
-            message.Body = new TextPart("html")
-            {
-                Text = $@"
+            var html = $@"
                 <!DOCTYPE html>
                 <html>
                 <body style='font-family: Arial, sans-serif; background: #f4f4f4; padding: 32px;'>
                   <div style='max-width: 520px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08);'>
                     <div style='background: #0d9488; padding: 24px 32px;'>
-                      <h1 style='color: white; margin: 0; font-size: 22px;'>Smiths Tutoring</h1>
+                      <h1 style='color: white; margin: 0; font-size: 22px;'>{_senderName}</h1>
                       <p style='color: rgba(255,255,255,0.85); margin: 6px 0 0; font-size: 14px;'>Online Session Confirmed</p>
                     </div>
                     <div style='padding: 32px;'>
@@ -74,17 +82,12 @@ namespace TutorConnect.API.Services
                     </div>
                   </div>
                 </body>
-                </html>"
-            };
+                </html>";
 
-            using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls);
-            await smtp.AuthenticateAsync(senderEmail, password);
-            await smtp.SendAsync(message);
-            await smtp.DisconnectAsync(true);
+            return SendEmailAsync(toEmail, $"Online Session Confirmed — {sessionDate} at {sessionTime}", html);
         }
 
-        public async Task SendInPersonConfirmationAsync(
+        public Task SendInPersonConfirmationAsync(
             string toEmail,
             string recipientName,
             string otherPartyName,
@@ -95,26 +98,13 @@ namespace TutorConnect.API.Services
             string location,
             string sessionType)
         {
-            var settings   = _config.GetSection("EmailSettings");
-            var senderEmail = settings["SenderEmail"]!;
-            var senderName  = settings["SenderName"]!;
-            var smtpHost    = settings["SmtpHost"]!;
-            var smtpPort    = int.Parse(settings["SmtpPort"]!);
-            var password    = settings["Password"]!;
-            var partyLabel  = role == "student" ? "Tutor" : "Student";
+            var partyLabel = role == "student" ? "Tutor" : "Student";
 
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(senderName, senderEmail));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = $"In-Person Session Confirmed — {sessionDate} at {sessionTime}";
-
-            message.Body = new TextPart("html")
-            {
-                Text = $@"<!DOCTYPE html>
+            var html = $@"<!DOCTYPE html>
 <html><body style='font-family:Arial,sans-serif;background:#f4f4f4;padding:32px;'>
 <div style='max-width:520px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);'>
   <div style='background:#0d9488;padding:24px 32px;'>
-    <h1 style='color:white;margin:0;font-size:22px;'>Smiths Tutoring</h1>
+    <h1 style='color:white;margin:0;font-size:22px;'>{_senderName}</h1>
     <p style='color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px;'>In-Person Session Confirmed</p>
   </div>
   <div style='padding:32px;'>
@@ -135,17 +125,12 @@ namespace TutorConnect.API.Services
   <div style='background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;'>
     <p style='color:#aaa;font-size:12px;margin:0;'>This is an automated email from TutorConnect. Do not reply.</p>
   </div>
-</div></body></html>"
-            };
+</div></body></html>";
 
-            using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls);
-            await smtp.AuthenticateAsync(senderEmail, password);
-            await smtp.SendAsync(message);
-            await smtp.DisconnectAsync(true);
+            return SendEmailAsync(toEmail, $"In-Person Session Confirmed — {sessionDate} at {sessionTime}", html);
         }
 
-        public async Task SendCancellationEmailAsync(
+        public Task SendCancellationEmailAsync(
             string toEmail,
             string recipientName,
             string studentName,
@@ -154,13 +139,6 @@ namespace TutorConnect.API.Services
             string moduleCode,
             bool isGroup)
         {
-            var settings    = _config.GetSection("EmailSettings");
-            var senderEmail  = settings["SenderEmail"]!;
-            var senderName   = settings["SenderName"]!;
-            var smtpHost     = settings["SmtpHost"]!;
-            var smtpPort     = int.Parse(settings["SmtpPort"]!);
-            var password     = settings["Password"]!;
-
             var subject = isGroup
                 ? $"Student Cancellation — {sessionDate} at {sessionTime}"
                 : $"Session Cancelled — {sessionDate} at {sessionTime}";
@@ -169,18 +147,11 @@ namespace TutorConnect.API.Services
                 ? $"<strong>{studentName}</strong> will no longer be attending the group session."
                 : $"Your session on <strong>{sessionDate} at {sessionTime}</strong> has been cancelled by the student.";
 
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(senderName, senderEmail));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = subject;
-
-            message.Body = new TextPart("html")
-            {
-                Text = $@"<!DOCTYPE html>
+            var html = $@"<!DOCTYPE html>
 <html><body style='font-family:Arial,sans-serif;background:#f4f4f4;padding:32px;'>
 <div style='max-width:520px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);'>
   <div style='background:#ef4444;padding:24px 32px;'>
-    <h1 style='color:white;margin:0;font-size:22px;'>Smiths Tutoring</h1>
+    <h1 style='color:white;margin:0;font-size:22px;'>{_senderName}</h1>
     <p style='color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px;'>Session {(isGroup ? "Update" : "Cancelled")}</p>
   </div>
   <div style='padding:32px;'>
@@ -198,39 +169,20 @@ namespace TutorConnect.API.Services
   <div style='background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;'>
     <p style='color:#aaa;font-size:12px;margin:0;'>This is an automated email from TutorConnect. Do not reply.</p>
   </div>
-</div></body></html>"
-            };
+</div></body></html>";
 
-            using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls);
-            await smtp.AuthenticateAsync(senderEmail, password);
-            await smtp.SendAsync(message);
-            await smtp.DisconnectAsync(true);
+            return SendEmailAsync(toEmail, subject, html);
         }
 
-        public async Task SendResetCodeAsync(string toEmail, string resetCode, double expirationMinutes = 15)
+        public Task SendResetCodeAsync(string toEmail, string resetCode, double expirationMinutes = 15)
         {
-            var settings = _config.GetSection("EmailSettings");
-            var senderEmail = settings["SenderEmail"]!;
-            var senderName  = settings["SenderName"]!;
-            var smtpHost    = settings["SmtpHost"]!;
-            var smtpPort    = int.Parse(settings["SmtpPort"]!);
-            var password    = settings["Password"]!;
-
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(senderName, senderEmail));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = "Your TutorConnect Password Reset Code";
-
-            message.Body = new TextPart("html")
-            {
-                Text = $@"
+            var html = $@"
                 <!DOCTYPE html>
                 <html>
                 <body style='font-family: Arial, sans-serif; background: #f4f4f4; padding: 32px;'>
                   <div style='max-width: 480px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08);'>
                     <div style='background: #0d9488; padding: 24px 32px;'>
-                      <h1 style='color: white; margin: 0; font-size: 22px;'>Smiths Tutoring</h1>
+                      <h1 style='color: white; margin: 0; font-size: 22px;'>{_senderName}</h1>
                     </div>
                     <div style='padding: 32px;'>
                       <h2 style='margin: 0 0 8px; color: #111;'>Password Reset</h2>
@@ -242,14 +194,9 @@ namespace TutorConnect.API.Services
                     </div>
                   </div>
                 </body>
-                </html>"
-            };
+                </html>";
 
-            using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls);
-            await smtp.AuthenticateAsync(senderEmail, password);
-            await smtp.SendAsync(message);
-            await smtp.DisconnectAsync(true);
+            return SendEmailAsync(toEmail, "Your TutorConnect Password Reset Code", html);
         }
 
         private static string FormatMinutes(double minutes)
