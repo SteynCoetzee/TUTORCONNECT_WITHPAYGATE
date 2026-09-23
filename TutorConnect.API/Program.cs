@@ -127,25 +127,33 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowAngular");
-app.UseDefaultFiles();  // serves wwwroot/index.html at "/" - the built Angular app, once deployed there
-app.UseStaticFiles(new StaticFileOptions
+// Angular's build gives every JS/CSS bundle a content hash in its filename
+// (main-X6M3N5S3.js), so those are safe to cache forever - a new deploy produces
+// new filenames, never reuses old ones. index.html itself has no hash and is the
+// one file that must always be revalidated, or a browser can go on serving a
+// stale cached copy indefinitely with no Cache-Control header telling it not to -
+// exactly what happened here (Azure's default "waiting for content" placeholder,
+// briefly served during a deploy, got stuck in cache and outlived the deploy).
+// Shared between UseStaticFiles and MapFallbackToFile below deliberately: a plain
+// request to "/" turns out to reach MapFallbackToFile's own internal static-file
+// handling instead of UseDefaultFiles+UseStaticFiles (the two don't hand off to each
+// other reliably here) - passing the same options to both means every path that can
+// serve index.html applies the same cache headers, regardless of which one actually
+// handles a given request.
+var staticFileOptions = new StaticFileOptions
 {
-    // Angular's build gives every JS/CSS bundle a content hash in its filename
-    // (main-X6M3N5S3.js), so those are safe to cache forever - a new deploy produces
-    // new filenames, never reuses old ones. index.html itself has no hash and is the
-    // one file that must always be revalidated, or a browser can go on serving a
-    // stale cached copy indefinitely with no Cache-Control header telling it not to -
-    // exactly what happened here (Azure's default "waiting for content" placeholder,
-    // briefly served during a deploy, got stuck in cache and outlived the deploy).
     OnPrepareResponse = ctx =>
     {
-        var path = ctx.File.Name;
-        ctx.Context.Response.Headers.CacheControl = path.Equals("index.html", StringComparison.OrdinalIgnoreCase)
+        var isIndexHtml = ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase);
+        ctx.Context.Response.Headers.CacheControl = isIndexHtml
             ? "no-cache, no-store, must-revalidate"
             : "public, max-age=31536000, immutable";
     }
-});
+};
+
+app.UseCors("AllowAngular");
+app.UseDefaultFiles();  // serves wwwroot/index.html at "/" - the built Angular app, once deployed there
+app.UseStaticFiles(staticFileOptions);
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -159,7 +167,7 @@ app.MapControllers();
 // MapControllers() so /api/* always matches its real controller first; harmless
 // locally where wwwroot has no index.html yet (the Angular app runs separately via
 // `ng serve` in dev) - it just 404s exactly as before.
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", staticFileOptions);
 
 // ── Auto-migrate + seed roles/hardcoded admin ─────────────────────────────────
 // Applies any pending EF Core migrations on startup, so a fresh clone just needs
