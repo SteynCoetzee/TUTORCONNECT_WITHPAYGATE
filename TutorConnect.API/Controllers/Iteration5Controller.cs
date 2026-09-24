@@ -283,7 +283,10 @@ namespace TutorConnect.API.Controllers
             }));
         }
 
-        // GET: api/Assignments/submissions/{submissionId}/download — tutor downloads one student's submitted file
+        // GET: api/Assignments/submissions/{submissionId}/download — serves one student's submitted
+        // file; used for both the tutor's "Download" button (frontend forces a real save via its own
+        // <a download> element, regardless of what this returns) and the "Preview" button (fetches this
+        // as a Blob and renders it in an iframe - which needs the real MIME type to render at all).
         [HttpGet("submissions/{submissionId}/download")]
         [Authorize(Roles = "Tutor,Admin")]
         public async Task<IActionResult> DownloadSubmission(int submissionId)
@@ -298,7 +301,24 @@ namespace TutorConnect.API.Controllers
                 return StatusCode((int)response.StatusCode, "Failed to fetch file.");
 
             var bytes = await response.Content.ReadAsByteArrayAsync();
-            return File(bytes, "application/octet-stream", sub.File_Name);
+
+            // Always returning "application/octet-stream" (regardless of the file's real type) was
+            // the bug behind "Preview" showing a blank popup: fetch().blob() picks up its .type from
+            // this Content-Type header, and a browser won't render an octet-stream blob as a PDF in an
+            // iframe no matter what the bytes actually are. Word/ZIP submissions still can't be
+            // rendered inline by any browser regardless of MIME type - that's an inherent limit of
+            // those formats, not something this fixes - but PDF submissions (the common case) now can.
+            var contentType = sub.File_Type.ToLowerInvariant() switch
+            {
+                "pdf"        => "application/pdf",
+                "doc"        => "application/msword",
+                "docx"       => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "zip"        => "application/zip",
+                _            => "application/octet-stream"
+            };
+            var safeName = Uri.EscapeDataString(sub.File_Name ?? "file");
+            Response.Headers["Content-Disposition"] = $"inline; filename=\"{safeName}\"";
+            return File(bytes, contentType);
         }
 
         // PUT: api/Assignments/{assignmentId}/submissions/{submissionId}/grade — grade a student submission

@@ -10,29 +10,40 @@ namespace TutorConnect.API.Services
     // the way a personal Gmail account is, so it works the same locally and deployed.
     public class EmailService
     {
-        private readonly EmailClient _client;
-        private readonly string _senderAddress;
-        private readonly string _senderName;
+        private readonly IConfiguration _config;
+        private EmailClient? _client;
 
         public EmailService(IConfiguration config)
         {
-            var settings = config.GetSection("AzureEmail");
-            _client = new EmailClient(settings["ConnectionString"]!);
-            _senderAddress = settings["SenderAddress"]!;
-            _senderName = config["EmailSettings:SenderName"] ?? "Smiths Tutoring";
+            // Deliberately doesn't touch AzureEmail:ConnectionString here. AuthController
+            // (Login, Register, ...) takes EmailService as a constructor dependency, so if
+            // building an EmailClient threw here for a missing/misconfigured connection
+            // string, every single Auth endpoint would break - not just the ones that
+            // actually send email. Building it lazily, on first real send, means a missing
+            // config value only breaks the email-sending action that hits it, with a clear
+            // error, instead of silently taking down login for anyone who clones the repo
+            // and runs it before setting up AzureEmail:ConnectionString.
+            _config = config;
         }
+
+        private EmailClient Client => _client ??= new EmailClient(
+            _config["AzureEmail:ConnectionString"]
+                ?? throw new InvalidOperationException("AzureEmail:ConnectionString is not configured - see appsettings.Development.json."));
+
+        private string SenderAddress => _config["AzureEmail:SenderAddress"]!;
+        private string SenderName => _config["EmailSettings:SenderName"] ?? "Smiths Tutoring";
 
         private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
         {
             var message = new EmailMessage(
-                senderAddress: _senderAddress,
+                senderAddress: SenderAddress,
                 content: new EmailContent(subject) { Html = htmlBody },
                 recipients: new EmailRecipients(new[] { new EmailAddress(toEmail) }));
 
             // WaitUntil.Completed so a send failure surfaces here (and to the caller)
             // immediately, instead of silently failing in a background Azure operation
             // the caller never gets to hear about.
-            await _client.SendAsync(Azure.WaitUntil.Completed, message);
+            await Client.SendAsync(Azure.WaitUntil.Completed, message);
         }
 
         public Task SendBookingConfirmationAsync(
@@ -53,7 +64,7 @@ namespace TutorConnect.API.Services
                 <body style='font-family: Arial, sans-serif; background: #f4f4f4; padding: 32px;'>
                   <div style='max-width: 520px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08);'>
                     <div style='background: #0d9488; padding: 24px 32px;'>
-                      <h1 style='color: white; margin: 0; font-size: 22px;'>{_senderName}</h1>
+                      <h1 style='color: white; margin: 0; font-size: 22px;'>{SenderName}</h1>
                       <p style='color: rgba(255,255,255,0.85); margin: 6px 0 0; font-size: 14px;'>Online Session Confirmed</p>
                     </div>
                     <div style='padding: 32px;'>
@@ -104,7 +115,7 @@ namespace TutorConnect.API.Services
 <html><body style='font-family:Arial,sans-serif;background:#f4f4f4;padding:32px;'>
 <div style='max-width:520px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);'>
   <div style='background:#0d9488;padding:24px 32px;'>
-    <h1 style='color:white;margin:0;font-size:22px;'>{_senderName}</h1>
+    <h1 style='color:white;margin:0;font-size:22px;'>{SenderName}</h1>
     <p style='color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px;'>In-Person Session Confirmed</p>
   </div>
   <div style='padding:32px;'>
@@ -151,7 +162,7 @@ namespace TutorConnect.API.Services
 <html><body style='font-family:Arial,sans-serif;background:#f4f4f4;padding:32px;'>
 <div style='max-width:520px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);'>
   <div style='background:#ef4444;padding:24px 32px;'>
-    <h1 style='color:white;margin:0;font-size:22px;'>{_senderName}</h1>
+    <h1 style='color:white;margin:0;font-size:22px;'>{SenderName}</h1>
     <p style='color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px;'>Session {(isGroup ? "Update" : "Cancelled")}</p>
   </div>
   <div style='padding:32px;'>
@@ -182,7 +193,7 @@ namespace TutorConnect.API.Services
                 <body style='font-family: Arial, sans-serif; background: #f4f4f4; padding: 32px;'>
                   <div style='max-width: 480px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08);'>
                     <div style='background: #0d9488; padding: 24px 32px;'>
-                      <h1 style='color: white; margin: 0; font-size: 22px;'>{_senderName}</h1>
+                      <h1 style='color: white; margin: 0; font-size: 22px;'>{SenderName}</h1>
                     </div>
                     <div style='padding: 32px;'>
                       <h2 style='margin: 0 0 8px; color: #111;'>Password Reset</h2>
